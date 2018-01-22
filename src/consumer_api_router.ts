@@ -63,7 +63,7 @@ export class ConsumerApiRouter extends BaseRouter implements IConsumerApiRouter 
       this.consumerApiRestController.getEventsByVerifiedCorrelation(request, response);
     });
 
-    this.router.get(triggerEventRoute, (request: Request, response: Response, next: NextFunction): void => {
+    this.router.post(triggerEventRoute, (request: Request, response: Response, next: NextFunction): void => {
       this.consumerApiRestController.triggerEvent(request, response);
     });
 
@@ -80,7 +80,7 @@ export class ConsumerApiRouter extends BaseRouter implements IConsumerApiRouter 
       this.consumerApiRestController.getUserTasksByVerifiedCorrelation(request, response);
     });
 
-    this.router.get(finishUserTaskRoute, (request: Request, response: Response, next: NextFunction): void => {
+    this.router.post(finishUserTaskRoute, (request: Request, response: Response, next: NextFunction): void => {
       this.consumerApiRestController.finishUserTask(request, response);
     });
   }

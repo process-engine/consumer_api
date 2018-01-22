@@ -15,7 +15,7 @@
   },
   "homepage": "https://github.com/process-engine/consumer_api#readme",
   "dependencies": {
-    "@essential-projects/http_node": "^0.1.2",
+    "@essential-projects/http_node": "^1.0.0-rc3",
     "@process-engine/consumer_api_contracts": "^0.1.0",
     "addict-ioc": "^2.2.8",
     "bluebird": "^3.4.7",
