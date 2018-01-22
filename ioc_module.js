@@ -9,16 +9,16 @@ const {
 const routerDiscoveryTag = require('@essential-projects/core_contracts').RouterDiscoveryTag;
 
 function registerInContainer(container) {
-  container.registerInContainer('ConsumerApiRouter', ConsumerApiRouter)
+  container.register('ConsumerApiRouter', ConsumerApiRouter)
     .dependencies('ConsumerApiController')
     .tags(routerDiscoveryTag)
     .configure('consumer_api:consumer_api_router');
 
-  container.registerInContainer('ConsumerApiController', ConsumerApiController)
+  container.register('ConsumerApiController', ConsumerApiController)
     .dependencies('ConsumerApiService')
     .configure('consumer_api:consumer_api_controller');
 
-  container.registerInContainer('ConsumerApiService', ConsumerApiService)
+  container.register('ConsumerApiService', ConsumerApiService)
     .configure('consumer_api:consumer_api_service');
 }
 
