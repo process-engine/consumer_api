@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "the api-package for process-engine-consumer",
   "main": "dist/commonjs/index.js",
+  "typings": "dist/index.d.ts",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/process-engine/consumer_api.git"
