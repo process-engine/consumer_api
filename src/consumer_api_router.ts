@@ -38,7 +38,7 @@ export class ConsumerApiRouter extends BaseRouter implements IConsumerApiRouter 
   public async initializeRoutes(): Promise<void> {
 
     // process-model-routes
-    this.router.get(processModelsRoute, (request: Request, response: Response, next: NextFunction) => {
+    this.router.get(processModelsRoute, (request: Request, response: Response, next: NextFunction): void => {
       this.consumerApiRestController.getProcessModels(request, response);
     });
 
