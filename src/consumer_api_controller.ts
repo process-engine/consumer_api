@@ -1,7 +1,7 @@
 import {BaseRouter} from '@essential-projects/http_node';
-import {IConsumerApiRestController, IConsumerApiService} from '@process-engine/consumer_api_contracts';
+import {IConsumerApiController, IConsumerApiService} from '@process-engine/consumer_api_contracts';
 
-export class ConsumerApiRestController implements IConsumerApiRestController {
+export class ConsumerApiController implements IConsumerApiController {
   public config: any = undefined;
   private _consumerApiService: IConsumerApiService;
 

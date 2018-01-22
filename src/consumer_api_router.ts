@@ -4,8 +4,8 @@ import {
   eventsByProcessModelRoute,
   eventsByVerifiedCorrelationRoute,
   finishUserTaskRoute,
-  IConsumerApiResstRouter,
-  IConsumerApiRestController,
+  IConsumerApiController,
+  IConsumerApiRouter,
   IConsumerApiService,
   processModelRoute,
   processModelsRoute,
@@ -18,16 +18,16 @@ import {
 
 import {NextFunction, Request, Response} from 'express';
 
-export class ConsumerApiRestRouter extends BaseRouter implements IConsumerApiResstRouter {
+export class ConsumerApiRouter extends BaseRouter implements IConsumerApiRouter {
   public config: any = undefined;
-  private _consumerApiRestController: IConsumerApiRestController;
+  private _consumerApiRestController: IConsumerApiController;
 
-  constructor(consumerApiRestController: IConsumerApiRestController) {
+  constructor(consumerApiRestController: IConsumerApiController) {
     super();
     this._consumerApiRestController = consumerApiRestController;
   }
 
-  private get consumerApiRestController(): IConsumerApiRestController {
+  private get consumerApiRestController(): IConsumerApiController {
     return this._consumerApiRestController;
   }
 
