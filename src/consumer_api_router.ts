@@ -35,7 +35,7 @@ export class ConsumerApiRouter extends BaseRouter implements IConsumerApiRouter 
     return 'api/consumer/v1';
   }
 
-  public async initializeRoutes(): Promise<void> {
+  public async initializeRouter(): Promise<void> {
 
     // process-model-routes
     this.router.get(processModelsRoute, (request: Request, response: Response, next: NextFunction): void => {
