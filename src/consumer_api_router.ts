@@ -1,20 +1,5 @@
 import {BaseRouter} from '@essential-projects/http_node';
-import {
-  eventsByCorrelationRoute,
-  eventsByProcessModelRoute,
-  eventsByVerifiedCorrelationRoute,
-  finishUserTaskRoute,
-  IConsumerApiController,
-  IConsumerApiRouter,
-  IConsumerApiService,
-  processModelRoute,
-  processModelsRoute,
-  startProcessRoute,
-  triggerEventRoute,
-  userTasksByCorrelationRoute,
-  userTasksByProcessModelRoute,
-  userTasksByVerifiedCorrelationRoute,
-} from '@process-engine/consumer_api_contracts';
+import {IConsumerApiController, IConsumerApiRouter, routes} from '@process-engine/consumer_api_contracts';
 
 import {wrap} from 'async-middleware';
 
@@ -40,50 +25,62 @@ export class ConsumerApiRouter extends BaseRouter implements IConsumerApiRouter 
   public async initializeRouter(): Promise<void> {
 
     // process-model-routes
-    this.router.get(processModelsRoute, wrap((request: Request, response: Response, next: NextFunction): void => {
+    this.router.get(routes.processModels, wrap((request: Request, response: Response, next: NextFunction): void => {
       this.consumerApiRestController.getProcessModels(request, response);
     }));
 
-    this.router.get(processModelRoute, wrap((request: Request, response: Response, next: NextFunction): void => {
+    this.router.get(routes.processModel, wrap((request: Request, response: Response, next: NextFunction): void => {
       this.consumerApiRestController.getProcessModelByKey(request, response);
     }));
 
-    this.router.post(startProcessRoute, wrap((request: Request, response: Response, next: NextFunction): void => {
+    this.router.post(routes.startProcess, wrap((request: Request, response: Response, next: NextFunction): void => {
       this.consumerApiRestController.startProcess(request, response);
     }));
 
+    this.router.post(routes.startProcessAndAwaitEndEvent, wrap((request: Request, response: Response, next: NextFunction): void => {
+      this.consumerApiRestController.startProcessAndAwaitEndEvent(request, response);
+    }));
+
     // event-routes
-    this.router.get(eventsByProcessModelRoute, wrap((request: Request, response: Response, next: NextFunction): void => {
-      this.consumerApiRestController.getEventsByProcessModel(request, response);
+    this.router.get(routes.processModelEvents, wrap((request: Request, response: Response, next: NextFunction): void => {
+      this.consumerApiRestController.getProcessModelEvents(request, response);
     }));
 
-    this.router.get(eventsByCorrelationRoute, wrap((request: Request, response: Response, next: NextFunction): void => {
-      this.consumerApiRestController.getEventsByCorrelation(request, response);
+    this.router.get(routes.correlationEvents, wrap((request: Request, response: Response, next: NextFunction): void => {
+      this.consumerApiRestController.getCorrelationEvents(request, response);
     }));
 
-    this.router.get(eventsByVerifiedCorrelationRoute, wrap((request: Request, response: Response, next: NextFunction): void => {
-      this.consumerApiRestController.getEventsByVerifiedCorrelation(request, response);
+    this.router.get(routes.processModelCorrelationEvents, wrap((request: Request, response: Response, next: NextFunction): void => {
+      this.consumerApiRestController.getProcessModelCorrelationEvents(request, response);
     }));
 
-    this.router.post(triggerEventRoute, wrap((request: Request, response: Response, next: NextFunction): void => {
+    this.router.post(routes.triggerEvent, wrap((request: Request, response: Response, next: NextFunction): void => {
       this.consumerApiRestController.triggerEvent(request, response);
     }));
 
+    this.router.post(routes.triggerProcessModelCorrelationEvent, wrap((request: Request, response: Response, next: NextFunction): void => {
+      this.consumerApiRestController.triggerProcessModelCorrelationEvent(request, response);
+    }));
+
     // user-task-routes
-    this.router.get(userTasksByProcessModelRoute, wrap((request: Request, response: Response, next: NextFunction): void => {
-      this.consumerApiRestController.getUserTasksByProcessModel(request, response);
+    this.router.get(routes.processModelUserTasks, wrap((request: Request, response: Response, next: NextFunction): void => {
+      this.consumerApiRestController.getProcessModelUserTasks(request, response);
     }));
 
-    this.router.get(userTasksByCorrelationRoute, wrap((request: Request, response: Response, next: NextFunction): void => {
-      this.consumerApiRestController.getUserTasksByCorrelation(request, response);
+    this.router.get(routes.correlationUserTasks, wrap((request: Request, response: Response, next: NextFunction): void => {
+      this.consumerApiRestController.getCorrelationUserTasks(request, response);
     }));
 
-    this.router.get(userTasksByVerifiedCorrelationRoute, wrap((request: Request, response: Response, next: NextFunction): void => {
-      this.consumerApiRestController.getUserTasksByVerifiedCorrelation(request, response);
+    this.router.get(routes.processModelCorrelationUserTasks, wrap((request: Request, response: Response, next: NextFunction): void => {
+      this.consumerApiRestController.getProcessModelCorrelationUserTasks(request, response);
     }));
 
-    this.router.post(finishUserTaskRoute, wrap((request: Request, response: Response, next: NextFunction): void => {
+    this.router.post(routes.finishUserTask, wrap((request: Request, response: Response, next: NextFunction): void => {
       this.consumerApiRestController.finishUserTask(request, response);
+    }));
+
+    this.router.post(routes.finishProcessModelCorrelationUserTask, wrap((request: Request, response: Response, next: NextFunction): void => {
+      this.consumerApiRestController.finishProcessModelCorrelationUserTask(request, response);
     }));
   }
 }
