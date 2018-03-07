@@ -59,7 +59,7 @@ export class ConsumerApiService implements IConsumerApiService {
   }
 
   // Events
-  public async getProcessModelEvents(processModelKey: string): Promise<IEventList> {
+  public async getEventsForProcessModel(processModelKey: string): Promise<IEventList> {
 
     const mockData: IEventList = {
       page_number: 0,
@@ -77,7 +77,7 @@ export class ConsumerApiService implements IConsumerApiService {
     return Promise.resolve(mockData);
   }
 
-  public async getCorrelationEvents(correlationId: string): Promise<IEventList> {
+  public async getEventsForCorrelation(correlationId: string): Promise<IEventList> {
 
     const mockData: IEventList = {
       page_number: 0,
@@ -95,7 +95,7 @@ export class ConsumerApiService implements IConsumerApiService {
     return Promise.resolve(mockData);
   }
 
-  public async getProcessModelCorrelationEvents(processModelKey: string, correlationId: string): Promise<IEventList> {
+  public async getEventsForProcessModelInCorrelation(processModelKey: string, correlationId: string): Promise<IEventList> {
 
     const mockData: IEventList = {
       page_number: 0,
@@ -117,15 +117,15 @@ export class ConsumerApiService implements IConsumerApiService {
     return Promise.resolve();
   }
 
-  public async triggerProcessModelCorrelationEvent(processModelKey: string,
-                                                   correlationId: string,
-                                                   eventId: string,
-                                                   eventTriggerPayload?: IEventTriggerPayload): Promise<void> {
+  public async triggerEventInCorrelation(processModelKey: string,
+                                         correlationId: string,
+                                         eventId: string,
+                                         eventTriggerPayload?: IEventTriggerPayload): Promise<void> {
     return Promise.resolve();
   }
 
   // UserTasks
-  public async getProcessModelUserTasks(processModelKey: string): Promise<IUserTaskList> {
+  public async getUserTasksForProcessModel(processModelKey: string): Promise<IUserTaskList> {
 
     const mockData: IUserTaskList = {
       page_number: 0,
@@ -143,7 +143,7 @@ export class ConsumerApiService implements IConsumerApiService {
     return Promise.resolve(mockData);
   }
 
-  public async getCorrelationUserTasks(correlationId: string): Promise<IUserTaskList> {
+  public async getUserTasksForCorrelation(correlationId: string): Promise<IUserTaskList> {
 
     const mockData: IUserTaskList = {
       page_number: 0,
@@ -161,7 +161,7 @@ export class ConsumerApiService implements IConsumerApiService {
     return Promise.resolve(mockData);
   }
 
-  public async getProcessModelCorrelationUserTasks(processModelKey: string, correlationId: string): Promise<IUserTaskList> {
+  public async getUserTasksForProcessModelInCorrelation(processModelKey: string, correlationId: string): Promise<IUserTaskList> {
 
     const mockData: IUserTaskList = {
       page_number: 0,
@@ -183,10 +183,10 @@ export class ConsumerApiService implements IConsumerApiService {
     return Promise.resolve();
   }
 
-  public async finishProcessModelCorrelationUserTask(processModelKey: string,
-                                                     correlationId: string,
-                                                     userTaskId: string,
-                                                     userTaskResult: IUserTaskResult): Promise<void> {
+  public async finishUserTaskInCorrelation(processModelKey: string,
+                                           correlationId: string,
+                                           userTaskId: string,
+                                           userTaskResult: IUserTaskResult): Promise<void> {
     return Promise.resolve();
   }
 }

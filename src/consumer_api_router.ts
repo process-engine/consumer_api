@@ -43,15 +43,15 @@ export class ConsumerApiRouter extends BaseRouter implements IConsumerApiRouter 
 
     // event-routes
     this.router.get(routes.processModelEvents, wrap((request: Request, response: Response, next: NextFunction): void => {
-      this.consumerApiRestController.getProcessModelEvents(request, response);
+      this.consumerApiRestController.getEventsForProcessModel(request, response);
     }));
 
     this.router.get(routes.correlationEvents, wrap((request: Request, response: Response, next: NextFunction): void => {
-      this.consumerApiRestController.getCorrelationEvents(request, response);
+      this.consumerApiRestController.getEventsForCorrelation(request, response);
     }));
 
     this.router.get(routes.processModelCorrelationEvents, wrap((request: Request, response: Response, next: NextFunction): void => {
-      this.consumerApiRestController.getProcessModelCorrelationEvents(request, response);
+      this.consumerApiRestController.getEventsForProcessModelInCorrelation(request, response);
     }));
 
     this.router.post(routes.triggerEvent, wrap((request: Request, response: Response, next: NextFunction): void => {
@@ -59,20 +59,20 @@ export class ConsumerApiRouter extends BaseRouter implements IConsumerApiRouter 
     }));
 
     this.router.post(routes.triggerProcessModelCorrelationEvent, wrap((request: Request, response: Response, next: NextFunction): void => {
-      this.consumerApiRestController.triggerProcessModelCorrelationEvent(request, response);
+      this.consumerApiRestController.triggerEventInCorrelation(request, response);
     }));
 
     // user-task-routes
     this.router.get(routes.processModelUserTasks, wrap((request: Request, response: Response, next: NextFunction): void => {
-      this.consumerApiRestController.getProcessModelUserTasks(request, response);
+      this.consumerApiRestController.getUserTasksForProcessModel(request, response);
     }));
 
     this.router.get(routes.correlationUserTasks, wrap((request: Request, response: Response, next: NextFunction): void => {
-      this.consumerApiRestController.getCorrelationUserTasks(request, response);
+      this.consumerApiRestController.getUserTasksForCorrelation(request, response);
     }));
 
     this.router.get(routes.processModelCorrelationUserTasks, wrap((request: Request, response: Response, next: NextFunction): void => {
-      this.consumerApiRestController.getProcessModelCorrelationUserTasks(request, response);
+      this.consumerApiRestController.getUserTasksForProcessModelInCorrelation(request, response);
     }));
 
     this.router.post(routes.finishUserTask, wrap((request: Request, response: Response, next: NextFunction): void => {
@@ -80,7 +80,7 @@ export class ConsumerApiRouter extends BaseRouter implements IConsumerApiRouter 
     }));
 
     this.router.post(routes.finishProcessModelCorrelationUserTask, wrap((request: Request, response: Response, next: NextFunction): void => {
-      this.consumerApiRestController.finishProcessModelCorrelationUserTask(request, response);
+      this.consumerApiRestController.finishUserTaskInCorrelation(request, response);
     }));
   }
 }
