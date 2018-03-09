@@ -9,6 +9,10 @@
     "url": "git+https://github.com/process-engine/consumer_api.git"
   },
   "author": "",
+  "contributors": [
+    "Sebastian Meier <sebastian.meier@5minds.de>",
+    "Christian Werner <christian.werner@5minds.de>"
+  ],
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/process-engine/consumer_api/issues"
