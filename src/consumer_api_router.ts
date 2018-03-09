@@ -6,7 +6,7 @@ import {wrap} from 'async-middleware';
 import {NextFunction, Request, Response} from 'express';
 
 export class ConsumerApiRouter extends BaseRouter implements IConsumerApiRouter {
-  public config: any = undefined;
+
   private _consumerApiRestController: IConsumerApiController;
 
   constructor(consumerApiRestController: IConsumerApiController) {

@@ -11,15 +11,12 @@ const routerDiscoveryTag = require('@essential-projects/core_contracts').RouterD
 function registerInContainer(container) {
   container.register('ConsumerApiRouter', ConsumerApiRouter)
     .dependencies('ConsumerApiController')
-    .tags(routerDiscoveryTag)
-    .configure('consumer_api:consumer_api_router');
+    .tags(routerDiscoveryTag);
 
   container.register('ConsumerApiController', ConsumerApiController)
-    .dependencies('ConsumerApiService')
-    .configure('consumer_api:consumer_api_controller');
+    .dependencies('ConsumerApiService');
 
-  container.register('ConsumerApiService', ConsumerApiService)
-    .configure('consumer_api:consumer_api_service');
+  container.register('ConsumerApiService', ConsumerApiService);
 }
 
 module.exports.registerInContainer = registerInContainer;
