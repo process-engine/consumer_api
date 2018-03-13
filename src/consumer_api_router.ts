@@ -29,7 +29,7 @@ export class ConsumerApiRouter extends BaseRouter implements IConsumerApiRouter 
       this.consumerApiRestController.getProcessModels(request, response);
     }));
 
-    this.router.get(routes.processModel, wrap((request: Request, response: Response, next: NextFunction): void => {
+    this.router.get(routes.processModelByKey, wrap((request: Request, response: Response, next: NextFunction): void => {
       this.consumerApiRestController.getProcessModelByKey(request, response);
     }));
 
