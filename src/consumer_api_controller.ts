@@ -6,8 +6,11 @@ import {
   IEventTriggerPayload,
   IProcessModel,
   IProcessModelList,
+  IProcessStartRequestPayload,
+  IProcessStartResponsePayload,
   IUserTaskList,
   IUserTaskResult,
+  ProcessStartReturnOnOptions,
 } from '@process-engine/consumer_api_contracts';
 import {Request, Response} from 'express';
 
@@ -42,20 +45,29 @@ export class ConsumerApiController implements IConsumerApiController {
   public async startProcess(request: Request, response: Response): Promise<void> {
     const processModelKey: string = request.params.process_model_key;
     const startEventKey: string = request.params.start_event_key;
+    const payload: IProcessStartRequestPayload = request.body;
+    let returnOn: ProcessStartReturnOnOptions = request.query.return_on;
 
-    await this.consumerApiService.startProcess(processModelKey, startEventKey);
+    if (!returnOn) {
+      returnOn = ProcessStartReturnOnOptions.onProcessInstanceStarted;
+    }
 
-    response.status(this.httpCodeSuccessfulNoContentResponse).send();
+    const result: IProcessStartResponsePayload =
+      await this.consumerApiService.startProcess(processModelKey, startEventKey, payload, returnOn);
+
+    response.status(this.httpCodeSuccessfulResponse).json(result);
   }
 
   public async startProcessAndAwaitEndEvent(request: Request, response: Response): Promise<void> {
     const processModelKey: string = request.params.process_model_key;
     const startEventKey: string = request.params.start_event_key;
     const endEventKey: string = request.params.end_event_key;
+    const payload: IProcessStartRequestPayload = request.body;
 
-    await this.consumerApiService.startProcessAndAwaitEndEvent(processModelKey, startEventKey, endEventKey);
+    const result: IProcessStartResponsePayload =
+      await this.consumerApiService.startProcessAndAwaitEndEvent(processModelKey, startEventKey, endEventKey, payload);
 
-    response.status(this.httpCodeSuccessfulNoContentResponse).send();
+    response.status(this.httpCodeSuccessfulResponse).json(result);
   }
 
   // event-routes

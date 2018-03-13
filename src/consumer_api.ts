@@ -4,14 +4,17 @@ import {
   IEventTriggerPayload,
   IProcessModel,
   IProcessModelList,
+  IProcessStartRequestPayload,
+  IProcessStartResponsePayload,
   IUserTaskList,
   IUserTaskResult,
+  ProcessStartReturnOnOptions,
 } from '@process-engine/consumer_api_contracts';
 
 export class ConsumerApiService implements IConsumerApiService {
   public config: any = undefined;
 
-  // TODO: Implement mocks
+  // TODO: Replace mocks
 
   // Process models
   public async getProcessModels(): Promise<IProcessModelList> {
@@ -50,12 +53,28 @@ export class ConsumerApiService implements IConsumerApiService {
     return Promise.resolve(mockData);
   }
 
-  public async startProcess(processModelKey: string, startEventKey: string): Promise<void> {
-    return Promise.resolve();
+  public async startProcess(processModelKey: string,
+                            startEventKey: string,
+                            payload: IProcessStartRequestPayload,
+                            returnOn: ProcessStartReturnOnOptions): Promise<IProcessStartResponsePayload> {
+
+    const mockResponse: IProcessStartResponsePayload = {
+      correlation_id: payload.correlation_id || 'mocked-correlation-id',
+    };
+
+    return Promise.resolve(mockResponse);
   }
 
-  public async startProcessAndAwaitEndEvent(processModelKey: string, startEventKey: string, endEventKey: string): Promise<void> {
-    return Promise.resolve();
+  public async startProcessAndAwaitEndEvent(processModelKey: string,
+                                            startEventKey: string,
+                                            endEventKey: string,
+                                            payload: IProcessStartRequestPayload): Promise<IProcessStartResponsePayload> {
+
+    const mockResponse: IProcessStartResponsePayload = {
+      correlation_id: payload.correlation_id || 'mocked-correlation-id',
+    };
+
+    return Promise.resolve(mockResponse);
   }
 
   // Events
