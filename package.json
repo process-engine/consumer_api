@@ -22,7 +22,7 @@
     "@essential-projects/core_contracts": "^1.0.0-rc3",
     "@essential-projects/errors_ts": "^1.0.0",
     "@essential-projects/http_node": "^1.0.0-rc3",
-    "@process-engine/consumer_api_contracts": "^0.2.0",
+    "@process-engine/consumer_api_contracts": "feature~apply_consumer_api_concept",
     "addict-ioc": "^2.2.8",
     "async-middleware": "^1.2.1",
     "bluebird": "^3.4.7",
