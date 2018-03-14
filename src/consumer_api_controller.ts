@@ -98,21 +98,11 @@ export class ConsumerApiController implements IConsumerApiController {
 
   public async triggerEvent(request: Request, response: Response): Promise<void> {
     const processModelKey: string = request.params.process_model_key;
-    const eventId: string = request.params.event_id;
-    const eventTriggerPayload: IEventTriggerPayload = request.body;
-
-    await this.consumerApiService.triggerEvent(processModelKey, eventId, eventTriggerPayload);
-
-    response.status(this.httpCodeSuccessfulNoContentResponse).send();
-  }
-
-  public async triggerEventInCorrelation(request: Request, response: Response): Promise<void> {
-    const processModelKey: string = request.params.process_model_key;
     const correlationId: string = request.params.correlation_id;
     const eventId: string = request.params.event_id;
     const eventTriggerPayload: IEventTriggerPayload = request.body;
 
-    await this.consumerApiService.triggerEventInCorrelation(processModelKey, correlationId, eventId, eventTriggerPayload);
+    await this.consumerApiService.triggerEvent(processModelKey, correlationId, eventId, eventTriggerPayload);
 
     response.status(this.httpCodeSuccessfulNoContentResponse).send();
   }
@@ -145,21 +135,11 @@ export class ConsumerApiController implements IConsumerApiController {
 
   public async finishUserTask(request: Request, response: Response): Promise<void> {
     const processModelKey: string = request.params.process_model_key;
-    const userTaskId: string = request.params.event_id;
-    const userTaskResult: IUserTaskResult = request.body;
-
-    await this.consumerApiService.finishUserTask(processModelKey, userTaskId, userTaskResult);
-
-    response.status(this.httpCodeSuccessfulNoContentResponse).send();
-  }
-
-  public async finishUserTaskInCorrelation(request: Request, response: Response): Promise<void> {
-    const processModelKey: string = request.params.process_model_key;
     const correlationId: string = request.params.correlation_id;
     const userTaskId: string = request.params.event_id;
     const userTaskResult: IUserTaskResult = request.body;
 
-    await this.consumerApiService.finishUserTaskInCorrelation(processModelKey, correlationId, userTaskId, userTaskResult);
+    await this.consumerApiService.finishUserTask(processModelKey, correlationId, userTaskId, userTaskResult);
 
     response.status(this.httpCodeSuccessfulNoContentResponse).send();
   }

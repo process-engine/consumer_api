@@ -58,10 +58,6 @@ export class ConsumerApiRouter extends BaseRouter implements IConsumerApiRouter 
       this.consumerApiRestController.triggerEvent(request, response);
     }));
 
-    this.router.post(routes.triggerProcessModelCorrelationEvent, wrap((request: Request, response: Response, next: NextFunction): void => {
-      this.consumerApiRestController.triggerEventInCorrelation(request, response);
-    }));
-
     // user-task-routes
     this.router.get(routes.processModelUserTasks, wrap((request: Request, response: Response, next: NextFunction): void => {
       this.consumerApiRestController.getUserTasksForProcessModel(request, response);
@@ -77,10 +73,6 @@ export class ConsumerApiRouter extends BaseRouter implements IConsumerApiRouter 
 
     this.router.post(routes.finishUserTask, wrap((request: Request, response: Response, next: NextFunction): void => {
       this.consumerApiRestController.finishUserTask(request, response);
-    }));
-
-    this.router.post(routes.finishProcessModelCorrelationUserTask, wrap((request: Request, response: Response, next: NextFunction): void => {
-      this.consumerApiRestController.finishUserTaskInCorrelation(request, response);
     }));
   }
 }

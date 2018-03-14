@@ -132,14 +132,10 @@ export class ConsumerApiService implements IConsumerApiService {
     return Promise.resolve(mockData);
   }
 
-  public async triggerEvent(processModelKey: string, eventId: string, eventTriggerPayload?: IEventTriggerPayload): Promise<void> {
-    return Promise.resolve();
-  }
-
-  public async triggerEventInCorrelation(processModelKey: string,
-                                         correlationId: string,
-                                         eventId: string,
-                                         eventTriggerPayload?: IEventTriggerPayload): Promise<void> {
+  public async triggerEvent(processModelKey: string,
+                            correlationId: string,
+                            eventId: string,
+                            eventTriggerPayload?: IEventTriggerPayload): Promise<void> {
     return Promise.resolve();
   }
 
@@ -198,14 +194,10 @@ export class ConsumerApiService implements IConsumerApiService {
     return Promise.resolve(mockData);
   }
 
-  public async finishUserTask(processModelKey: string, userTaskId: string, userTaskResult: IUserTaskResult): Promise<void> {
-    return Promise.resolve();
-  }
-
-  public async finishUserTaskInCorrelation(processModelKey: string,
-                                           correlationId: string,
-                                           userTaskId: string,
-                                           userTaskResult: IUserTaskResult): Promise<void> {
+  public async finishUserTask(processModelKey: string,
+                              correlationId: string,
+                              userTaskId: string,
+                              userTaskResult: IUserTaskResult): Promise<void> {
     return Promise.resolve();
   }
 }
