@@ -11,8 +11,37 @@ import {
   ProcessStartReturnOnOptions,
 } from '@process-engine/consumer_api_contracts';
 
+import {ExecutionContext, IIamService, IPrivateQueryOptions} from '@essential-projects/core_contracts';
+import {IDatastoreService, IEntityCollection, IEntityType} from '@essential-projects/data_model_contracts';
+import {IProcessEngineService} from '@process-engine/process_engine_contracts';
+
 export class ConsumerApiService implements IConsumerApiService {
   public config: any = undefined;
+
+  private _processEngineService: IProcessEngineService;
+  private _iamService: IIamService;
+  private _datastoreService: IDatastoreService;
+
+  constructor(datastoreService: IDatastoreService,
+              iamService: IIamService,
+              processEngineService: IProcessEngineService) {
+
+    this._datastoreService = datastoreService;
+    this._iamService = iamService;
+    this._processEngineService = processEngineService;
+  }
+
+  private get datastoreService(): IDatastoreService {
+    return this._datastoreService;
+  }
+
+  private get iamService(): IIamService {
+    return this._iamService;
+  }
+
+  private get processEngineService(): IProcessEngineService {
+    return this._processEngineService;
+  }
 
   // TODO: Replace mocks
 
