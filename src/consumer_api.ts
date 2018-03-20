@@ -82,7 +82,8 @@ export class ConsumerApiService implements IConsumerApiService {
     return Promise.resolve(mockData);
   }
 
-  public async startProcess(processModelKey: string,
+  public async startProcess(context: ExecutionContext,
+                            processModelKey: string,
                             startEventKey: string,
                             payload: IProcessStartRequestPayload,
                             returnOn: ProcessStartReturnOnOptions): Promise<IProcessStartResponsePayload> {
@@ -94,7 +95,8 @@ export class ConsumerApiService implements IConsumerApiService {
     return Promise.resolve(mockResponse);
   }
 
-  public async startProcessAndAwaitEndEvent(processModelKey: string,
+  public async startProcessAndAwaitEndEvent(context: ExecutionContext,
+                                            processModelKey: string,
                                             startEventKey: string,
                                             endEventKey: string,
                                             payload: IProcessStartRequestPayload): Promise<IProcessStartResponsePayload> {
