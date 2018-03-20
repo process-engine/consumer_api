@@ -236,4 +236,8 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
                               userTaskResult: IUserTaskResult): Promise<void> {
     return Promise.resolve();
   }
+
+  private executionContextFromConsumerContext(consumerContext: IConsumerContext): ExecutionContext {
+
+  }
 }

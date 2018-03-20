@@ -12,10 +12,6 @@ import {
   ProcessStartReturnOnOptions,
 } from '@process-engine/consumer_api_contracts';
 
-import {ExecutionContext, IIamService, IPrivateQueryOptions} from '@essential-projects/core_contracts';
-import {IDatastoreService, IEntityCollection, IEntityType} from '@essential-projects/data_model_contracts';
-import {IProcessEngineService} from '@process-engine/process_engine_contracts';
-
 export class ConsumerApiService implements IConsumerApiService {
   public config: any = undefined;
 
