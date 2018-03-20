@@ -12,7 +12,7 @@ import {
   ProcessStartReturnOnOptions,
 } from '@process-engine/consumer_api_contracts';
 
-import {ExecutionContext, IIamService, IPrivateQueryOptions, IPublicGetOptions, IQueryClause, TokenType} from '@essential-projects/core_contracts';
+import {ExecutionContext, IIamService, IPrivateGetOptions, IPrivateQueryOptions, IQueryClause, TokenType} from '@essential-projects/core_contracts';
 import {IDatastoreService, IEntityCollection, IEntityType} from '@essential-projects/data_model_contracts';
 import {IProcessDefEntity, IProcessEngineService, IUserTaskEntity} from '@process-engine/process_engine_contracts';
 
@@ -175,36 +175,38 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
   // UserTasks
   public async getUserTasksForProcessModel(context: IConsumerContext, processModelKey: string): Promise<IUserTaskList> {
     const executionContext: ExecutionContext = await this.executionContextFromConsumerContext(context);
+    const internaleExecutionContext: ExecutionContext = await this.iamService.createInternalContext('processengine_system');
 
     const userTaskEntityType: IEntityType<IUserTaskEntity> = await this.datastoreService.getEntityType<IUserTaskEntity>('UserTask');
 
-    const query: IPublicGetOptions = {
+    const query: IPrivateQueryOptions = {
       query: {
         attribute: 'process.processDef.key',
         operator: '=',
         value: processModelKey,
       },
-      expandEntity: [{
+      expandCollection: [{
+        attribute: 'nodeDef',
+        childAttributes: [{
+          attribute: 'lane',
+        }],
+      }, {
         attribute: 'process',
         childAttributes: [{
           attribute: 'processDef',
-          childAttributes: [{
-            attribute: 'laneCollection',
-          }],
         }],
-      }, {
-        attribute: 'nodeDef',
       }],
     };
-    const userTaskCollection: IEntityCollection<IUserTaskEntity> = await userTaskEntityType.query(executionContext, query);
 
+    const userTaskCollection: IEntityCollection<IUserTaskEntity> = await userTaskEntityType.query(internaleExecutionContext, query);
     const userTasks: Array<IUserTaskEntity> = [];
     await userTaskCollection.each(executionContext, (userTask: IUserTaskEntity) => {
       userTasks.push(userTask);
     });
 
-    const resultUserTasks: Array<any> = userTasks.filter((userTask: IUserTaskEntity) => {
-      // TODO: Remove all userTasks the user isn't allowed to see
+    const resultUserTasks: Array<any> = userTasks.filter(async(userTask: IUserTaskEntity) => {
+      const laneRole: string = userTask.nodeDef.lane.role;
+
       return true;
     }).map((userTask: IUserTaskEntity) => {
       return {
