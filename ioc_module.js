@@ -1,11 +1,17 @@
 'use strict'
 
-const {ConsumerApiService} = require('./dist/commonjs/index');
+const {
+  ConsumerApiService,
+  ConsumerProcessEngineAdapter
+} = require('./dist/commonjs/index');
 
 function registerInContainer(container) {
   
-  container.register('ConsumerApiService', ConsumerApiService)
+  container.register('ConsumerProcessEngineAdapter', ConsumerProcessEngineAdapter)
     .dependencies('DatastoreService', 'IamService', 'ProcessEngineService');
+
+  container.register('ConsumerApiService', ConsumerApiService)
+    .dependencies('ConsumerProcessEngineAdapter');
 }
 
 module.exports.registerInContainer = registerInContainer;

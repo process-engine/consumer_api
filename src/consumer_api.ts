@@ -19,68 +19,24 @@ import {IProcessEngineService} from '@process-engine/process_engine_contracts';
 export class ConsumerApiService implements IConsumerApiService {
   public config: any = undefined;
 
-  private _processEngineService: IProcessEngineService;
-  private _iamService: IIamService;
-  private _datastoreService: IDatastoreService;
+  private _processEngineAdapter: IConsumerApiService;
 
-  constructor(datastoreService: IDatastoreService,
-              iamService: IIamService,
-              processEngineService: IProcessEngineService) {
+  constructor(processEngineAdapter: IConsumerApiService) {
 
-    this._datastoreService = datastoreService;
-    this._iamService = iamService;
-    this._processEngineService = processEngineService;
+    this._processEngineAdapter = processEngineAdapter;
   }
 
-  private get datastoreService(): IDatastoreService {
-    return this._datastoreService;
+  private get processEngineAdapter(): IConsumerApiService {
+    return this._processEngineAdapter;
   }
-
-  private get iamService(): IIamService {
-    return this._iamService;
-  }
-
-  private get processEngineService(): IProcessEngineService {
-    return this._processEngineService;
-  }
-
-  // TODO: Replace mocks
 
   // Process models
   public async getProcessModels(context: IConsumerContext): Promise<IProcessModelList> {
-
-    const mockData: IProcessModelList = {
-      page_number: 0,
-      page_size: 30,
-      element_count: 0,
-      page_count: 0,
-      process_models: [{
-        key: 'mock_process_model',
-        startEvents: [{
-          key: 'startEvent_1',
-          id: '',
-          process_instance_id: '',
-          data: {},
-        }],
-      }],
-    };
-
-    return Promise.resolve(mockData);
+    return this.processEngineAdapter.getProcessModels(context);
   }
 
   public async getProcessModelByKey(context: IConsumerContext, processModelKey: string): Promise<IProcessModel> {
-
-    const mockData: IProcessModel = {
-      key: 'mock_process_model',
-      startEvents: [{
-        key: 'startEvent_1',
-        id: '',
-        process_instance_id: '',
-        data: {},
-      }],
-    };
-
-    return Promise.resolve(mockData);
+    return this.processEngineAdapter.getProcessModelByKey(context, processModelKey);
   }
 
   public async startProcess(context: IConsumerContext,
@@ -89,11 +45,7 @@ export class ConsumerApiService implements IConsumerApiService {
                             payload: IProcessStartRequestPayload,
                             returnOn: ProcessStartReturnOnOptions): Promise<IProcessStartResponsePayload> {
 
-    const mockResponse: IProcessStartResponsePayload = {
-      correlation_id: payload.correlation_id || 'mocked-correlation-id',
-    };
-
-    return Promise.resolve(mockResponse);
+    return this.processEngineAdapter.startProcess(context, processModelKey, startEventKey, payload, returnOn);
   }
 
   public async startProcessAndAwaitEndEvent(context: IConsumerContext,
@@ -102,66 +54,20 @@ export class ConsumerApiService implements IConsumerApiService {
                                             endEventKey: string,
                                             payload: IProcessStartRequestPayload): Promise<IProcessStartResponsePayload> {
 
-    const mockResponse: IProcessStartResponsePayload = {
-      correlation_id: payload.correlation_id || 'mocked-correlation-id',
-    };
-
-    return Promise.resolve(mockResponse);
+    return this.processEngineAdapter.startProcessAndAwaitEndEvent(context, processModelKey, startEventKey, endEventKey, payload);
   }
 
   // Events
   public async getEventsForProcessModel(context: IConsumerContext, processModelKey: string): Promise<IEventList> {
-
-    const mockData: IEventList = {
-      page_number: 0,
-      page_size: 30,
-      element_count: 0,
-      page_count: 0,
-      events: [{
-        key: 'startEvent_1',
-        id: '',
-        process_instance_id: '',
-        data: {},
-      }],
-    };
-
-    return Promise.resolve(mockData);
+    return this.processEngineAdapter.getEventsForProcessModel(context, processModelKey);
   }
 
   public async getEventsForCorrelation(context: IConsumerContext, correlationId: string): Promise<IEventList> {
-
-    const mockData: IEventList = {
-      page_number: 0,
-      page_size: 30,
-      element_count: 0,
-      page_count: 0,
-      events: [{
-        key: 'startEvent_1',
-        id: '',
-        process_instance_id: '',
-        data: {},
-      }],
-    };
-
-    return Promise.resolve(mockData);
+    return this.processEngineAdapter.getEventsForCorrelation(context, correlationId);
   }
 
   public async getEventsForProcessModelInCorrelation(context: IConsumerContext, processModelKey: string, correlationId: string): Promise<IEventList> {
-
-    const mockData: IEventList = {
-      page_number: 0,
-      page_size: 30,
-      element_count: 0,
-      page_count: 0,
-      events: [{
-        key: 'startEvent_1',
-        id: '',
-        process_instance_id: '',
-        data: {},
-      }],
-    };
-
-    return Promise.resolve(mockData);
+    return this.processEngineAdapter.getEventsForProcessModelInCorrelation(context, processModelKey, correlationId);
   }
 
   public async triggerEvent(context: IConsumerContext,
@@ -169,64 +75,24 @@ export class ConsumerApiService implements IConsumerApiService {
                             correlationId: string,
                             eventId: string,
                             eventTriggerPayload?: IEventTriggerPayload): Promise<void> {
-    return Promise.resolve();
+
+    return this.processEngineAdapter.triggerEvent(context, processModelKey, correlationId, eventId, eventTriggerPayload);
   }
 
   // UserTasks
   public async getUserTasksForProcessModel(context: IConsumerContext, processModelKey: string): Promise<IUserTaskList> {
-
-    const mockData: IUserTaskList = {
-      page_number: 0,
-      page_size: 30,
-      element_count: 0,
-      page_count: 0,
-      user_tasks: [{
-        key: 'mock_user_task',
-        id: '123',
-        process_instance_id: '123412534124535',
-        data: {},
-      }],
-    };
-
-    return Promise.resolve(mockData);
+    return this.processEngineAdapter.getUserTasksForProcessModel(context, processModelKey);
   }
 
   public async getUserTasksForCorrelation(context: IConsumerContext, correlationId: string): Promise<IUserTaskList> {
-
-    const mockData: IUserTaskList = {
-      page_number: 0,
-      page_size: 30,
-      element_count: 0,
-      page_count: 0,
-      user_tasks: [{
-        key: 'mock_user_task',
-        id: '123',
-        process_instance_id: '123412534124535',
-        data: {},
-      }],
-    };
-
-    return Promise.resolve(mockData);
+    return this.processEngineAdapter.getUserTasksForCorrelation(context, correlationId);
   }
 
   public async getUserTasksForProcessModelInCorrelation(context: IConsumerContext,
                                                         processModelKey: string,
                                                         correlationId: string): Promise<IUserTaskList> {
 
-    const mockData: IUserTaskList = {
-      page_number: 0,
-      page_size: 30,
-      element_count: 0,
-      page_count: 0,
-      user_tasks: [{
-        key: 'mock_user_task',
-        id: '123',
-        process_instance_id: '123412534124535',
-        data: {},
-      }],
-    };
-
-    return Promise.resolve(mockData);
+    return this.processEngineAdapter.getUserTasksForProcessModelInCorrelation(context, processModelKey, correlationId);
   }
 
   public async finishUserTask(context: IConsumerContext,
@@ -234,6 +100,7 @@ export class ConsumerApiService implements IConsumerApiService {
                               correlationId: string,
                               userTaskId: string,
                               userTaskResult: IUserTaskResult): Promise<void> {
-    return Promise.resolve();
+
+    return this.processEngineAdapter.finishUserTask(context, processModelKey, correlationId, userTaskId, userTaskResult);
   }
 }
