@@ -12,9 +12,9 @@ import {
   ProcessStartReturnOnOptions,
 } from '@process-engine/consumer_api_contracts';
 
-import {ExecutionContext, IIamService, IPrivateQueryOptions} from '@essential-projects/core_contracts';
+import {ExecutionContext, IIamService, IPrivateQueryOptions, IPublicGetOptions, IQueryClause, TokenType} from '@essential-projects/core_contracts';
 import {IDatastoreService, IEntityCollection, IEntityType} from '@essential-projects/data_model_contracts';
-import {IProcessEngineService} from '@process-engine/process_engine_contracts';
+import {IProcessDefEntity, IProcessEngineService, IUserTaskEntity} from '@process-engine/process_engine_contracts';
 
 export class ConsumerProcessEngineAdapter implements IConsumerApiService {
   public config: any = undefined;
@@ -174,21 +174,56 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
 
   // UserTasks
   public async getUserTasksForProcessModel(context: IConsumerContext, processModelKey: string): Promise<IUserTaskList> {
+    const executionContext: ExecutionContext = await this.executionContextFromConsumerContext(context);
 
-    const mockData: IUserTaskList = {
-      page_number: 0,
-      page_size: 30,
-      element_count: 0,
-      page_count: 0,
-      user_tasks: [{
-        key: 'mock_user_task',
-        id: '123',
-        process_instance_id: '123412534124535',
-        data: {},
+    const userTaskEntityType: IEntityType<IUserTaskEntity> = await this.datastoreService.getEntityType<IUserTaskEntity>('UserTask');
+
+    const query: IPublicGetOptions = {
+      query: {
+        attribute: 'process.processDef.key',
+        operator: '=',
+        value: processModelKey,
+      },
+      expandEntity: [{
+        attribute: 'process',
+        childAttributes: [{
+          attribute: 'processDef',
+          childAttributes: [{
+            attribute: 'laneCollection',
+          }],
+        }],
+      }, {
+        attribute: 'nodeDef',
       }],
     };
+    const userTaskCollection: IEntityCollection<IUserTaskEntity> = await userTaskEntityType.query(executionContext, query);
 
-    return Promise.resolve(mockData);
+    const userTasks: Array<IUserTaskEntity> = [];
+    await userTaskCollection.each(executionContext, (userTask: IUserTaskEntity) => {
+      userTasks.push(userTask);
+    });
+
+    const resultUserTasks: Array<any> = userTasks.filter((userTask: IUserTaskEntity) => {
+      // TODO: Remove all userTasks the user isn't allowed to see
+      return true;
+    }).map((userTask: IUserTaskEntity) => {
+      return {
+        key: userTask.key,
+        id: userTask.id,
+        process_instance_id: userTask.process.id,
+        data: userTask.getUserTaskData(executionContext),
+      };
+    });
+
+    const result: IUserTaskList = {
+      page_number: 1,
+      page_size: resultUserTasks.length,
+      element_count: resultUserTasks.length,
+      page_count: 1,
+      user_tasks: resultUserTasks,
+    };
+
+    return Promise.resolve(result);
   }
 
   public async getUserTasksForCorrelation(context: IConsumerContext, correlationId: string): Promise<IUserTaskList> {
@@ -237,7 +272,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     return Promise.resolve();
   }
 
-  private executionContextFromConsumerContext(consumerContext: IConsumerContext): ExecutionContext {
-
+  private executionContextFromConsumerContext(consumerContext: IConsumerContext): Promise<ExecutionContext> {
+    return this.iamService.resolveExecutionContext(consumerContext.authorization.substr('Bearer '.length), TokenType.jwt);
   }
 }
