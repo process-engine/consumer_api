@@ -1,5 +1,6 @@
 import {
   IConsumerApiService,
+  IConsumerContext,
   IEventList,
   IEventTriggerPayload,
   IProcessModel,
@@ -46,7 +47,7 @@ export class ConsumerApiService implements IConsumerApiService {
   // TODO: Replace mocks
 
   // Process models
-  public async getProcessModels(): Promise<IProcessModelList> {
+  public async getProcessModels(context: IConsumerContext): Promise<IProcessModelList> {
 
     const mockData: IProcessModelList = {
       page_number: 0,
@@ -67,7 +68,7 @@ export class ConsumerApiService implements IConsumerApiService {
     return Promise.resolve(mockData);
   }
 
-  public async getProcessModelByKey(processModelKey: string): Promise<IProcessModel> {
+  public async getProcessModelByKey(context: IConsumerContext, processModelKey: string): Promise<IProcessModel> {
 
     const mockData: IProcessModel = {
       key: 'mock_process_model',
@@ -82,7 +83,7 @@ export class ConsumerApiService implements IConsumerApiService {
     return Promise.resolve(mockData);
   }
 
-  public async startProcess(context: ExecutionContext,
+  public async startProcess(context: IConsumerContext,
                             processModelKey: string,
                             startEventKey: string,
                             payload: IProcessStartRequestPayload,
@@ -95,7 +96,7 @@ export class ConsumerApiService implements IConsumerApiService {
     return Promise.resolve(mockResponse);
   }
 
-  public async startProcessAndAwaitEndEvent(context: ExecutionContext,
+  public async startProcessAndAwaitEndEvent(context: IConsumerContext,
                                             processModelKey: string,
                                             startEventKey: string,
                                             endEventKey: string,
@@ -109,7 +110,7 @@ export class ConsumerApiService implements IConsumerApiService {
   }
 
   // Events
-  public async getEventsForProcessModel(processModelKey: string): Promise<IEventList> {
+  public async getEventsForProcessModel(context: IConsumerContext, processModelKey: string): Promise<IEventList> {
 
     const mockData: IEventList = {
       page_number: 0,
@@ -127,7 +128,7 @@ export class ConsumerApiService implements IConsumerApiService {
     return Promise.resolve(mockData);
   }
 
-  public async getEventsForCorrelation(correlationId: string): Promise<IEventList> {
+  public async getEventsForCorrelation(context: IConsumerContext, correlationId: string): Promise<IEventList> {
 
     const mockData: IEventList = {
       page_number: 0,
@@ -145,7 +146,7 @@ export class ConsumerApiService implements IConsumerApiService {
     return Promise.resolve(mockData);
   }
 
-  public async getEventsForProcessModelInCorrelation(processModelKey: string, correlationId: string): Promise<IEventList> {
+  public async getEventsForProcessModelInCorrelation(context: IConsumerContext, processModelKey: string, correlationId: string): Promise<IEventList> {
 
     const mockData: IEventList = {
       page_number: 0,
@@ -163,7 +164,8 @@ export class ConsumerApiService implements IConsumerApiService {
     return Promise.resolve(mockData);
   }
 
-  public async triggerEvent(processModelKey: string,
+  public async triggerEvent(context: IConsumerContext,
+                            processModelKey: string,
                             correlationId: string,
                             eventId: string,
                             eventTriggerPayload?: IEventTriggerPayload): Promise<void> {
@@ -171,7 +173,7 @@ export class ConsumerApiService implements IConsumerApiService {
   }
 
   // UserTasks
-  public async getUserTasksForProcessModel(processModelKey: string): Promise<IUserTaskList> {
+  public async getUserTasksForProcessModel(context: IConsumerContext, processModelKey: string): Promise<IUserTaskList> {
 
     const mockData: IUserTaskList = {
       page_number: 0,
@@ -189,7 +191,7 @@ export class ConsumerApiService implements IConsumerApiService {
     return Promise.resolve(mockData);
   }
 
-  public async getUserTasksForCorrelation(correlationId: string): Promise<IUserTaskList> {
+  public async getUserTasksForCorrelation(context: IConsumerContext, correlationId: string): Promise<IUserTaskList> {
 
     const mockData: IUserTaskList = {
       page_number: 0,
@@ -207,7 +209,9 @@ export class ConsumerApiService implements IConsumerApiService {
     return Promise.resolve(mockData);
   }
 
-  public async getUserTasksForProcessModelInCorrelation(processModelKey: string, correlationId: string): Promise<IUserTaskList> {
+  public async getUserTasksForProcessModelInCorrelation(context: IConsumerContext,
+                                                        processModelKey: string,
+                                                        correlationId: string): Promise<IUserTaskList> {
 
     const mockData: IUserTaskList = {
       page_number: 0,
@@ -225,7 +229,8 @@ export class ConsumerApiService implements IConsumerApiService {
     return Promise.resolve(mockData);
   }
 
-  public async finishUserTask(processModelKey: string,
+  public async finishUserTask(context: IConsumerContext,
+                              processModelKey: string,
                               correlationId: string,
                               userTaskId: string,
                               userTaskResult: IUserTaskResult): Promise<void> {
