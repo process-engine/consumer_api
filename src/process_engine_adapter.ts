@@ -6,6 +6,7 @@ import {
   IEvent as IConsumerApiEvent,
   IEventList as IConsumerApiEventList,
   IEventTriggerPayload,
+  IProcessModel,
   IProcessModel as IConsumerApiProcessModel,
   IProcessModelList as IConsumerApiProcessModelList,
   IProcessStartRequestPayload,
@@ -36,7 +37,7 @@ import {
   IUserTaskMessageData,
 } from '@process-engine/process_engine_contracts';
 
-import {ForbiddenError, NotFoundError} from '@essential-projects/errors_ts';
+import {ForbiddenError, isError, NotFoundError} from '@essential-projects/errors_ts';
 import * as BpmnModdle from 'bpmn-moddle';
 import {
   FormWidgetFieldType,
@@ -100,23 +101,30 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
   // Process models
   public async getProcessModels(context: IConsumerContext): Promise<IConsumerApiProcessModelList> {
 
-    const mockData: IConsumerApiProcessModelList = {
-      page_number: 0,
-      page_size: 30,
-      element_count: 0,
-      page_count: 0,
-      process_models: [{
-        key: 'mock_process_model',
-        startEvents: [{
-          key: 'startEvent_1',
-          id: '',
-          process_instance_id: '',
-          data: {},
-        }],
-      }],
-    };
+    const executionContext: ExecutionContext = await this.executionContextFromConsumerContext(context);
 
-    return Promise.resolve(mockData);
+    const processModels: Array<IProcessDefEntity> = await this._getProcessModels(executionContext);
+
+    const result: Array<IProcessModel> = [];
+    for (const processModel of processModels) {
+
+      try {
+        const mappedProcessModel: IProcessModel = await this.getProcessModelByKey(context, processModel.key);
+        result.push(mappedProcessModel);
+      } catch (error) {
+        if (!isError(error, ForbiddenError)) {
+          throw error;
+        }
+      }
+    }
+
+    return {
+      page_number: 1,
+      page_size: result.length,
+      element_count: result.length,
+      page_count: 1,
+      process_models: result,
+    };
   }
 
   public async getProcessModelByKey(context: IConsumerContext, processModelKey: string): Promise<IConsumerApiProcessModel> {
@@ -125,13 +133,11 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
 
     const processDef: IProcessDefEntity = await this._getProcessModelByKey(executionContext, processModelKey);
 
-    const accessibleLaneIds: Array<string> = await this._getIdsOfLanesThatCanBeAccessed(executionContext, processModelKey);
+    const accessibleStartEventEntities: Array<INodeDefEntity> = await this._getAccessibleStartEvents(executionContext, processModelKey);
 
-    if (accessibleLaneIds.length === 0) {
+    if (accessibleStartEventEntities.length === 0) {
       throw new ForbiddenError(`Access to Process Model '${processModelKey}' not allowed`);
     }
-
-    const accessibleStartEventEntities: Array<INodeDefEntity> = await this._getAccessibleStartEvents(executionContext, processModelKey);
 
     const startEventMapper: Function = (startEventEntities: Array<INodeDefEntity>): Array<IConsumerApiEvent> => {
       return startEventEntities.map((startEventEntity: INodeDefEntity): IConsumerApiEvent => {
@@ -454,6 +460,18 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     }
   }
 
+  private async _getProcessModels(executionContext: ExecutionContext): Promise<Array<IProcessDefEntity>> {
+    const processDefEntityType: IEntityType<IProcessDefEntity> = await this.datastoreService.getEntityType<IProcessDefEntity>('ProcessDef');
+    const processDefCollection: IEntityCollection<IProcessDefEntity> = await processDefEntityType.all(executionContext);
+
+    const processModels: Array<IProcessDefEntity> = [];
+    await processDefCollection.each(executionContext, (processModel: IProcessDefEntity) => {
+      processModels.push(processModel);
+    });
+
+    return processModels;
+  }
+
   private async _getProcessModelByKey(executionContext: ExecutionContext, processModelKey: string): Promise<IProcessDefEntity> {
 
     const queryOptions: IPrivateQueryOptions = {
@@ -492,10 +510,6 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
 
       return identityCanAccessUserTask;
     });
-
-    if (accessibleUserTaskEntities.length === 0) {
-      throw new ForbiddenError(`Access to Process Model '${processModelKey}' not allowed`);
-    }
 
     return accessibleUserTaskEntities;
   }
@@ -595,7 +609,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
         {
           attribute: 'processDef',
           childAttributes: [
-            { attribute: 'key' },
+            {attribute: 'key'},
           ],
         },
       ],
