@@ -106,7 +106,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
 
     const processDef: IProcessDefEntity = await this._getProcessModelByKey(executionContext, processModelKey);
 
-    const accessibleLanes: Array<ILaneEntity> = await this.getLanesThatCanBeAccessed(executionContext, processModelKey);
+    const accessibleLanes: Array<ILaneEntity> = await this._getLanesThatCanBeAccessed(executionContext, processModelKey);
 
     if (accessibleLanes.length === 0) {
       throw new ForbiddenError(`Access to Process Model '${processModelKey}' not allowed`);
@@ -263,10 +263,9 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     const executionContext: ExecutionContext = await this.executionContextFromConsumerContext(context);
 
     // this will throw a NotFoundError of it doesn't exist
-    const processModel: IConsumerApiProcessModel = await this.getProcessModelByKey(context, processModelKey);
+    const processModel: IProcessDefEntity = await this._getProcessModelByKey(executionContext, processModelKey);
 
-    const accessibleLanes: Array<ILaneEntity> = await this.getLanesThatCanBeAccessed(executionContext, processModelKey);
-
+    const accessibleLanes: Array<ILaneEntity> = await this._getLanesThatCanBeAccessed(executionContext, processModelKey);
     if (accessibleLanes.length === 0) {
       throw new ForbiddenError(`Access to Process Model '${processModelKey}' not allowed`);
     }
@@ -388,10 +387,26 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     return Promise.resolve();
   }
 
-  private async getLanesThatCanBeAccessed(context: ExecutionContext, processModelKey: string): Promise<Array<ILaneEntity>> {
-    const mockResult: Array<ILaneEntity> = [];
+  private async _getLanesThatCanBeAccessed(executionContext: ExecutionContext, processModelKey: string): Promise<Array<ILaneEntity>> {
+    const laneEntityType: IEntityType<ILaneEntity> = await this.datastoreService.getEntityType<ILaneEntity>('Lane');
 
-    return Promise.resolve(mockResult);
+    const query: IPrivateQueryOptions = {
+      query: {
+        attribute: 'processDef.key',
+        operator: '=',
+        value: processModelKey,
+      },
+    };
+
+    const laneCollection: IEntityCollection<ILaneEntity> = await laneEntityType.query(executionContext, query);
+    const lanes: Array<ILaneEntity> = [];
+    await laneCollection.each(executionContext, (userTask: ILaneEntity) => {
+      lanes.push(userTask);
+    });
+
+    return lanes.filter((lane: ILaneEntity) => {
+      executionContext.getRoles().includes(lane.role);
+    });
   }
 
   private async _getProcessModelByKey(executionContext: ExecutionContext, processModelKey: string): Promise<IProcessDefEntity> {
@@ -417,7 +432,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
   private async _getAccessibleStartEvents(executionContext: ExecutionContext, processModelKey: string): Promise<Array<IStartEventEntity>> {
 
     const startEvents: Array<IStartEventEntity> = await this._getStartEventsForProcessModel(executionContext, processModelKey);
-    const accessibleLanes: Array<ILaneEntity> = await this.getLanesThatCanBeAccessed(executionContext, processModelKey);
+    const accessibleLanes: Array<ILaneEntity> = await this._getLanesThatCanBeAccessed(executionContext, processModelKey);
 
     if (accessibleLanes.length === 0) {
       throw new ForbiddenError(`Access to Process Model '${processModelKey}' not allowed`);
