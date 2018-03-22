@@ -28,6 +28,7 @@
     "addict-ioc": "^2.2.8",
     "async-middleware": "^1.2.1",
     "bluebird": "^3.4.7",
+    "bpmn-moddle": "^3.0.0",
     "loggerhythm": "^3.0.3"
   },
   "devDependencies": {

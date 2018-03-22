@@ -17,6 +17,7 @@ import {
   CombinedQueryOperatorType,
   ExecutionContext,
   IIamService,
+  IIdentity,
   IPrivateGetOptions,
   IPrivateQueryOptions,
   IQueryClause,
@@ -34,6 +35,7 @@ import {
 } from '@process-engine/process_engine_contracts';
 
 import {ForbiddenError, NotFoundError} from '@essential-projects/errors_ts';
+import * as BpmnModdle from 'bpmn-moddle';
 import {
   FormWidgetFieldType,
   IConfirmWidgetAction,
@@ -51,32 +53,46 @@ import {
   WidgetType,
 } from './process_engine_adapter_interfaces';
 
+import {IBpmnModdle, IDefinition, IModdleElement} from './bpmnmodeler/index';
+
+import {Logger} from 'loggerhythm';
+
+const logger: Logger = Logger.createLogger('consumer_api_core')
+                             .createChildLogger('process_engine_adapter');
+
 export class ConsumerProcessEngineAdapter implements IConsumerApiService {
   public config: any = undefined;
 
   private _processEngineService: IProcessEngineService;
   private _iamService: IIamService;
   private _datastoreService: IDatastoreService;
+  private _consumerApiIamService: any;
 
   constructor(datastoreService: IDatastoreService,
               iamService: IIamService,
-              processEngineService: IProcessEngineService) {
+              processEngineService: IProcessEngineService,
+              consumerApiIamService: any) {
 
     this._datastoreService = datastoreService;
     this._iamService = iamService;
     this._processEngineService = processEngineService;
+    this._consumerApiIamService = this.consumerApiIamService;
   }
 
   private get datastoreService(): IDatastoreService {
     return this._datastoreService;
   }
 
-  private get iamService(): IIamService {
+  private get processEngineiamService(): IIamService {
     return this._iamService;
   }
 
   private get processEngineService(): IProcessEngineService {
     return this._processEngineService;
+  }
+
+  private get consumerApiIamService(): any {
+    return this._consumerApiIamService;
   }
 
   // Process models
@@ -393,7 +409,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     return Promise.resolve();
   }
 
-  private async _getLanesThatCanBeAccessed(executionContext: ExecutionContext, processModelKey: string): Promise<Array<ILaneEntity>> {
+  private async _getLanesByProcessModelKey(executionContext: ExecutionContext, processModelKey: string): Promise<Array<ILaneEntity>> {
     const laneEntityType: IEntityType<ILaneEntity> = await this.datastoreService.getEntityType<ILaneEntity>('Lane');
 
     const query: IPrivateQueryOptions = {
@@ -410,10 +426,77 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
       lanes.push(userTask);
     });
 
-    return lanes.filter((lane: ILaneEntity) => {
-      // TODO: Temporary mock that will get removed when the IAM service is implemented
-      return executionContext.getRoles().includes('user');
+    return lanes;
+  }
+
+  private async _getLanesThatCanBeAccessed(executionContext: ExecutionContext, processModelKey: string): Promise<Array<ILaneEntity>> {
+    const processModel: IProcessDefEntity = await this._getProcessModelByKey(executionContext, processModelKey);
+    const lanes: Array<ILaneEntity> = await this._getLanesByProcessModelKey(executionContext, processModelKey);
+
+    const identity: IIdentity = await this.processEngineiamService.getIdentity(executionContext);
+    const processDefinitions: IDefinition = await this._getDefinitionsFromProcessModel(processModel);
+
+    return lanes.filter(async(lane: ILaneEntity) => {
+      const requiredClaims: Array<string> = this._getRequiredClaimsForLane(processDefinitions, lane.id);
+
+      for (const claim of requiredClaims) {
+        const claimIsInvalid: boolean = claim === undefined || claim === '';
+        if (claimIsInvalid) {
+          return false;
+        }
+
+        const identityHasClaim: boolean = await this.consumerApiIamService.hasClaim(identity, claim);
+        if (!identityHasClaim) {
+          return false;
+        }
+      }
+
+      return true;
     });
+  }
+
+  private _getDefinitionsFromProcessModel(processModel: IProcessDefEntity): Promise<IDefinition> {
+    return new Promise((resolve: Function, reject: Function): void => {
+
+      const moddle: IBpmnModdle = BpmnModdle();
+      moddle.fromXML(processModel.xml, (error: Error, definitions: IDefinition) => {
+        if (error) {
+          return reject(error);
+        }
+
+        return resolve(definitions);
+      });
+    });
+  }
+
+  private _getRequiredClaimsForLane(definitions: IDefinition, laneId: string): Array<string> {
+    // 1. Find the process of the lane
+    // 2. Find all lanes in that process
+    // 3. find lane hierarchy
+
+    const processThatHostsLane: IModdleElement = this._getProcessThatContainsLane(definitions, laneId);
+    console.log('laneSets', processThatHostsLane.laneSets, 'lanes', processThatHostsLane.lanes);
+
+    return [];
+    /*
+    if (claim === undefined || claim === false) {
+      logger.warn(`lane with id ${lane.id} has no claim/title`);
+    }
+    */
+  }
+
+  private _getProcessThatContainsLane(definitions: IDefinition, laneId: string): IModdleElement {
+    for (const rootElement of definitions.rootElements) {
+      if (rootElement.$type !== 'bpmn:Process') {
+        continue;
+      }
+
+      for (const laneSet of rootElement.laneSets) {
+        if (laneSet.id === laneId) {
+          return rootElement;
+        }
+      }
+    }
   }
 
   private async _getProcessModelByKey(executionContext: ExecutionContext, processModelKey: string): Promise<IProcessDefEntity> {
@@ -495,7 +578,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
   }
 
   private executionContextFromConsumerContext(consumerContext: IConsumerContext): Promise<ExecutionContext> {
-    return this.iamService.resolveExecutionContext(consumerContext.authorization.substr('Bearer '.length), TokenType.jwt);
+    return this.processEngineiamService.resolveExecutionContext(consumerContext.authorization.substr('Bearer '.length), TokenType.jwt);
   }
 
   private formWidgetFieldIsEnum(formWidgetField: IFormWidgetField<any>): formWidgetField is IFormWidgetEnumField {
