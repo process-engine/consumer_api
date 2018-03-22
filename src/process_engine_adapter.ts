@@ -22,7 +22,12 @@ import {
   TokenType,
 } from '@essential-projects/core_contracts';
 import {IDatastoreService, IEntityCollection, IEntityType} from '@essential-projects/data_model_contracts';
-import {IProcessDefEntity, IProcessEngineService, IUserTaskEntity, IUserTaskMessageData} from '@process-engine/process_engine_contracts';
+import * as EssentialProjectErrors from '@essential-projects/errors_ts';
+import {IProcessDefEntity,
+  IProcessEngineService,
+  IUserTaskEntity,
+  IUserTaskMessageData,
+} from '@process-engine/process_engine_contracts';
 
 import {
   FormWidgetFieldType,
@@ -95,17 +100,16 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
 
   public async getProcessModelByKey(context: IConsumerContext, processModelKey: string): Promise<IProcessModel> {
 
-    const mockData: IProcessModel = {
-      key: 'mock_process_model',
-      startEvents: [{
-        key: 'startEvent_1',
-        id: '',
-        process_instance_id: '',
-        data: {},
-      }],
+    const executionContext: ExecutionContext = await this.executionContextFromConsumerContext(context);
+
+    const processDef: IProcessDefEntity = await this._getProcessModelByKey(executionContext, processModelKey);
+
+    const processModel: IProcessModel = {
+      key: processDef.key,
+      startEvents: [], // TODO
     };
 
-    return Promise.resolve(mockData);
+    return processModel;
   }
 
   public async startProcess(context: IConsumerContext,
@@ -113,6 +117,10 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
                             startEventKey: string,
                             payload: IProcessStartRequestPayload,
                             returnOn: ProcessStartReturnOnOptions): Promise<IProcessStartResponsePayload> {
+
+    const executionContext: ExecutionContext = await this.executionContextFromConsumerContext(context);
+
+    const processModel: IProcessDefEntity = await this._getProcessModelByKey(executionContext, processModelKey);
 
     const mockResponse: IProcessStartResponsePayload = {
       correlation_id: payload.correlation_id || 'mocked-correlation-id',
@@ -126,6 +134,10 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
                                             startEventKey: string,
                                             endEventKey: string,
                                             payload: IProcessStartRequestPayload): Promise<IProcessStartResponsePayload> {
+
+    const executionContext: ExecutionContext = await this.executionContextFromConsumerContext(context);
+
+    const processModel: IProcessDefEntity = await this._getProcessModelByKey(executionContext, processModelKey);
 
     const mockResponse: IProcessStartResponsePayload = {
       correlation_id: payload.correlation_id || 'mocked-correlation-id',
@@ -314,6 +326,26 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
                               userTaskId: string,
                               userTaskResult: IUserTaskResult): Promise<void> {
     return Promise.resolve();
+  }
+
+  private async _getProcessModelByKey(executionContext: ExecutionContext, processModelKey: string): Promise<IProcessDefEntity> {
+
+    const queryOptions: IPrivateQueryOptions = {
+      query: {
+        attribute: 'key',
+        operator: '=',
+        value: processModelKey,
+      },
+    };
+
+    const processDefEntityType: IEntityType<IProcessDefEntity> = await this.datastoreService.getEntityType<IProcessDefEntity>('ProcessDef');
+    const processDef: IProcessDefEntity = await processDefEntityType.findOne(executionContext, queryOptions);
+
+    if (!processDef) {
+      throw new EssentialProjectErrors.NotFoundError(`Process model with key ${processModelKey} not found.`);
+    }
+
+    return processDef;
   }
 
   private formWidgetFieldIsEnum(formWidgetField: IFormWidgetField<any>): formWidgetField is IFormWidgetEnumField {
