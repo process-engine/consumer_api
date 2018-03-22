@@ -25,9 +25,10 @@ import {
 import {IDatastoreService, IEntityCollection, IEntityType} from '@essential-projects/data_model_contracts';
 import {
   ILaneEntity,
+  INodeDefEntity,
   IProcessDefEntity,
   IProcessEngineService,
-  IStartEventEntity,
+  IProcessEntity,
   IUserTaskEntity,
   IUserTaskMessageData,
 } from '@process-engine/process_engine_contracts';
@@ -112,15 +113,15 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
       throw new ForbiddenError(`Access to Process Model '${processModelKey}' not allowed`);
     }
 
-    const accessibleStartEventEntities: Array<IStartEventEntity> = await this._getAccessibleStartEvents(executionContext, processModelKey);
+    const accessibleStartEventEntities: Array<INodeDefEntity> = await this._getAccessibleStartEvents(executionContext, processModelKey);
 
-    const startEventMapper: Function = (startEventEntities: Array<IStartEventEntity>): Array<IConsumerApiEvent> => {
-      return startEventEntities.map((startEventEntity: IStartEventEntity): IConsumerApiEvent => {
+    const startEventMapper: Function = (startEventEntities: Array<INodeDefEntity>): Array<IConsumerApiEvent> => {
+      return startEventEntities.map((startEventEntity: INodeDefEntity): IConsumerApiEvent => {
         const consumerApiStartEvent: IConsumerApiEvent = {
           key: startEventEntity.key,
           id: startEventEntity.id,
           process_instance_id: undefined,
-          data: startEventEntity.nodeDef.startContext,
+          data: startEventEntity.startContext,
         };
 
         return consumerApiStartEvent;
@@ -148,9 +149,9 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     // Verify that the process model exists
     await this._getProcessModelByKey(executionContext, processModelKey);
 
-    const accessibleStartEventEntities: Array<IStartEventEntity> = await this._getAccessibleStartEvents(executionContext, processModelKey);
+    const accessibleStartEventEntities: Array<INodeDefEntity> = await this._getAccessibleStartEvents(executionContext, processModelKey);
 
-    const matchingStartEvent: IStartEventEntity = accessibleStartEventEntities.find((entity: IStartEventEntity): boolean => {
+    const matchingStartEvent: INodeDefEntity = accessibleStartEventEntities.find((entity: INodeDefEntity): boolean => {
       return entity.key === startEventKey;
     });
 
@@ -158,11 +159,16 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
       throw new NotFoundError(`Start event ${processModelKey} not found.`);
     }
 
+    // TODO Add case for different returnOn Scenarios and retrieve and return the created correlationId somehow.
+    await this.processEngineService.executeProcess(executionContext, undefined, processModelKey, payload);
+
+    // const processInstance: IProcessEntity = await this.processEngineService.createProcessInstance(executionContext, undefined, processModelKey);
+
     const mockResponse: IProcessStartResponsePayload = {
       correlation_id: payload.correlation_id || 'mocked-correlation-id',
     };
 
-    return Promise.resolve(mockResponse);
+    return mockResponse;
   }
 
   public async startProcessAndAwaitEndEvent(context: IConsumerContext,
@@ -176,9 +182,9 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     // Verify that the process model exists
     await this._getProcessModelByKey(executionContext, processModelKey);
 
-    const accessibleStartEventEntities: Array<IStartEventEntity> = await this._getAccessibleStartEvents(executionContext, processModelKey);
+    const accessibleStartEventEntities: Array<INodeDefEntity> = await this._getAccessibleStartEvents(executionContext, processModelKey);
 
-    const matchingStartEvent: IStartEventEntity = accessibleStartEventEntities.find((entity: IStartEventEntity): boolean => {
+    const matchingStartEvent: INodeDefEntity = accessibleStartEventEntities.find((entity: INodeDefEntity): boolean => {
       return entity.key === startEventKey;
     });
 
@@ -405,7 +411,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     });
 
     return lanes.filter((lane: ILaneEntity) => {
-      executionContext.getRoles().includes(lane.role);
+      return executionContext.getRoles().includes(lane.role);
     });
   }
 
@@ -429,9 +435,9 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     return processDef;
   }
 
-  private async _getAccessibleStartEvents(executionContext: ExecutionContext, processModelKey: string): Promise<Array<IStartEventEntity>> {
+  private async _getAccessibleStartEvents(executionContext: ExecutionContext, processModelKey: string): Promise<Array<INodeDefEntity>> {
 
-    const startEvents: Array<IStartEventEntity> = await this._getStartEventsForProcessModel(executionContext, processModelKey);
+    const startEvents: Array<INodeDefEntity> = await this._getStartEventsForProcessModel(executionContext, processModelKey);
     const accessibleLanes: Array<ILaneEntity> = await this._getLanesThatCanBeAccessed(executionContext, processModelKey);
 
     if (accessibleLanes.length === 0) {
@@ -442,8 +448,8 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
       return lane.id;
     });
 
-    const accessibleStartEventEntities: Array<IStartEventEntity> = startEvents.filter((startEvent: IStartEventEntity) => {
-      return accessibleLaneIds.includes(startEvent.nodeDef.lane.id);
+    const accessibleStartEventEntities: Array<INodeDefEntity> = startEvents.filter((startEvent: INodeDefEntity) => {
+      return accessibleLaneIds.includes(startEvent.lane.id);
     });
 
     if (accessibleStartEventEntities.length === 0) {
@@ -453,7 +459,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     return accessibleStartEventEntities;
   }
 
-  private async _getStartEventsForProcessModel(executionContext: ExecutionContext, processModelKey: string): Promise<Array<IStartEventEntity>> {
+  private async _getStartEventsForProcessModel(executionContext: ExecutionContext, processModelKey: string): Promise<Array<INodeDefEntity>> {
 
     const queryOptions: IPrivateQueryOptions = {
       query: {
@@ -470,19 +476,11 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
             value: 'bpmn:StartEvent',
           },
         ],
-      },
-      expandCollection: [
-        {
-          attribute: 'nodeDef',
-          childAttributes: [
-            {attribute: 'lane'},
-          ],
-        },
-      ],
+      }
     };
 
-    const startEventEntityType: IEntityType<IStartEventEntity> = await this.datastoreService.getEntityType<IStartEventEntity>('NodeDef');
-    const startEvents: IEntityCollection<IStartEventEntity> = await startEventEntityType.query(executionContext, queryOptions);
+    const startEventEntityType: IEntityType<INodeDefEntity> = await this.datastoreService.getEntityType<INodeDefEntity>('NodeDef');
+    const startEvents: IEntityCollection<INodeDefEntity> = await startEventEntityType.query(executionContext, queryOptions);
 
     return startEvents.data;
   }
