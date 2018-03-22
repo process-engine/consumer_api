@@ -22,7 +22,13 @@ import {
   TokenType,
 } from '@essential-projects/core_contracts';
 import {IDatastoreService, IEntityCollection, IEntityType} from '@essential-projects/data_model_contracts';
-import {ILaneEntity, IProcessDefEntity, IProcessEngineService, IUserTaskEntity, IUserTaskMessageData} from '@process-engine/process_engine_contracts';
+import {
+  ILaneEntity,
+  IProcessDefEntity,
+  IProcessEngineService,
+  IUserTaskEntity,
+  IUserTaskMessageData,
+} from '@process-engine/process_engine_contracts';
 
 import {ForbiddenError, NotFoundError} from '@essential-projects/errors_ts';
 import {
@@ -96,17 +102,16 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
 
   public async getProcessModelByKey(context: IConsumerContext, processModelKey: string): Promise<IProcessModel> {
 
-    const mockData: IProcessModel = {
-      key: 'mock_process_model',
-      startEvents: [{
-        key: 'startEvent_1',
-        id: '',
-        process_instance_id: '',
-        data: {},
-      }],
+    const executionContext: ExecutionContext = await this.executionContextFromConsumerContext(context);
+
+    const processDef: IProcessDefEntity = await this._getProcessModelByKey(executionContext, processModelKey);
+
+    const processModel: IProcessModel = {
+      key: processDef.key,
+      startEvents: [], // TODO
     };
 
-    return Promise.resolve(mockData);
+    return processModel;
   }
 
   public async startProcess(context: IConsumerContext,
@@ -114,6 +119,10 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
                             startEventKey: string,
                             payload: IProcessStartRequestPayload,
                             returnOn: ProcessStartReturnOnOptions): Promise<IProcessStartResponsePayload> {
+
+    const executionContext: ExecutionContext = await this.executionContextFromConsumerContext(context);
+
+    const processModel: IProcessDefEntity = await this._getProcessModelByKey(executionContext, processModelKey);
 
     const mockResponse: IProcessStartResponsePayload = {
       correlation_id: payload.correlation_id || 'mocked-correlation-id',
@@ -127,6 +136,10 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
                                             startEventKey: string,
                                             endEventKey: string,
                                             payload: IProcessStartRequestPayload): Promise<IProcessStartResponsePayload> {
+
+    const executionContext: ExecutionContext = await this.executionContextFromConsumerContext(context);
+
+    const processModel: IProcessDefEntity = await this._getProcessModelByKey(executionContext, processModelKey);
 
     const mockResponse: IProcessStartResponsePayload = {
       correlation_id: payload.correlation_id || 'mocked-correlation-id',
@@ -205,7 +218,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     // this will throw a NotFoundError of it doesn't exist
     const processModel: IProcessModel = await this.getProcessModelByKey(context, processModelKey);
 
-    const accessibleLanes: Array<ILaneEntity> = this.getLanesThatCanBeAccessed(context, processModel);
+    const accessibleLanes: Array<ILaneEntity> = this.getLanesThatCanBeAccessed(context, processModelKey);
 
     if (accessibleLanes.length === 0) {
       throw new ForbiddenError(`Access to Process Model '${processModelKey}' not allowed`);
@@ -328,8 +341,27 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     return Promise.resolve();
   }
 
-  private getLanesThatCanBeAccessed(context: IConsumerContext, processModel: IProcessModel) {
+  private getLanesThatCanBeAccessed(context: IConsumerContext, processModelKey: string) {
+  }
 
+  private async _getProcessModelByKey(executionContext: ExecutionContext, processModelKey: string): Promise<IProcessDefEntity> {
+
+    const queryOptions: IPrivateQueryOptions = {
+      query: {
+        attribute: 'key',
+        operator: '=',
+        value: processModelKey,
+      },
+    };
+
+    const processDefEntityType: IEntityType<IProcessDefEntity> = await this.datastoreService.getEntityType<IProcessDefEntity>('ProcessDef');
+    const processDef: IProcessDefEntity = await processDefEntityType.findOne(executionContext, queryOptions);
+
+    if (!processDef) {
+      throw new NotFoundError(`Process model with key ${processModelKey} not found.`);
+    }
+
+    return processDef;
   }
 
   private executionContextFromConsumerContext(consumerContext: IConsumerContext): Promise<ExecutionContext> {
