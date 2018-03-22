@@ -22,8 +22,9 @@ import {
   TokenType,
 } from '@essential-projects/core_contracts';
 import {IDatastoreService, IEntityCollection, IEntityType} from '@essential-projects/data_model_contracts';
-import {IProcessDefEntity, IProcessEngineService, IUserTaskEntity, IUserTaskMessageData} from '@process-engine/process_engine_contracts';
+import {ILaneEntity, IProcessDefEntity, IProcessEngineService, IUserTaskEntity, IUserTaskMessageData} from '@process-engine/process_engine_contracts';
 
+import {ForbiddenError, NotFoundError} from '@essential-projects/errors_ts';
 import {
   FormWidgetFieldType,
   IConfirmWidgetAction,
@@ -201,6 +202,15 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
   public async getUserTasksForProcessModel(context: IConsumerContext, processModelKey: string): Promise<IUserTaskList> {
     const executionContext: ExecutionContext = await this.executionContextFromConsumerContext(context);
 
+    // this will throw a NotFoundError of it doesn't exist
+    const processModel: IProcessModel = await this.getProcessModelByKey(context, processModelKey);
+
+    const accessibleLanes: Array<ILaneEntity> = this.getLanesThatCanBeAccessed(context, processModel);
+
+    if (accessibleLanes.length === 0) {
+      throw new ForbiddenError(`Access to Process Model '${processModelKey}' not allowed`);
+    }
+
     const userTaskEntityType: IEntityType<IUserTaskEntity> = await this.datastoreService.getEntityType<IUserTaskEntity>('UserTask');
 
     const query: IPrivateQueryOptions = {
@@ -243,10 +253,12 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
       userTasks.push(userTask);
     });
 
-    const resultUserTaskPromises: Array<any> = userTasks.filter(async(userTask: IUserTaskEntity) => {
-      const laneRole: string = userTask.nodeDef.lane.role;
+    const accessibleLaneIds: Array<string> = accessibleLanes.map((lane: ILaneEntity) => {
+      return lane.id;
+    });
 
-      return true;
+    const resultUserTaskPromises: Array<any> = userTasks.filter(async(userTask: IUserTaskEntity) => {
+      return accessibleLaneIds.includes(userTask.nodeDef.lane.id);
     }).map(async(userTask: IUserTaskEntity) => {
 
       const userTaskData: any = await userTask.getUserTaskData(executionContext);
@@ -316,12 +328,16 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     return Promise.resolve();
   }
 
-  private formWidgetFieldIsEnum(formWidgetField: IFormWidgetField<any>): formWidgetField is IFormWidgetEnumField {
-    return formWidgetField.type === FormWidgetFieldType.enumeration;
+  private getLanesThatCanBeAccessed(context: IConsumerContext, processModel: IProcessModel) {
+
   }
 
   private executionContextFromConsumerContext(consumerContext: IConsumerContext): Promise<ExecutionContext> {
     return this.iamService.resolveExecutionContext(consumerContext.authorization.substr('Bearer '.length), TokenType.jwt);
+  }
+
+  private formWidgetFieldIsEnum(formWidgetField: IFormWidgetField<any>): formWidgetField is IFormWidgetEnumField {
+    return formWidgetField.type === FormWidgetFieldType.enumeration;
   }
 
   private getUserTaskConfigFromUserTaskData(userTaskData: IUserTaskMessageData): IUserTaskConfig {
