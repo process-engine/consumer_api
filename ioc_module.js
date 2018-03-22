@@ -12,7 +12,8 @@ function registerInContainer(container) {
     .dependencies('DatastoreService', 'IamService', 'ProcessEngineService', 'ConsumerApiIamService');
 
   container.register('ConsumerApiService', ConsumerApiService)
-    .dependencies('ConsumerProcessEngineAdapter');
+    .dependencies('ConsumerProcessEngineAdapter')
+    .singleton();
 
   container.register('ConsumerApiIamService', ConsumerApiIamService);
 }
