@@ -156,11 +156,11 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     });
 
     if (!matchingStartEvent) {
-      throw new NotFoundError(`Start event ${processModelKey} not found.`);
+      throw new NotFoundError(`Start event ${startEventKey} not found.`);
     }
 
     // TODO Add case for different returnOn Scenarios and retrieve and return the created correlationId somehow.
-    await this.processEngineService.executeProcess(executionContext, undefined, processModelKey, payload);
+    // await this.processEngineService.executeProcess(executionContext, undefined, processModelKey, payload);
 
     // const processInstance: IProcessEntity = await this.processEngineService.createProcessInstance(executionContext, undefined, processModelKey);
 
@@ -411,7 +411,8 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     });
 
     return lanes.filter((lane: ILaneEntity) => {
-      return executionContext.getRoles().includes(lane.role);
+      // TODO: Temporary mock that will get removed when the IAM service is implemented
+      return executionContext.getRoles().includes('user');
     });
   }
 
@@ -466,7 +467,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
         operator: 'and',
         queries: [
           {
-            attribute: 'key',
+            attribute: 'processDef.key',
             operator: '=',
             value: processModelKey,
           },
@@ -476,7 +477,15 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
             value: 'bpmn:StartEvent',
           },
         ],
-      }
+      },
+      expandCollection: [
+        {
+          attribute: 'processDef',
+          childAttributes: [
+            { attribute: 'key' },
+          ],
+        },
+      ],
     };
 
     const startEventEntityType: IEntityType<INodeDefEntity> = await this.datastoreService.getEntityType<INodeDefEntity>('NodeDef');
