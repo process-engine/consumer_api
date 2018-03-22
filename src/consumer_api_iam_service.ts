@@ -8,7 +8,7 @@ export class ConsumerApiIamService {
 
   private claimConfig: IClaimConfig = {};
 
-  constructor(claimConfig: IClaimConfig) {
+  constructor(claimConfig: IClaimConfig = {}) {
     this.claimConfig = claimConfig;
   }
 

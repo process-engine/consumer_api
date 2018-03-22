@@ -3,7 +3,7 @@
 const {
   ConsumerApiService,
   ConsumerProcessEngineAdapter,
-  ComsumerApiIamService,
+  ConsumerApiIamService,
 } = require('./dist/commonjs/index');
 
 function registerInContainer(container) {
@@ -14,7 +14,7 @@ function registerInContainer(container) {
   container.register('ConsumerApiService', ConsumerApiService)
     .dependencies('ConsumerProcessEngineAdapter');
 
-  container.register('ConsumerApiIamService', ComsumerApiIamService);
+  container.register('ConsumerApiIamService', ConsumerApiIamService);
 }
 
 module.exports.registerInContainer = registerInContainer;

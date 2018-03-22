@@ -76,7 +76,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     this._datastoreService = datastoreService;
     this._iamService = iamService;
     this._processEngineService = processEngineService;
-    this._consumerApiIamService = this.consumerApiIamService;
+    this._consumerApiIamService = consumerApiIamService;
   }
 
   private get datastoreService(): IDatastoreService {
@@ -123,9 +123,9 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
 
     const processDef: IProcessDefEntity = await this._getProcessModelByKey(executionContext, processModelKey);
 
-    const accessibleLanes: Array<ILaneEntity> = await this._getLanesThatCanBeAccessed(executionContext, processModelKey);
+    const accessibleLaneIds: Array<string> = await this._getIdsOfLanesThatCanBeAccessed(executionContext, processModelKey);
 
-    if (accessibleLanes.length === 0) {
+    if (accessibleLaneIds.length === 0) {
       throw new ForbiddenError(`Access to Process Model '${processModelKey}' not allowed`);
     }
 
@@ -284,63 +284,9 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
   public async getUserTasksForProcessModel(context: IConsumerContext, processModelKey: string): Promise<IUserTaskList> {
     const executionContext: ExecutionContext = await this.executionContextFromConsumerContext(context);
 
-    // this will throw a NotFoundError of it doesn't exist
-    const processModel: IProcessDefEntity = await this._getProcessModelByKey(executionContext, processModelKey);
+    const userTasks: Array<IUserTaskEntity> = await this._getAccessibleUserTasks(executionContext, processModelKey);
 
-    const accessibleLanes: Array<ILaneEntity> = await this._getLanesThatCanBeAccessed(executionContext, processModelKey);
-    if (accessibleLanes.length === 0) {
-      throw new ForbiddenError(`Access to Process Model '${processModelKey}' not allowed`);
-    }
-
-    const userTaskEntityType: IEntityType<IUserTaskEntity> = await this.datastoreService.getEntityType<IUserTaskEntity>('UserTask');
-
-    const query: IPrivateQueryOptions = {
-      query: {
-        operator: 'and',
-        queries: [
-          {
-            attribute: 'process.processDef.key',
-            operator: '=',
-            value: processModelKey,
-          },
-          {
-            attribute: 'state',
-            operator: '=',
-            value: 'wait',
-          },
-        ],
-      },
-      expandCollection: [
-        {attribute: 'processToken'},
-        {
-          attribute: 'nodeDef',
-          childAttributes: [
-            {attribute: 'lane'},
-            {attribute: 'extensions'},
-          ],
-        },
-        {
-          attribute: 'process',
-          childAttributes: [
-            {attribute: 'id'},
-          ],
-        },
-      ],
-    };
-
-    const userTaskCollection: IEntityCollection<IUserTaskEntity> = await userTaskEntityType.query(executionContext, query);
-    const userTasks: Array<IUserTaskEntity> = [];
-    await userTaskCollection.each(executionContext, (userTask: IUserTaskEntity) => {
-      userTasks.push(userTask);
-    });
-
-    const accessibleLaneIds: Array<string> = accessibleLanes.map((lane: ILaneEntity) => {
-      return lane.id;
-    });
-
-    const resultUserTaskPromises: Array<any> = userTasks.filter(async(userTask: IUserTaskEntity) => {
-      return accessibleLaneIds.includes(userTask.nodeDef.lane.id);
-    }).map(async(userTask: IUserTaskEntity) => {
+    const resultUserTaskPromises: Array<any> = userTasks.map(async(userTask: IUserTaskEntity) => {
 
       const userTaskData: any = await userTask.getUserTaskData(executionContext);
 
@@ -409,50 +355,52 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     return Promise.resolve();
   }
 
-  private async _getLanesByProcessModelKey(executionContext: ExecutionContext, processModelKey: string): Promise<Array<ILaneEntity>> {
-    const laneEntityType: IEntityType<ILaneEntity> = await this.datastoreService.getEntityType<ILaneEntity>('Lane');
-
-    const query: IPrivateQueryOptions = {
-      query: {
-        attribute: 'processDef.key',
-        operator: '=',
-        value: processModelKey,
-      },
-    };
-
-    const laneCollection: IEntityCollection<ILaneEntity> = await laneEntityType.query(executionContext, query);
-    const lanes: Array<ILaneEntity> = [];
-    await laneCollection.each(executionContext, (userTask: ILaneEntity) => {
-      lanes.push(userTask);
-    });
-
-    return lanes;
-  }
-
-  private async _getLanesThatCanBeAccessed(executionContext: ExecutionContext, processModelKey: string): Promise<Array<ILaneEntity>> {
+  private async _getIdsOfLanesThatCanBeAccessed(executionContext: ExecutionContext, processModelKey: string): Promise<Array<string>> {
     const processModel: IProcessDefEntity = await this._getProcessModelByKey(executionContext, processModelKey);
-    const lanes: Array<ILaneEntity> = await this._getLanesByProcessModelKey(executionContext, processModelKey);
 
     const identity: IIdentity = await this.processEngineiamService.getIdentity(executionContext);
     const processDefinitions: IDefinition = await this._getDefinitionsFromProcessModel(processModel);
 
-    return lanes.filter(async(lane: ILaneEntity) => {
-      const requiredClaims: Array<string> = this._getRequiredClaimsForLane(processDefinitions, lane.id);
-
-      for (const claim of requiredClaims) {
-        const claimIsInvalid: boolean = claim === undefined || claim === '';
-        if (claimIsInvalid) {
-          return false;
-        }
-
-        const identityHasClaim: boolean = await this.consumerApiIamService.hasClaim(identity, claim);
-        if (!identityHasClaim) {
-          return false;
-        }
+    let accessibleLanes: Array<IModdleElement> = [];
+    for (const rootElement of processDefinitions.rootElements) {
+      if (rootElement.$type !== 'bpmn:Process') {
+        continue;
       }
 
-      return true;
+      for (const laneSet of rootElement.laneSets) {
+        accessibleLanes = accessibleLanes.concat(await this._getLanesThatCanBeAccessed(identity, laneSet));
+      }
+    }
+
+    return accessibleLanes.map((lane: IModdleElement) => {
+      return lane.id;
     });
+  }
+
+  private async _getLanesThatCanBeAccessed(identity: IIdentity, laneSet: IModdleElement): Promise<Array<IModdleElement>> {
+    if (laneSet === undefined) {
+      return Promise.resolve([]);
+    }
+
+    let result: Array<IModdleElement> = [];
+
+    for (const lane of laneSet.lanes) {
+      const claimIsInvalid: boolean = lane.name === undefined || lane.name === '';
+      if (claimIsInvalid) {
+        logger.warn(`lane with id ${lane.id} has no claim/title`);
+        continue;
+      }
+
+      const identityHasClaim: boolean = await this.consumerApiIamService.hasClaim(identity, lane.name);
+      if (!identityHasClaim) {
+        continue;
+      }
+
+      result.push(lane);
+      result = result.concat(await this._getLanesThatCanBeAccessed(identity, lane.childLaneSet));
+    }
+
+    return result;
   }
 
   private _getDefinitionsFromProcessModel(processModel: IProcessDefEntity): Promise<IDefinition> {
@@ -469,32 +417,37 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     });
   }
 
-  private _getRequiredClaimsForLane(definitions: IDefinition, laneId: string): Array<string> {
-    // 1. Find the process of the lane
-    // 2. Find all lanes in that process
-    // 3. find lane hierarchy
-
-    const processThatHostsLane: IModdleElement = this._getProcessThatContainsLane(definitions, laneId);
-    console.log('laneSets', processThatHostsLane.laneSets, 'lanes', processThatHostsLane.lanes);
-
-    return [];
-    /*
-    if (claim === undefined || claim === false) {
-      logger.warn(`lane with id ${lane.id} has no claim/title`);
-    }
-    */
-  }
-
-  private _getProcessThatContainsLane(definitions: IDefinition, laneId: string): IModdleElement {
-    for (const rootElement of definitions.rootElements) {
+  private _getLaneIdForElement(processDefinitions: IDefinition, elementId: string): string {
+    for (const rootElement of processDefinitions.rootElements) {
       if (rootElement.$type !== 'bpmn:Process') {
         continue;
       }
 
       for (const laneSet of rootElement.laneSets) {
-        if (laneSet.id === laneId) {
-          return rootElement;
+        const closestLaneId: string = this._getClosestLaneIdToElement(laneSet, elementId);
+        if (closestLaneId !== undefined) {
+          return closestLaneId;
         }
+      }
+    }
+  }
+
+  private _getClosestLaneIdToElement(laneSet: IModdleElement, elementId: string): string {
+    for (const lane of laneSet.lanes) {
+      if (lane.childLaneSet !== undefined) {
+        return this._getClosestLaneIdToElement(lane.childLaneSet, elementId);
+      }
+
+      if (lane.flowNodeRef === undefined) {
+        continue;
+      }
+
+      const elementIsInLane: boolean = lane.flowNodeRef.some((flowNode: IModdleElement) => {
+        return flowNode.id === elementId;
+      });
+
+      if (elementIsInLane) {
+        return lane.id;
       }
     }
   }
@@ -519,21 +472,49 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     return processDef;
   }
 
-  private async _getAccessibleStartEvents(executionContext: ExecutionContext, processModelKey: string): Promise<Array<INodeDefEntity>> {
+  private async _getAccessibleUserTasks(executionContext: ExecutionContext, processModelKey: string): Promise<Array<IUserTaskEntity>> {
 
-    const startEvents: Array<INodeDefEntity> = await this._getStartEventsForProcessModel(executionContext, processModelKey);
-    const accessibleLanes: Array<ILaneEntity> = await this._getLanesThatCanBeAccessed(executionContext, processModelKey);
+    const userTasks: Array<IUserTaskEntity> = await this._getUserTasksForProcessModel(executionContext, processModelKey);
+    const accessibleLaneIds: Array<string> = await this._getIdsOfLanesThatCanBeAccessed(executionContext, processModelKey);
 
-    if (accessibleLanes.length === 0) {
+    if (accessibleLaneIds.length === 0) {
       throw new ForbiddenError(`Access to Process Model '${processModelKey}' not allowed`);
     }
 
-    const accessibleLaneIds: Array<string> = accessibleLanes.map((lane: ILaneEntity) => {
-      return lane.id;
+    const processModel: IProcessDefEntity = await this._getProcessModelByKey(executionContext, processModelKey);
+    const processDefinitions: IDefinition = await this._getDefinitionsFromProcessModel(processModel);
+
+    const accessibleUserTaskEntities: Array<any> = userTasks.filter((userTask: IUserTaskEntity) => {
+      const laneId: string = this._getLaneIdForElement(processDefinitions, userTask.key);
+      const identityCanAccessUserTask: boolean = laneId !== undefined && accessibleLaneIds.includes(laneId);
+
+      return identityCanAccessUserTask;
     });
 
-    const accessibleStartEventEntities: Array<INodeDefEntity> = startEvents.filter((startEvent: INodeDefEntity) => {
-      return accessibleLaneIds.includes(startEvent.lane.id);
+    if (accessibleUserTaskEntities.length === 0) {
+      throw new ForbiddenError(`Access to Process Model '${processModelKey}' not allowed`);
+    }
+
+    return accessibleUserTaskEntities;
+  }
+
+  private async _getAccessibleStartEvents(executionContext: ExecutionContext, processModelKey: string): Promise<Array<INodeDefEntity>> {
+
+    const startEvents: Array<INodeDefEntity> = await this._getStartEventsForProcessModel(executionContext, processModelKey);
+    const accessibleLaneIds: Array<string> = await this._getIdsOfLanesThatCanBeAccessed(executionContext, processModelKey);
+
+    if (accessibleLaneIds.length === 0) {
+      throw new ForbiddenError(`Access to Process Model '${processModelKey}' not allowed`);
+    }
+
+    const processModel: IProcessDefEntity = await this._getProcessModelByKey(executionContext, processModelKey);
+    const processDefinitions: IDefinition = await this._getDefinitionsFromProcessModel(processModel);
+
+    const accessibleStartEventEntities: Array<any> = startEvents.filter((startEvent: INodeDefEntity) => {
+      const laneId: string = this._getLaneIdForElement(processDefinitions, startEvent.key);
+      const identityCanAccessStartEvent: boolean = laneId !== undefined && accessibleLaneIds.includes(laneId);
+
+      return identityCanAccessStartEvent;
     });
 
     if (accessibleStartEventEntities.length === 0) {
@@ -541,6 +522,53 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     }
 
     return accessibleStartEventEntities;
+  }
+
+  private async _getUserTasksForProcessModel(executionContext: ExecutionContext, processModelKey: string): Promise<Array<IUserTaskEntity>> {
+
+    const userTaskEntityType: IEntityType<IUserTaskEntity> = await this.datastoreService.getEntityType<IUserTaskEntity>('UserTask');
+
+    const query: IPrivateQueryOptions = {
+      query: {
+        operator: 'and',
+        queries: [
+          {
+            attribute: 'process.processDef.key',
+            operator: '=',
+            value: processModelKey,
+          },
+          {
+            attribute: 'state',
+            operator: '=',
+            value: 'wait',
+          },
+        ],
+      },
+      expandCollection: [
+        {attribute: 'processToken'},
+        {
+          attribute: 'nodeDef',
+          childAttributes: [
+            {attribute: 'lane'},
+            {attribute: 'extensions'},
+          ],
+        },
+        {
+          attribute: 'process',
+          childAttributes: [
+            {attribute: 'id'},
+          ],
+        },
+      ],
+    };
+
+    const userTaskCollection: IEntityCollection<IUserTaskEntity> = await userTaskEntityType.query(executionContext, query);
+    const userTasks: Array<IUserTaskEntity> = [];
+    await userTaskCollection.each(executionContext, (userTask: IUserTaskEntity) => {
+      userTasks.push(userTask);
+    });
+
+    return userTasks;
   }
 
   private async _getStartEventsForProcessModel(executionContext: ExecutionContext, processModelKey: string): Promise<Array<INodeDefEntity>> {
@@ -572,9 +600,14 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     };
 
     const startEventEntityType: IEntityType<INodeDefEntity> = await this.datastoreService.getEntityType<INodeDefEntity>('NodeDef');
-    const startEvents: IEntityCollection<INodeDefEntity> = await startEventEntityType.query(executionContext, queryOptions);
+    const startEventCollection: IEntityCollection<INodeDefEntity> = await startEventEntityType.query(executionContext, queryOptions);
 
-    return startEvents.data;
+    const startEvents: Array<INodeDefEntity> = [];
+    await startEventCollection.each(executionContext, (startEvent: INodeDefEntity) => {
+      startEvents.push(startEvent);
+    });
+
+    return startEvents;
   }
 
   private executionContextFromConsumerContext(consumerContext: IConsumerContext): Promise<ExecutionContext> {
