@@ -351,6 +351,11 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     return Promise.resolve();
   }
 
+  private async _getProcessInstancesToCorrelation(executionContext: ExecutionContext, correlationId: string): Promise<Array<IProcessEntity>> {
+    // TODO: Get actual process instances
+    return [];
+  }
+
   private async _processModelBelongsToCorrelation(executionContext: ExecutionContext,
                                                   correlationId: string,
                                                   processModelKey: string): Promise<boolean> {
@@ -359,18 +364,40 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
       throw new NotFoundError(`correlation with id '${correlationId}' doesn't exist`);
     }
 
-    const mainProcessModelKey: string = this._correlations[correlationId];
-    if (mainProcessModelKey === processModelKey) {
+    const mainProcessInstaceId: string = this._correlations[correlationId];
+    const mainProcessInstance: IProcessEntity = await this._getProcessInstanceById(executionContext, mainProcessInstaceId);
+    if (mainProcessInstance.key === processModelKey) {
       return true;
     }
 
-    const subProcessModelKeys: Array<string> = await this._getSubProcessModelKeys(executionContext, mainProcessModelKey);
+    const subProcessModelKeys: Array<string> = await this._getSubProcessModelKeys(executionContext, mainProcessInstance.key);
 
     return subProcessModelKeys.includes(processModelKey);
   }
 
   private async _getSubProcessModelKeys(executionContext: ExecutionContext, processModelKey: string): Promise<Array<string>> {
     const callActivities: Array<INodeDefEntity> = await this._getNodesByTypeForProcessModel(executionContext, processModelKey, BpmnType.callActivity);
+
+    let result: Array<string> = callActivities.map((callActivity: INodeDefEntity) => {
+      return callActivity.subProcessKey;
+    });
+
+    for (const callActivity of callActivities) {
+      result = result.concat(await this._getSubProcessModelKeys(executionContext, callActivity.subProcessKey));
+    }
+
+    return result;
+  }
+
+  private async _getProcessInstanceById(executionContext: ExecutionContext, processInstanceId: string): Promise<IProcessEntity> {
+    const processEntityType: IEntityType<IProcessEntity> = await this.datastoreService.getEntityType<IProcessEntity>('Process');
+    const process: IProcessEntity = await processEntityType.getById(processInstanceId, executionContext);
+
+    if (!process) {
+      throw new NotFoundError(`Process instance with id ${processInstanceId} not found.`);
+    }
+
+    return process;
   }
 
   private async _ensureStartEventAccessibility(executionContext: ExecutionContext, processModelKey: string, startEventKey: string): Promise<void> {
