@@ -25,6 +25,7 @@ import {
   IPrivateQueryOptions,
   IPublicGetOptions,
   IQueryClause,
+  IQueryObject,
   TokenType,
 } from '@essential-projects/core_contracts';
 import {IDatastoreService, IEntityCollection, IEntityType} from '@essential-projects/data_model_contracts';
@@ -385,8 +386,25 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     return [mainProcessInstance].concat(subProcessInstances);
   }
 
-  private async _getSubProcessInstances(executionContext: ExecutionContext, parentProcessInstanceId: string) {
+  private async _getSubProcessInstances(executionContext: ExecutionContext, parentProcessInstanceId: string): Promise<Array<IProcessInstance>> {
 
+    const nodes: Array<INodeDefEntity> = await this._getCallActivitiesForProcessInstance(executionContext, parentProcessInstanceId);
+    const nodeIds: Array<string> = nodes.map((node: INodeDefEntity) => {
+      return node.id;
+    });
+
+    const processes: Array<IProcessEntity> = await this._getCalledProcessesViaCallerIds(executionContext, nodeIds);
+
+    let result: Array<IProcessEntity> = processes.slice(0);
+    for (const process of processes) {
+      const subProcesses: Array<IProcessEntity> = await this._getSubProcessInstances(executionContext, process.id);
+      result = result.concat(subProcesses);
+    }
+
+    return result;
+  }
+
+  private async _getCallActivitiesForProcessInstance(executionContext: ExecutionContext, processInstanceId: string): Array<INodeDefEntity> {
     const queryOptions: IPrivateQueryOptions = {
       query: {
         operator: 'and',
@@ -394,7 +412,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
           {
             attribute: 'process',
             operator: '=',
-            value: parentProcessInstanceId,
+            value: processInstanceId,
           },
           {
             attribute: 'type',
@@ -405,15 +423,42 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
       },
     };
 
-    const eventEntityType: IEntityType<INodeDefEntity> = await this.datastoreService.getEntityType<INodeDefEntity>('NodeDef');
-    const eventCollection: IEntityCollection<INodeDefEntity> = await eventEntityType.query(executionContext, queryOptions);
+    const nodeDefEntityType: IEntityType<INodeDefEntity> = await this.datastoreService.getEntityType<INodeDefEntity>('NodeDef');
+    const nodeDefCollection: IEntityCollection<INodeDefEntity> = await nodeDefEntityType.query(executionContext, queryOptions);
 
-    const events: Array<INodeDefEntity> = [];
-    await eventCollection.each(executionContext, (event: INodeDefEntity) => {
-      events.push(event);
+    const nodes: Array<INodeDefEntity> = [];
+    await nodeDefCollection.each(executionContext, (node: INodeDefEntity) => {
+      nodes.push(node);
     });
 
-    return events;
+    return nodes;
+  }
+
+  private async _getCalledProcessesViaCallerIds(executionContext: ExecutionContext, callerIds: Array<string>): Promise<Array<IProcessEntity>> {
+    const processInstanceQueryParts: Array<IQueryClause> = callerIds.map((callerId: string): IQueryClause => {
+      return {
+        attribute: 'callerId',
+        operator: '=',
+        value: callerId,
+      };
+    });
+
+    const processInstanceQueryOptions: IPrivateQueryOptions = {
+      query: {
+        operator: 'or',
+        queries: processInstanceQueryParts,
+      },
+    };
+
+    const processEntityType: IEntityType<IProcessEntity> = await this.datastoreService.getEntityType<IProcessEntity>('Process');
+    const processCollection: IEntityCollection<IProcessEntity> = await processEntityType.query(executionContext, processInstanceQueryOptions);
+
+    const processes: Array<IProcessEntity> = [];
+    await processCollection.each(executionContext, (process: IProcessEntity) => {
+      processes.push(process);
+    });
+
+    return processes;
   }
 
   private async _processModelBelongsToCorrelation(executionContext: ExecutionContext,
