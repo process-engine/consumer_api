@@ -6,18 +6,14 @@ export interface IClaimConfig {
 
 export class ConsumerApiIamService {
 
-  private claimConfig: IClaimConfig = {};
-
-  constructor(claimConfig: IClaimConfig = {}) {
-    this.claimConfig = claimConfig;
-  }
+  public config: any;
 
   public hasClaim(identity: IIdentity, claim: string): Promise<boolean> {
-    if (this.claimConfig[identity.name] === undefined) {
+    if (this.config[identity.name] === undefined) {
       return Promise.resolve(false);
     }
 
-    const claimsOfIdentity: Array<string> = this.claimConfig[identity.name];
+    const claimsOfIdentity: Array<string> = this.config[identity.name];
 
     return Promise.resolve(claimsOfIdentity.includes(claim));
   }

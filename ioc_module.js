@@ -15,7 +15,9 @@ function registerInContainer(container) {
     .dependencies('ConsumerProcessEngineAdapter')
     .singleton();
 
-  container.register('ConsumerApiIamService', ConsumerApiIamService);
+  // TODO: Temporary workaround until the IdentityServer is in place.
+  container.register('ConsumerApiIamService', ConsumerApiIamService)
+    .configure('consumer_api_core:claim_mappings');
 }
 
 module.exports.registerInContainer = registerInContainer;
