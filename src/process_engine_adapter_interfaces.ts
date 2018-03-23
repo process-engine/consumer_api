@@ -1,5 +1,9 @@
 import {IUserTaskEntity} from '@process-engine/process_engine_contracts';
 
+export interface ICorrelationCache {
+  [correlationId: string]: string;
+}
+
 export type IWidgetConfig = {}; // sadly, our current widgetConfigs don't share any similarities
 
 export enum FormWidgetFieldType {
