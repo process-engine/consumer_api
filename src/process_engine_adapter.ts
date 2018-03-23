@@ -34,6 +34,7 @@ import {
   IErrorDeserializer,
   ILaneEntity,
   INodeDefEntity,
+  INodeInstanceEntity,
   INodeInstanceEntityTypeService,
   IParamStart,
   IProcessDefEntity,
@@ -422,8 +423,8 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
 
   private async _getSubProcessInstances(executionContext: ExecutionContext, parentProcessInstanceId: string): Promise<Array<IProcessEntity>> {
 
-    const nodes: Array<INodeDefEntity> = await this._getCallActivitiesForProcessInstance(executionContext, parentProcessInstanceId);
-    const nodeIds: Array<string> = nodes.map((node: INodeDefEntity) => {
+    const nodes: Array<INodeInstanceEntity> = await this._getCallActivitiesForProcessInstance(executionContext, parentProcessInstanceId);
+    const nodeIds: Array<string> = nodes.map((node: INodeInstanceEntity) => {
       return node.id;
     });
 
@@ -438,7 +439,8 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     return result;
   }
 
-  private async _getCallActivitiesForProcessInstance(executionContext: ExecutionContext, processInstanceId: string): Promise<Array<INodeDefEntity>> {
+  private async _getCallActivitiesForProcessInstance(executionContext: ExecutionContext,
+                                                     processInstanceId: string): Promise<Array<INodeInstanceEntity>> {
     const queryOptions: IPrivateQueryOptions = {
       query: {
         operator: 'and',
@@ -457,18 +459,22 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
       },
     };
 
-    const nodeDefEntityType: IEntityType<INodeDefEntity> = await this.datastoreService.getEntityType<INodeDefEntity>('NodeDef');
-    const nodeDefCollection: IEntityCollection<INodeDefEntity> = await nodeDefEntityType.query(executionContext, queryOptions);
+    const nodeDefEntityType: IEntityType<INodeInstanceEntity> = await this.datastoreService.getEntityType<INodeInstanceEntity>('NodeInstance');
+    const nodeInstanceCollection: IEntityCollection<INodeInstanceEntity> = await nodeDefEntityType.query(executionContext, queryOptions);
 
-    const nodes: Array<INodeDefEntity> = [];
-    await nodeDefCollection.each(executionContext, (node: INodeDefEntity) => {
-      nodes.push(node);
+    const nodes: Array<INodeInstanceEntity> = [];
+    await nodeInstanceCollection.each(executionContext, (nodeInstance: INodeInstanceEntity) => {
+      nodes.push(nodeInstance);
     });
 
     return nodes;
   }
 
   private async _getCalledProcessesViaCallerIds(executionContext: ExecutionContext, callerIds: Array<string>): Promise<Array<IProcessEntity>> {
+    if (callerIds.length === 0) {
+      return Promise.resolve([]);
+    }
+
     const processInstanceQueryParts: Array<IQueryClause> = callerIds.map((callerId: string): IQueryClause => {
       return {
         attribute: 'callerId',
@@ -482,6 +488,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
         operator: 'or',
         queries: processInstanceQueryParts,
       },
+      expandEntity: [{attribute: 'processDef'}],
     };
 
     const processEntityType: IEntityType<IProcessEntity> = await this.datastoreService.getEntityType<IProcessEntity>('Process');
@@ -529,8 +536,12 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
   }
 
   private async _getProcessInstanceById(executionContext: ExecutionContext, processInstanceId: string): Promise<IProcessEntity> {
+    const processInstanceQueryOptions: IPublicGetOptions = {
+      expandEntity: [{attribute: 'processDef'}],
+    };
+
     const processEntityType: IEntityType<IProcessEntity> = await this.datastoreService.getEntityType<IProcessEntity>('Process');
-    const process: IProcessEntity = await processEntityType.getById(processInstanceId, executionContext);
+    const process: IProcessEntity = await processEntityType.getById(processInstanceId, executionContext, processInstanceQueryOptions);
 
     if (!process) {
       throw new NotFoundError(`Process instance with id ${processInstanceId} not found.`);
@@ -724,7 +735,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
                                                           processInstance: IProcessEntity): Promise<Array<IUserTaskEntity>> {
 
     const userTasks: Array<IUserTaskEntity> = await this._getUserTasksForProcessInstance(executionContext, processInstance.id);
-    const accessibleLaneIds: Array<string> = await this._getIdsOfLanesThatCanBeAccessed(executionContext, processInstance.processDef.id);
+    const accessibleLaneIds: Array<string> = await this._getIdsOfLanesThatCanBeAccessed(executionContext, processInstance.processDef.key);
 
     if (accessibleLaneIds.length === 0) {
       throw new ForbiddenError(`Access to Process Model '${processInstance.processDef.key}' not allowed`);
