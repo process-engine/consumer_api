@@ -404,7 +404,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     return result;
   }
 
-  private async _getCallActivitiesForProcessInstance(executionContext: ExecutionContext, processInstanceId: string): Array<INodeDefEntity> {
+  private async _getCallActivitiesForProcessInstance(executionContext: ExecutionContext, processInstanceId: string): Promise<Array<INodeDefEntity>> {
     const queryOptions: IPrivateQueryOptions = {
       query: {
         operator: 'and',
