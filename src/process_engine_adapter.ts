@@ -492,7 +492,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
         operator: 'or',
         queries: processInstanceQueryParts,
       },
-      expandEntity: [{attribute: 'processDef'}],
+      expandCollection: [{attribute: 'processDef'}],
     };
 
     const processEntityType: IEntityType<IProcessEntity> = await this.datastoreService.getEntityType<IProcessEntity>('Process');
