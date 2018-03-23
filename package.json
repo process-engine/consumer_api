@@ -29,7 +29,8 @@
     "async-middleware": "^1.2.1",
     "bluebird": "^3.4.7",
     "bpmn-moddle": "^3.0.0",
-    "loggerhythm": "^3.0.3"
+    "loggerhythm": "^3.0.3",
+    "uuid": "^3.2.1"
   },
   "devDependencies": {
     "@essential-projects/tslint-config": "^1.0.0",

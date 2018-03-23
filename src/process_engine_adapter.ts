@@ -67,6 +67,8 @@ import {IBpmnModdle, IDefinition, IModdleElement} from './bpmnmodeler/index';
 
 import {Logger} from 'loggerhythm';
 
+import * as uuid from 'uuid';
+
 const logger: Logger = Logger.createLogger('consumer_api_core')
                              .createChildLogger('process_engine_adapter');
 
@@ -189,16 +191,22 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
 
     const startEventEntity: INodeDefEntity = await this._getStartEventEntity(executionContext, processModelKey, startEventKey);
 
-    // TODO Add support for different returnOn Scenarios and retrieve and return the created correlationId somehow.
-    const processInstanceId: string = await this.processEngineService.createProcessInstance(executionContext, undefined, processModelKey);
+    let correlationId: string;
 
-    await this.startProcessInstance(executionContext, processInstanceId, startEventEntity, payload);
+    // TODO: Retreive and return the correlation ID when wating for the process instance to finish.
+    if (returnOn === ProcessStartReturnOnOptions.onProcessInstanceStarted) {
+      const processInstanceId: string = await this.processEngineService.createProcessInstance(executionContext, undefined, processModelKey);
+      correlationId = await this.startProcessInstance(executionContext, processInstanceId, startEventEntity, payload);
+    } else {
+      correlationId = payload.correlation_id;
+      await this.processEngineService.executeProcess(executionContext, undefined, processModelKey, payload.input_values);
+    }
 
-    const mockResponse: IProcessStartResponsePayload = {
-      correlation_id: payload.correlation_id || 'mocked-correlation-id',
+    const response: IProcessStartResponsePayload = {
+      correlation_id: correlationId,
     };
 
-    return mockResponse;
+    return response;
   }
 
   public async startProcessAndAwaitEndEvent(context: IConsumerContext,
@@ -215,16 +223,16 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     const startEventEntity: INodeDefEntity = await this._getStartEventEntity(executionContext, processModelKey, startEventKey);
     const endEventEntity: INodeDefEntity = await this._getEndEventEntity(executionContext, processModelKey, endEventKey);
 
-    // TODO Add support for returning only at a specific end event and retrieve and return the created correlationId somehow.
+    // TODO: Return only after the given EndEvent was reached
     const processInstanceId: string = await this.processEngineService.createProcessInstance(executionContext, undefined, processModelKey);
 
-    await this.startProcessInstance(executionContext, processInstanceId, startEventEntity, payload);
+    const correlationId: string = await this.startProcessInstance(executionContext, processInstanceId, startEventEntity, payload);
 
-    const mockResponse: IProcessStartResponsePayload = {
-      correlation_id: payload.correlation_id || 'mocked-correlation-id',
+    const response: IProcessStartResponsePayload = {
+      correlation_id: correlationId,
     };
 
-    return Promise.resolve(mockResponse);
+    return response;
   }
 
   // Events
@@ -739,10 +747,9 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
   private async startProcessInstance(context: ExecutionContext,
                                      processInstanceId: string,
                                      startEventDef: INodeDefEntity,
-                                     payload: IProcessStartRequestPayload): Promise<void> {
+                                     payload: IProcessStartRequestPayload): Promise<string> {
 
-    const processEntityType: IEntityType<IProcessEntity> = await this.datastoreService.getEntityType<IProcessEntity>('Process');
-    const processInstance: IProcessEntity = await processEntityType.getById(processInstanceId, context);
+    const processInstance: IProcessEntity = await this._getProcessInstanceById(context, processInstanceId);
 
     const processTokenType: IEntityType<IProcessTokenEntity> = await this.datastoreService.getEntityType<IProcessTokenEntity>('ProcessToken');
     const startEventType: IEntityType<IStartEventEntity> = await this.datastoreService.getEntityType<IStartEventEntity>('StartEvent');
@@ -781,6 +788,11 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     startEvent.application = null;
 
     startEvent.changeState(context, 'start', this);
+
+    const correlationid: string = payload.correlation_id || uuid.v4();
+    this._correlations[correlationid] = processInstanceId;
+
+    return correlationid;
   }
 
   private executionContextFromConsumerContext(consumerContext: IConsumerContext): Promise<ExecutionContext> {
