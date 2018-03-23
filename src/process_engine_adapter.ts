@@ -177,7 +177,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     await this._ensureStartEventAccessibility(executionContext, processModelKey, startEventKey);
 
     // TODO Add case for different returnOn Scenarios and retrieve and return the created correlationId somehow.
-    // await this.processEngineService.executeProcess(executionContext, undefined, processModelKey, payload);
+    await this.processEngineService.executeProcess(executionContext, undefined, processModelKey, payload.input_values);
 
     // const processInstance: IProcessEntity = await this.processEngineService.createProcessInstance(executionContext, undefined, processModelKey);
 
@@ -200,6 +200,9 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     await this._getProcessModelByKey(executionContext, processModelKey);
     await this._ensureStartEventAccessibility(executionContext, processModelKey, startEventKey);
     await this._ensureEndEventAccessibility(executionContext, processModelKey, endEventKey);
+
+    // TODO Add support for returning only at a specific end event and retrieve and return the created correlationId somehow.
+    await this.processEngineService.executeProcess(executionContext, undefined, processModelKey, payload.input_values);
 
     const mockResponse: IProcessStartResponsePayload = {
       correlation_id: payload.correlation_id || 'mocked-correlation-id',
