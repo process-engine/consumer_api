@@ -377,8 +377,43 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
   }
 
   private async _getProcessInstancesToCorrelation(executionContext: ExecutionContext, correlationId: string): Promise<Array<IProcessEntity>> {
-    // TODO: Get actual process instances
-    return [];
+    const mainProcessInstaceId: string = this._correlations[correlationId];
+
+    const mainProcessInstance: IProcessEntity = await this._getProcessInstanceById(executionContext, mainProcessInstaceId);
+    const subProcessInstances: Array<IProcessEntity> = await this._getSubProcessInstances(executionContext, mainProcessInstaceId);
+
+    return [mainProcessInstance].concat(subProcessInstances);
+  }
+
+  private async _getSubProcessInstances(executionContext: ExecutionContext, parentProcessInstanceId: string) {
+
+    const queryOptions: IPrivateQueryOptions = {
+      query: {
+        operator: 'and',
+        queries: [
+          {
+            attribute: 'process',
+            operator: '=',
+            value: parentProcessInstanceId,
+          },
+          {
+            attribute: 'type',
+            operator: '=',
+            value: BpmnType.callActivity,
+          },
+        ],
+      },
+    };
+
+    const eventEntityType: IEntityType<INodeDefEntity> = await this.datastoreService.getEntityType<INodeDefEntity>('NodeDef');
+    const eventCollection: IEntityCollection<INodeDefEntity> = await eventEntityType.query(executionContext, queryOptions);
+
+    const events: Array<INodeDefEntity> = [];
+    await eventCollection.each(executionContext, (event: INodeDefEntity) => {
+      events.push(event);
+    });
+
+    return events;
   }
 
   private async _processModelBelongsToCorrelation(executionContext: ExecutionContext,
@@ -734,15 +769,15 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
       ],
     };
 
-    const eventEntityType: IEntityType<INodeDefEntity> = await this.datastoreService.getEntityType<INodeDefEntity>('NodeDef');
-    const eventCollection: IEntityCollection<INodeDefEntity> = await eventEntityType.query(executionContext, queryOptions);
+    const nodeDefEntityType: IEntityType<INodeDefEntity> = await this.datastoreService.getEntityType<INodeDefEntity>('NodeDef');
+    const nodeDefCollection: IEntityCollection<INodeDefEntity> = await nodeDefEntityType.query(executionContext, queryOptions);
 
-    const events: Array<INodeDefEntity> = [];
-    await eventCollection.each(executionContext, (event: INodeDefEntity) => {
-      events.push(event);
+    const nodes: Array<INodeDefEntity> = [];
+    await nodeDefCollection.each(executionContext, (node: INodeDefEntity) => {
+      nodes.push(node);
     });
 
-    return events;
+    return nodes;
   }
 
   private async startProcessInstance(context: ExecutionContext,
