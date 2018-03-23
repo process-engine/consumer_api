@@ -548,7 +548,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     });
 
     if (!matchingStartEvent) {
-      throw new NotFoundError(`Start event ${processModelKey} not found.`);
+      throw new NotFoundError(`Start event ${startEventKey} not found.`);
     }
 
     return matchingStartEvent;
@@ -563,7 +563,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     });
 
     if (!matchingEndEvent) {
-      throw new NotFoundError(`End event ${processModelKey} not found.`);
+      throw new NotFoundError(`End event ${endEventKey} not found.`);
     }
 
     return matchingEndEvent;
