@@ -43,7 +43,7 @@ export class ConsumerApiService implements IConsumerApiService {
                             returnOn: ProcessStartReturnOnOptions = ProcessStartReturnOnOptions.onProcessInstanceStarted,
                           ): Promise<IProcessStartResponsePayload> {
 
-    if (!(returnOn in ProcessStartReturnOnOptions)) {
+    if (!Object.values(ProcessStartReturnOnOptions).includes(returnOn)) {
       throw new EssentialProjectErrors.BadRequestError(`${returnOn} is not a valid return option!`);
     }
 
