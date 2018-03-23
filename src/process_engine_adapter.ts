@@ -386,7 +386,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     return [mainProcessInstance].concat(subProcessInstances);
   }
 
-  private async _getSubProcessInstances(executionContext: ExecutionContext, parentProcessInstanceId: string): Promise<Array<IProcessInstance>> {
+  private async _getSubProcessInstances(executionContext: ExecutionContext, parentProcessInstanceId: string): Promise<Array<IProcessEntity>> {
 
     const nodes: Array<INodeDefEntity> = await this._getCallActivitiesForProcessInstance(executionContext, parentProcessInstanceId);
     const nodeIds: Array<string> = nodes.map((node: INodeDefEntity) => {
