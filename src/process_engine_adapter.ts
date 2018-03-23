@@ -345,8 +345,47 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
   public async getUserTasksForProcessModel(context: IConsumerContext, processModelKey: string): Promise<IUserTaskList> {
     const executionContext: ExecutionContext = await this.executionContextFromConsumerContext(context);
 
-    const userTasks: Array<IUserTaskEntity> = await this._getAccessibleUserTasks(executionContext, processModelKey);
+    const userTasks: Array<IUserTaskEntity> = await this._getAccessibleUserTasksForProcessModel(executionContext, processModelKey);
 
+    return this._userTaskEntitiesToUserTaskList(executionContext, userTasks);
+  }
+
+  public async getUserTasksForCorrelation(context: IConsumerContext, correlationId: string): Promise<IUserTaskList> {
+    const executionContext: ExecutionContext = await this.executionContextFromConsumerContext(context);
+    const processInstances: Array<IProcessEntity> = await this._getProcessInstancesForCorrelation(executionContext, correlationId);
+
+    let userTasks: Array<IUserTaskEntity> = [];
+    for (const processInstance of processInstances) {
+      // tslint:disable-next-line:max-line-length
+      const userTasksForProcessInstance: Array<IUserTaskEntity> = await this._getAccessibleUserTasksForProcessInstance(executionContext, processInstance);
+      userTasks = userTasks.concat(userTasksForProcessInstance);
+    }
+
+    return this._userTaskEntitiesToUserTaskList(executionContext, userTasks);
+
+  }
+
+  public async getUserTasksForProcessModelInCorrelation(context: IConsumerContext,
+                                                        processModelKey: string,
+                                                        correlationId: string): Promise<IUserTaskList> {
+    const executionContext: ExecutionContext = await this.executionContextFromConsumerContext(context);
+
+    if (!this._processModelBelongsToCorrelation(executionContext, correlationId, processModelKey)) {
+      throw new NotFoundError(`Der Prozess mit dem key '${processModelKey}' ist nicht Teil der Correlation mit der id '${correlationId}'`);
+    }
+
+    return this.getUserTasksForProcessModel(context, processModelKey);
+  }
+
+  public async finishUserTask(context: IConsumerContext,
+                              processModelKey: string,
+                              correlationId: string,
+                              userTaskId: string,
+                              userTaskResult: IUserTaskResult): Promise<void> {
+    return Promise.resolve();
+  }
+
+  private async _userTaskEntitiesToUserTaskList(executionContext: ExecutionContext, userTasks: Array<IUserTaskEntity>): Promise<IUserTaskList> {
     const resultUserTaskPromises: Array<any> = userTasks.map(async(userTask: IUserTaskEntity) => {
 
       const userTaskData: any = await userTask.getUserTaskData(executionContext);
@@ -370,52 +409,6 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     };
 
     return result;
-  }
-
-  public async getUserTasksForCorrelation(context: IConsumerContext, correlationId: string): Promise<IUserTaskList> {
-
-    const mockData: IUserTaskList = {
-      page_number: 0,
-      page_size: 30,
-      element_count: 0,
-      page_count: 0,
-      user_tasks: [{
-        key: 'mock_user_task',
-        id: '123',
-        process_instance_id: '123412534124535',
-        data: {},
-      }],
-    };
-
-    return Promise.resolve(mockData);
-  }
-
-  public async getUserTasksForProcessModelInCorrelation(context: IConsumerContext,
-                                                        processModelKey: string,
-                                                        correlationId: string): Promise<IUserTaskList> {
-
-    const mockData: IUserTaskList = {
-      page_number: 0,
-      page_size: 30,
-      element_count: 0,
-      page_count: 0,
-      user_tasks: [{
-        key: 'mock_user_task',
-        id: '123',
-        process_instance_id: '123412534124535',
-        data: {},
-      }],
-    };
-
-    return Promise.resolve(mockData);
-  }
-
-  public async finishUserTask(context: IConsumerContext,
-                              processModelKey: string,
-                              correlationId: string,
-                              userTaskId: string,
-                              userTaskResult: IUserTaskResult): Promise<void> {
-    return Promise.resolve();
   }
 
   private async _getProcessInstancesForCorrelation(executionContext: ExecutionContext, correlationId: string): Promise<Array<IProcessEntity>> {
@@ -705,7 +698,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     return processDef;
   }
 
-  private async _getAccessibleUserTasks(executionContext: ExecutionContext, processModelKey: string): Promise<Array<IUserTaskEntity>> {
+  private async _getAccessibleUserTasksForProcessModel(executionContext: ExecutionContext, processModelKey: string): Promise<Array<IUserTaskEntity>> {
 
     const userTasks: Array<IUserTaskEntity> = await this._getUserTasksForProcessModel(executionContext, processModelKey);
     const accessibleLaneIds: Array<string> = await this._getIdsOfLanesThatCanBeAccessed(executionContext, processModelKey);
@@ -716,6 +709,28 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
 
     const processModel: IProcessDefEntity = await this._getProcessModelByKey(executionContext, processModelKey);
     const processDefinitions: IDefinition = await this._getDefinitionsFromProcessModel(processModel);
+
+    const accessibleUserTaskEntities: Array<any> = userTasks.filter((userTask: IUserTaskEntity) => {
+      const laneId: string = this._getLaneIdForElement(processDefinitions, userTask.key);
+      const identityCanAccessUserTask: boolean = laneId !== undefined && accessibleLaneIds.includes(laneId);
+
+      return identityCanAccessUserTask;
+    });
+
+    return accessibleUserTaskEntities;
+  }
+
+  private async _getAccessibleUserTasksForProcessInstance(executionContext: ExecutionContext,
+                                                          processInstance: IProcessEntity): Promise<Array<IUserTaskEntity>> {
+
+    const userTasks: Array<IUserTaskEntity> = await this._getUserTasksForProcessInstance(executionContext, processInstance.id);
+    const accessibleLaneIds: Array<string> = await this._getIdsOfLanesThatCanBeAccessed(executionContext, processInstance.processDef.id);
+
+    if (accessibleLaneIds.length === 0) {
+      throw new ForbiddenError(`Access to Process Model '${processInstance.processDef.key}' not allowed`);
+    }
+
+    const processDefinitions: IDefinition = await this._getDefinitionsFromProcessModel(processInstance.processDef);
 
     const accessibleUserTaskEntities: Array<any> = userTasks.filter((userTask: IUserTaskEntity) => {
       const laneId: string = this._getLaneIdForElement(processDefinitions, userTask.key);
@@ -782,6 +797,53 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
             attribute: 'process.processDef.key',
             operator: '=',
             value: processModelKey,
+          },
+          {
+            attribute: 'state',
+            operator: '=',
+            value: 'wait',
+          },
+        ],
+      },
+      expandCollection: [
+        {attribute: 'processToken'},
+        {
+          attribute: 'nodeDef',
+          childAttributes: [
+            {attribute: 'lane'},
+            {attribute: 'extensions'},
+          ],
+        },
+        {
+          attribute: 'process',
+          childAttributes: [
+            {attribute: 'id'},
+          ],
+        },
+      ],
+    };
+
+    const userTaskCollection: IEntityCollection<IUserTaskEntity> = await userTaskEntityType.query(executionContext, query);
+    const userTasks: Array<IUserTaskEntity> = [];
+    await userTaskCollection.each(executionContext, (userTask: IUserTaskEntity) => {
+      userTasks.push(userTask);
+    });
+
+    return userTasks;
+  }
+
+  private async _getUserTasksForProcessInstance(executionContext: ExecutionContext, processInstanceId: string): Promise<Array<IUserTaskEntity>> {
+
+    const userTaskEntityType: IEntityType<IUserTaskEntity> = await this.datastoreService.getEntityType<IUserTaskEntity>('UserTask');
+
+    const query: IPrivateQueryOptions = {
+      query: {
+        operator: 'and',
+        queries: [
+          {
+            attribute: 'process.id',
+            operator: '=',
+            value: processInstanceId,
           },
           {
             attribute: 'state',
