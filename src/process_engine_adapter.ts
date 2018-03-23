@@ -371,11 +371,11 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
                                                         correlationId: string): Promise<IUserTaskList> {
     const executionContext: ExecutionContext = await this.executionContextFromConsumerContext(context);
 
-    if (!this._processModelBelongsToCorrelation(executionContext, correlationId, processModelKey)) {
-      throw new NotFoundError(`Der Prozess mit dem key '${processModelKey}' ist nicht Teil der Correlation mit der id '${correlationId}'`);
+    if (!await this._processModelBelongsToCorrelation(executionContext, correlationId, processModelKey)) {
+      throw new NotFoundError(`ProcessModel with key '${processModelKey}' is not part of the correlation mit der id '${correlationId}'`);
     }
 
-    return this.getUserTasksForProcessModel(context, processModelKey);
+    return this.getUserTasksForCorrelation(context, correlationId);
   }
 
   public async finishUserTask(context: IConsumerContext,
@@ -418,7 +418,6 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     if (mainProcessInstaceId === undefined) {
       throw new NotFoundError(`correlation with id '${correlationId}' not found`);
     }
-
 
     const mainProcessInstance: IProcessEntity = await this._getProcessInstanceById(executionContext, mainProcessInstaceId);
     const subProcessInstances: Array<IProcessEntity> = await this._getSubProcessInstances(executionContext, mainProcessInstaceId);
@@ -511,13 +510,13 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
                                                   correlationId: string,
                                                   processModelKey: string): Promise<boolean> {
 
-    if (this._correlations[correlationId] === undefined) {
-      throw new NotFoundError(`correlation with id '${correlationId}' doesn't exist`);
+    const mainProcessInstaceId: string = this._correlations[correlationId];
+    if (mainProcessInstaceId === undefined) {
+      throw new NotFoundError(`correlation with id '${correlationId}' not found`);
     }
 
-    const mainProcessInstaceId: string = this._correlations[correlationId];
     const mainProcessInstance: IProcessEntity = await this._getProcessInstanceById(executionContext, mainProcessInstaceId);
-    if (mainProcessInstance.key === processModelKey) {
+    if (mainProcessInstance.processDef.key === processModelKey) {
       return true;
     }
 
