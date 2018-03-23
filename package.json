@@ -22,6 +22,7 @@
     "@essential-projects/core_contracts": "^1.0.0",
     "@essential-projects/data_model_contracts": "^1.0.0",
     "@essential-projects/errors_ts": "^1.0.0",
+    "@essential-projects/messagebus_contracts": "^1.0.0",
     "@essential-projects/http_node": "^1.0.0",
     "@process-engine/consumer_api_contracts": "^0.2.0",
     "@process-engine/process_engine_contracts": "^1.0.0",

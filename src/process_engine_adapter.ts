@@ -1,5 +1,4 @@
 // tslint:disable:max-file-line-count
-// tslint:disable:cyclomatic-complexity
 import {
   IConsumerApiService,
   IConsumerContext,
@@ -29,8 +28,10 @@ import {
   TokenType,
 } from '@essential-projects/core_contracts';
 import {IDatastoreService, IEntityCollection, IEntityType} from '@essential-projects/data_model_contracts';
+import {IDataMessage, IMessageBusService, IMessageSubscription} from '@essential-projects/messagebus_contracts';
 import {
   BpmnType,
+  IErrorDeserializer,
   ILaneEntity,
   INodeDefEntity,
   INodeInstanceEntityTypeService,
@@ -44,7 +45,7 @@ import {
   IUserTaskMessageData,
 } from '@process-engine/process_engine_contracts';
 
-import {ForbiddenError, isError, NotFoundError} from '@essential-projects/errors_ts';
+import {BaseError, ForbiddenError, isError, NotFoundError} from '@essential-projects/errors_ts';
 import * as BpmnModdle from 'bpmn-moddle';
 import {
   FormWidgetFieldType,
@@ -68,6 +69,7 @@ import {IBpmnModdle, IDefinition, IModdleElement} from './bpmnmodeler/index';
 
 import {Logger} from 'loggerhythm';
 
+import * as util from 'util';
 import * as uuid from 'uuid';
 
 const logger: Logger = Logger.createLogger('consumer_api_core')
@@ -82,18 +84,22 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
   private _iamService: IIamService;
   private _datastoreService: IDatastoreService;
   private _nodeInstanceEntityTypeService: INodeInstanceEntityTypeService;
+  private _messageBusService: IMessageBusService;
   private _consumerApiIamService: any;
+  private _errorDeserializer: IErrorDeserializer;
 
   constructor(datastoreService: IDatastoreService,
               iamService: IIamService,
               processEngineService: IProcessEngineService,
               nodeInstanceEntityTypeService: INodeInstanceEntityTypeService,
+              messageBusService: IMessageBusService,
               consumerApiIamService: any) {
 
     this._datastoreService = datastoreService;
     this._iamService = iamService;
     this._processEngineService = processEngineService;
     this._nodeInstanceEntityTypeService = nodeInstanceEntityTypeService;
+    this._messageBusService = messageBusService;
     this._consumerApiIamService = consumerApiIamService;
   }
 
@@ -109,12 +115,44 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     return this._processEngineService;
   }
 
+  private get messageBusService(): IMessageBusService {
+    return this._messageBusService;
+  }
+
   private get nodeInstanceEntityTypeService(): INodeInstanceEntityTypeService {
     return this._nodeInstanceEntityTypeService;
   }
 
   private get consumerApiIamService(): any {
     return this._consumerApiIamService;
+  }
+
+  private get errorDeserializer(): IErrorDeserializer {
+    return this._errorDeserializer;
+  }
+
+  public async initialize(): Promise<void> {
+    this._initializeDefaultErrorDeserializer();
+
+    return Promise.resolve();
+  }
+
+  private _initializeDefaultErrorDeserializer(): void {
+    const defaultDeserializer: IErrorDeserializer = (serializedError: string): Error => {
+
+      if (typeof serializedError !== 'string') {
+        return serializedError;
+      }
+
+      try {
+        return BaseError.deserialize(serializedError);
+      } catch (error) {
+        logger.error('an error occured deserializing this error: ', serializedError);
+        throw new Error('an error occured during error deserialization');
+      }
+
+    };
+    this._errorDeserializer = defaultDeserializer;
   }
 
   // Process models
@@ -228,7 +266,8 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     // TODO: Return only after the given EndEvent was reached
     const processInstanceId: string = await this.processEngineService.createProcessInstance(executionContext, undefined, processModelKey);
 
-    const correlationId: string = await this.startProcessInstance(executionContext, processInstanceId, startEventEntity, payload);
+    const correlationId: string =
+      await this._executeProcessInstanceLocally(executionContext, processInstanceId, startEventEntity, endEventEntity, payload);
 
     const response: IProcessStartResponsePayload = {
       correlation_id: correlationId,
@@ -316,6 +355,8 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
         key: userTask.key,
         id: userTask.id,
         process_instance_id: userTask.process.id,
+        // TODO: 'data' currently contains the response body equals that of the old consumer client.
+        // The consumer api concept has no response body defined yet, however, so there MAY be discrepancies.
         data: this.getUserTaskConfigFromUserTaskData(userTaskData),
       };
     });
@@ -377,7 +418,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     return Promise.resolve();
   }
 
-  private async _getProcessInstancesToCorrelation(executionContext: ExecutionContext, correlationId: string): Promise<Array<IProcessEntity>> {
+  private async _getProcessInstancesForCorrelation(executionContext: ExecutionContext, correlationId: string): Promise<Array<IProcessEntity>> {
     const mainProcessInstaceId: string = this._correlations[correlationId];
 
     const mainProcessInstance: IProcessEntity = await this._getProcessInstanceById(executionContext, mainProcessInstaceId);
@@ -825,6 +866,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     return nodes;
   }
 
+  // Manually implements "IProcessEntity.start()"
   private async startProcessInstance(context: ExecutionContext,
                                      processInstanceId: string,
                                      startEventDef: INodeDefEntity,
@@ -874,6 +916,50 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     this._correlations[correlationid] = processInstanceId;
 
     return correlationid;
+  }
+
+  // Pretty much the same as the private function of the process engine service with the same name,
+  //  except that it only resolves on a specific end event.
+  private _executeProcessInstanceLocally(executionContext: ExecutionContext,
+                                         processInstanceId: string,
+                                         startEventEntity: INodeDefEntity,
+                                         endEventEntity: INodeDefEntity,
+                                         payload: IProcessStartRequestPayload): Promise<any> {
+
+    return new Promise(async(resolve: Function, reject: Function): Promise<void> => {
+
+      let correlationId: string;
+
+      const processInstanceChannel: string = `/processengine/process/${processInstanceId}`;
+      const processEndSubscription: IMessageSubscription = await this.messageBusService.subscribe(processInstanceChannel, (message: IDataMessage) => {
+
+        if (message.data.event === 'error') {
+
+          if (!this.errorDeserializer) {
+            logger.error('No error deserializer has been set!');
+            logger.error(message.data.event);
+            throw new Error(message.data.data);
+          }
+
+          const deserializedError: Error = this.errorDeserializer(message.data.data);
+          logger.error(deserializedError.message);
+
+          reject(deserializedError);
+          processEndSubscription.cancel();
+
+          return;
+        }
+
+        if (message.data.event !== 'end') {
+          return;
+        }
+
+        resolve(correlationId);
+        processEndSubscription.cancel();
+      });
+
+      correlationId = await this.startProcessInstance(executionContext, processInstanceId, startEventEntity, payload);
+    });
   }
 
   private executionContextFromConsumerContext(consumerContext: IConsumerContext): Promise<ExecutionContext> {
