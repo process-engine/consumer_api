@@ -1,5 +1,5 @@
 // tslint:disable:max-file-line-count
-
+// tslint:disable:cyclomatic-complexity
 import {
   IConsumerApiService,
   IConsumerContext,
@@ -23,6 +23,7 @@ import {
   IIdentity,
   IPrivateGetOptions,
   IPrivateQueryOptions,
+  IPublicGetOptions,
   IQueryClause,
   TokenType,
 } from '@essential-projects/core_contracts';
@@ -30,9 +31,13 @@ import {IDatastoreService, IEntityCollection, IEntityType} from '@essential-proj
 import {
   ILaneEntity,
   INodeDefEntity,
+  INodeInstanceEntityTypeService,
+  IParamStart,
   IProcessDefEntity,
   IProcessEngineService,
   IProcessEntity,
+  IProcessTokenEntity,
+  IStartEventEntity,
   IUserTaskEntity,
   IUserTaskMessageData,
 } from '@process-engine/process_engine_contracts';
@@ -69,16 +74,19 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
   private _processEngineService: IProcessEngineService;
   private _iamService: IIamService;
   private _datastoreService: IDatastoreService;
+  private _nodeInstanceEntityTypeService: INodeInstanceEntityTypeService;
   private _consumerApiIamService: any;
 
   constructor(datastoreService: IDatastoreService,
               iamService: IIamService,
               processEngineService: IProcessEngineService,
+              nodeInstanceEntityTypeService: INodeInstanceEntityTypeService,
               consumerApiIamService: any) {
 
     this._datastoreService = datastoreService;
     this._iamService = iamService;
     this._processEngineService = processEngineService;
+    this._nodeInstanceEntityTypeService = nodeInstanceEntityTypeService;
     this._consumerApiIamService = consumerApiIamService;
   }
 
@@ -92,6 +100,10 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
 
   private get processEngineService(): IProcessEngineService {
     return this._processEngineService;
+  }
+
+  private get nodeInstanceEntityTypeService(): INodeInstanceEntityTypeService {
+    return this._nodeInstanceEntityTypeService;
   }
 
   private get consumerApiIamService(): any {
@@ -170,12 +182,13 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
 
     // Verify that the process model exists and can be accessed
     await this._getProcessModelByKey(executionContext, processModelKey);
-    await this._ensureStartEventAccessibility(executionContext, processModelKey, startEventKey);
 
-    // TODO Add case for different returnOn Scenarios and retrieve and return the created correlationId somehow.
-    await this.processEngineService.executeProcess(executionContext, undefined, processModelKey, payload.input_values);
+    const startEventEntity: INodeDefEntity = await this._getStartEventEntity(executionContext, processModelKey, startEventKey);
 
-    // const processInstance: IProcessEntity = await this.processEngineService.createProcessInstance(executionContext, undefined, processModelKey);
+    // TODO Add support for different returnOn Scenarios and retrieve and return the created correlationId somehow.
+    const processInstanceId: string = await this.processEngineService.createProcessInstance(executionContext, undefined, processModelKey);
+
+    await this.startProcessInstance(executionContext, processInstanceId, startEventEntity, payload);
 
     const mockResponse: IProcessStartResponsePayload = {
       correlation_id: payload.correlation_id || 'mocked-correlation-id',
@@ -194,11 +207,14 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
 
     // Verify that the process model exists and can be accessed
     await this._getProcessModelByKey(executionContext, processModelKey);
-    await this._ensureStartEventAccessibility(executionContext, processModelKey, startEventKey);
-    await this._ensureEndEventAccessibility(executionContext, processModelKey, endEventKey);
+
+    const startEventEntity: INodeDefEntity = await this._getStartEventEntity(executionContext, processModelKey, startEventKey);
+    const endEventEntity: INodeDefEntity = await this._getEndEventEntity(executionContext, processModelKey, endEventKey);
 
     // TODO Add support for returning only at a specific end event and retrieve and return the created correlationId somehow.
-    await this.processEngineService.executeProcess(executionContext, undefined, processModelKey, payload.input_values);
+    const processInstanceId: string = await this.processEngineService.createProcessInstance(executionContext, undefined, processModelKey);
+
+    await this.startProcessInstance(executionContext, processInstanceId, startEventEntity, payload);
 
     const mockResponse: IProcessStartResponsePayload = {
       correlation_id: payload.correlation_id || 'mocked-correlation-id',
@@ -347,7 +363,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     return Promise.resolve();
   }
 
-  private async _ensureStartEventAccessibility(executionContext: ExecutionContext, processModelKey: string, startEventKey: string): Promise<void> {
+  private async _getStartEventEntity(executionContext: ExecutionContext, processModelKey: string, startEventKey: string): Promise<INodeDefEntity> {
 
     const accessibleStartEventEntities: Array<INodeDefEntity> = await this._getAccessibleStartEvents(executionContext, processModelKey);
 
@@ -358,9 +374,11 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     if (!matchingStartEvent) {
       throw new NotFoundError(`Start event ${processModelKey} not found.`);
     }
+
+    return matchingStartEvent;
   }
 
-  private async _ensureEndEventAccessibility(executionContext: ExecutionContext, processModelKey: string, endEventKey: string): Promise<void> {
+  private async _getEndEventEntity(executionContext: ExecutionContext, processModelKey: string, endEventKey: string): Promise<INodeDefEntity> {
 
     const accessibleEndEventEntities: Array<INodeDefEntity> = await this._getAccessibleEndEvents(executionContext, processModelKey);
 
@@ -371,6 +389,8 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     if (!matchingEndEvent) {
       throw new NotFoundError(`End event ${processModelKey} not found.`);
     }
+
+    return matchingEndEvent;
   }
 
   private async _getIdsOfLanesThatCanBeAccessed(executionContext: ExecutionContext, processModelKey: string): Promise<Array<string>> {
@@ -661,6 +681,53 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     });
 
     return events;
+  }
+
+  private async startProcessInstance(context: ExecutionContext,
+                                     processInstanceId: string,
+                                     startEventDef: INodeDefEntity,
+                                     payload: IProcessStartRequestPayload): Promise<void> {
+
+    const processEntityType: IEntityType<IProcessEntity> = await this.datastoreService.getEntityType<IProcessEntity>('Process');
+    const processInstance: IProcessEntity = await processEntityType.getById(processInstanceId, context);
+
+    const processTokenType: IEntityType<IProcessTokenEntity> = await this.datastoreService.getEntityType<IProcessTokenEntity>('ProcessToken');
+    const startEventType: IEntityType<IStartEventEntity> = await this.datastoreService.getEntityType<IStartEventEntity>('StartEvent');
+
+    const internalContext: ExecutionContext = await this.processEngineiamService.createInternalContext('processengine_system');
+
+    processInstance.status = 'progress';
+
+    if (processInstance.processDef.persist) {
+      await processInstance.save(internalContext, { reloadAfterSave: false });
+    }
+
+    await processInstance.initializeProcess();
+
+    // create an empty process token
+    const processToken: any = await processTokenType.createEntity(internalContext);
+    processToken.process = processInstance;
+    processToken.data = {
+      current: payload.input_values,
+    };
+
+    if (processInstance.processDef.persist) {
+      await processToken.save(internalContext, { reloadAfterSave: false });
+    }
+
+    logger.verbose(`process id ${processInstance.id} started: `);
+
+    const startEvent: IStartEventEntity = <IStartEventEntity> await this.nodeInstanceEntityTypeService.createNode(internalContext, startEventType);
+    startEvent.name = startEventDef.name;
+    startEvent.key = startEventDef.key;
+    startEvent.process = processInstance;
+    startEvent.nodeDef = startEventDef;
+    startEvent.type = startEventDef.type;
+    startEvent.processToken = processToken;
+    startEvent.participant = null; // TODO: Clarify if this might be needed in conjunction with the correlation ID.
+    startEvent.application = null;
+
+    startEvent.changeState(context, 'start', this);
   }
 
   private executionContextFromConsumerContext(consumerContext: IConsumerContext): Promise<ExecutionContext> {
