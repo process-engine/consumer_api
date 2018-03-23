@@ -193,13 +193,14 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
 
     let correlationId: string;
 
-    // TODO: Retreive and return the correlation ID when wating for the process instance to finish.
+    const processInstanceId: string = await this.processEngineService.createProcessInstance(executionContext, undefined, processModelKey);
+
     if (returnOn === ProcessStartReturnOnOptions.onProcessInstanceStarted) {
-      const processInstanceId: string = await this.processEngineService.createProcessInstance(executionContext, undefined, processModelKey);
       correlationId = await this.startProcessInstance(executionContext, processInstanceId, startEventEntity, payload);
     } else {
-      correlationId = payload.correlation_id;
-      await this.processEngineService.executeProcess(executionContext, undefined, processModelKey, payload.input_values);
+      correlationId = payload.correlation_id || uuid.v4();
+      this._correlations[correlationId] = processInstanceId;
+      await this.processEngineService.executeProcessInstance(executionContext, processInstanceId, undefined, payload.input_values);
     }
 
     const response: IProcessStartResponsePayload = {
