@@ -415,6 +415,11 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
   private async _getProcessInstancesForCorrelation(executionContext: ExecutionContext, correlationId: string): Promise<Array<IProcessEntity>> {
     const mainProcessInstaceId: string = this._correlations[correlationId];
 
+    if (mainProcessInstaceId === undefined) {
+      throw new NotFoundError(`correlation with id '${correlationId}' not found`);
+    }
+
+
     const mainProcessInstance: IProcessEntity = await this._getProcessInstanceById(executionContext, mainProcessInstaceId);
     const subProcessInstances: Array<IProcessEntity> = await this._getSubProcessInstances(executionContext, mainProcessInstaceId);
 
