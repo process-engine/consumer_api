@@ -29,6 +29,7 @@ import {
 } from '@essential-projects/core_contracts';
 import {IDatastoreService, IEntityCollection, IEntityType} from '@essential-projects/data_model_contracts';
 import {
+  BpmnType,
   ILaneEntity,
   INodeDefEntity,
   INodeInstanceEntityTypeService,
@@ -48,6 +49,7 @@ import {
   FormWidgetFieldType,
   IConfirmWidgetAction,
   IConfirmWidgetConfig,
+  ICorrelationCache,
   IFormWidgetConfig,
   IFormWidgetEnumField,
   IFormWidgetEnumValue,
@@ -70,6 +72,8 @@ const logger: Logger = Logger.createLogger('consumer_api_core')
 
 export class ConsumerProcessEngineAdapter implements IConsumerApiService {
   public config: any = undefined;
+
+  private _correlations: ICorrelationCache = {};
 
   private _processEngineService: IProcessEngineService;
   private _iamService: IIamService;
@@ -363,6 +367,55 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     return Promise.resolve();
   }
 
+  private async _getProcessInstancesToCorrelation(executionContext: ExecutionContext, correlationId: string): Promise<Array<IProcessEntity>> {
+    // TODO: Get actual process instances
+    return [];
+  }
+
+  private async _processModelBelongsToCorrelation(executionContext: ExecutionContext,
+                                                  correlationId: string,
+                                                  processModelKey: string): Promise<boolean> {
+
+    if (this._correlations[correlationId] === undefined) {
+      throw new NotFoundError(`correlation with id '${correlationId}' doesn't exist`);
+    }
+
+    const mainProcessInstaceId: string = this._correlations[correlationId];
+    const mainProcessInstance: IProcessEntity = await this._getProcessInstanceById(executionContext, mainProcessInstaceId);
+    if (mainProcessInstance.key === processModelKey) {
+      return true;
+    }
+
+    const subProcessModelKeys: Array<string> = await this._getSubProcessModelKeys(executionContext, mainProcessInstance.key);
+
+    return subProcessModelKeys.includes(processModelKey);
+  }
+
+  private async _getSubProcessModelKeys(executionContext: ExecutionContext, processModelKey: string): Promise<Array<string>> {
+    const callActivities: Array<INodeDefEntity> = await this._getNodesByTypeForProcessModel(executionContext, processModelKey, BpmnType.callActivity);
+
+    let result: Array<string> = callActivities.map((callActivity: INodeDefEntity) => {
+      return callActivity.subProcessKey;
+    });
+
+    for (const callActivity of callActivities) {
+      result = result.concat(await this._getSubProcessModelKeys(executionContext, callActivity.subProcessKey));
+    }
+
+    return result;
+  }
+
+  private async _getProcessInstanceById(executionContext: ExecutionContext, processInstanceId: string): Promise<IProcessEntity> {
+    const processEntityType: IEntityType<IProcessEntity> = await this.datastoreService.getEntityType<IProcessEntity>('Process');
+    const process: IProcessEntity = await processEntityType.getById(processInstanceId, executionContext);
+
+    if (!process) {
+      throw new NotFoundError(`Process instance with id ${processInstanceId} not found.`);
+    }
+
+    return process;
+  }
+
   private async _getStartEventEntity(executionContext: ExecutionContext, processModelKey: string, startEventKey: string): Promise<INodeDefEntity> {
 
     const accessibleStartEventEntities: Array<INodeDefEntity> = await this._getAccessibleStartEvents(executionContext, processModelKey);
@@ -635,16 +688,16 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
   }
 
   private async _getStartEventsForProcessModel(executionContext: ExecutionContext, processModelKey: string): Promise<Array<INodeDefEntity>> {
-    return this._getEventsByTypeForProcessModel(executionContext, processModelKey, 'bpmn:StartEvent');
+    return this._getNodesByTypeForProcessModel(executionContext, processModelKey, BpmnType.startEvent);
   }
 
   private async _getEndEventsForProcessModel(executionContext: ExecutionContext, processModelKey: string): Promise<Array<INodeDefEntity>> {
-    return this._getEventsByTypeForProcessModel(executionContext, processModelKey, 'bpmn:EndEvent');
+    return this._getNodesByTypeForProcessModel(executionContext, processModelKey, BpmnType.endEvent);
   }
 
-  private async _getEventsByTypeForProcessModel(executionContext: ExecutionContext,
-                                                processModelKey: string,
-                                                eventType: string): Promise<Array<INodeDefEntity>> {
+  private async _getNodesByTypeForProcessModel(executionContext: ExecutionContext,
+                                               processModelKey: string,
+                                               nodeType: BpmnType): Promise<Array<INodeDefEntity>> {
 
     const queryOptions: IPrivateQueryOptions = {
       query: {
@@ -658,7 +711,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
           {
             attribute: 'type',
             operator: '=',
-            value: eventType,
+            value: nodeType,
           },
         ],
       },
