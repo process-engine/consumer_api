@@ -1,5 +1,4 @@
 // tslint:disable:max-file-line-count
-// tslint:disable:cyclomatic-complexity
 import {
   IConsumerApiService,
   IConsumerContext,
@@ -356,6 +355,8 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
         key: userTask.key,
         id: userTask.id,
         process_instance_id: userTask.process.id,
+        // TODO: 'data' currently contains the response body equals that of the old consumer client.
+        // The consumer api concept has no response body defined yet, however, so there MAY be discrepancies.
         data: this.getUserTaskConfigFromUserTaskData(userTaskData),
       };
     });
@@ -417,7 +418,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     return Promise.resolve();
   }
 
-  private async _getProcessInstancesToCorrelation(executionContext: ExecutionContext, correlationId: string): Promise<Array<IProcessEntity>> {
+  private async _getProcessInstancesForCorrelation(executionContext: ExecutionContext, correlationId: string): Promise<Array<IProcessEntity>> {
     const mainProcessInstaceId: string = this._correlations[correlationId];
 
     const mainProcessInstance: IProcessEntity = await this._getProcessInstanceById(executionContext, mainProcessInstaceId);
@@ -952,8 +953,6 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
         if (message.data.event !== 'end') {
           return;
         }
-
-        logger.info(util.inspect(message, false, 8));
 
         resolve(correlationId);
         processEndSubscription.cancel();
