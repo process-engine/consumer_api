@@ -9,7 +9,12 @@ const {
 function registerInContainer(container) {
   
   container.register('ConsumerProcessEngineAdapter', ConsumerProcessEngineAdapter)
-    .dependencies('DatastoreService', 'IamService', 'ProcessEngineService', 'NodeInstanceEntityTypeService', 'ConsumerApiIamService');
+    .dependencies('DatastoreService',
+                  'IamService',
+                  'ProcessEngineService',
+                  'NodeInstanceEntityTypeService',
+                  'MessageBusService',
+                  'ConsumerApiIamService');
 
   container.register('ConsumerApiService', ConsumerApiService)
     .dependencies('ConsumerProcessEngineAdapter')
