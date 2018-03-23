@@ -9,11 +9,11 @@ export class ConsumerApiIamService {
   public config: any;
 
   public hasClaim(identity: IIdentity, claim: string): Promise<boolean> {
-    if (this.config[identity.name] === undefined) {
+    if (this.config.claimConfig[identity.name] === undefined) {
       return Promise.resolve(false);
     }
 
-    const claimsOfIdentity: Array<string> = this.config[identity.name];
+    const claimsOfIdentity: Array<string> = this.config.claimConfig[identity.name];
 
     return Promise.resolve(claimsOfIdentity.includes(claim));
   }
