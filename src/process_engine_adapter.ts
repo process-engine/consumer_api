@@ -139,20 +139,18 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
       throw new ForbiddenError(`Access to Process Model '${processModelKey}' not allowed`);
     }
 
-    const startEventMapper: Function = (startEventEntities: Array<INodeDefEntity>): Array<IConsumerApiEvent> => {
-      return startEventEntities.map((startEventEntity: INodeDefEntity): IConsumerApiEvent => {
-        const consumerApiStartEvent: IConsumerApiEvent = {
-          key: startEventEntity.key,
-          id: startEventEntity.id,
-          process_instance_id: undefined,
-          data: startEventEntity.startContext,
-        };
+    const startEventMapper: any = (startEventEntity: INodeDefEntity): IConsumerApiEvent => {
+      const consumerApiStartEvent: IConsumerApiEvent = {
+        key: startEventEntity.key,
+        id: startEventEntity.id,
+        process_instance_id: undefined,
+        data: startEventEntity.startContext,
+      };
 
-        return consumerApiStartEvent;
-      });
+      return consumerApiStartEvent;
     };
 
-    const mappedStartEvents: Array<IConsumerApiEvent> = startEventMapper(accessibleStartEventEntities);
+    const mappedStartEvents: Array<IConsumerApiEvent> = accessibleStartEventEntities.map(startEventMapper);
 
     const processModel: IConsumerApiProcessModel = {
       key: processDef.key,
@@ -170,18 +168,9 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
 
     const executionContext: ExecutionContext = await this.executionContextFromConsumerContext(context);
 
-    // Verify that the process model exists
+    // Verify that the process model exists and can be accessed
     await this._getProcessModelByKey(executionContext, processModelKey);
-
-    const accessibleStartEventEntities: Array<INodeDefEntity> = await this._getAccessibleStartEvents(executionContext, processModelKey);
-
-    const matchingStartEvent: INodeDefEntity = accessibleStartEventEntities.find((entity: INodeDefEntity): boolean => {
-      return entity.key === startEventKey;
-    });
-
-    if (!matchingStartEvent) {
-      throw new NotFoundError(`Start event ${startEventKey} not found.`);
-    }
+    await this._ensureStartEventAccessibility(executionContext, processModelKey, startEventKey);
 
     // TODO Add case for different returnOn Scenarios and retrieve and return the created correlationId somehow.
     // await this.processEngineService.executeProcess(executionContext, undefined, processModelKey, payload);
@@ -203,18 +192,10 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
 
     const executionContext: ExecutionContext = await this.executionContextFromConsumerContext(context);
 
-    // Verify that the process model exists
+    // Verify that the process model exists and can be accessed
     await this._getProcessModelByKey(executionContext, processModelKey);
-
-    const accessibleStartEventEntities: Array<INodeDefEntity> = await this._getAccessibleStartEvents(executionContext, processModelKey);
-
-    const matchingStartEvent: INodeDefEntity = accessibleStartEventEntities.find((entity: INodeDefEntity): boolean => {
-      return entity.key === startEventKey;
-    });
-
-    if (!matchingStartEvent) {
-      throw new NotFoundError(`Start event ${processModelKey} not found.`);
-    }
+    await this._ensureStartEventAccessibility(executionContext, processModelKey, startEventKey);
+    await this._ensureEndEventAccessibility(executionContext, processModelKey, endEventKey);
 
     const mockResponse: IProcessStartResponsePayload = {
       correlation_id: payload.correlation_id || 'mocked-correlation-id',
@@ -361,6 +342,32 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
                               userTaskId: string,
                               userTaskResult: IUserTaskResult): Promise<void> {
     return Promise.resolve();
+  }
+
+  private async _ensureStartEventAccessibility(executionContext: ExecutionContext, processModelKey: string, startEventKey: string): Promise<void> {
+
+    const accessibleStartEventEntities: Array<INodeDefEntity> = await this._getAccessibleStartEvents(executionContext, processModelKey);
+
+    const matchingStartEvent: INodeDefEntity = accessibleStartEventEntities.find((entity: INodeDefEntity): boolean => {
+      return entity.key === startEventKey;
+    });
+
+    if (!matchingStartEvent) {
+      throw new NotFoundError(`Start event ${processModelKey} not found.`);
+    }
+  }
+
+  private async _ensureEndEventAccessibility(executionContext: ExecutionContext, processModelKey: string, endEventKey: string): Promise<void> {
+
+    const accessibleEndEventEntities: Array<INodeDefEntity> = await this._getAccessibleEndEvents(executionContext, processModelKey);
+
+    const matchingEndEvent: INodeDefEntity = accessibleEndEventEntities.find((entity: INodeDefEntity): boolean => {
+      return entity.key === endEventKey;
+    });
+
+    if (!matchingEndEvent) {
+      throw new NotFoundError(`End event ${processModelKey} not found.`);
+    }
   }
 
   private async _getIdsOfLanesThatCanBeAccessed(executionContext: ExecutionContext, processModelKey: string): Promise<Array<string>> {
@@ -517,6 +524,23 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
   private async _getAccessibleStartEvents(executionContext: ExecutionContext, processModelKey: string): Promise<Array<INodeDefEntity>> {
 
     const startEvents: Array<INodeDefEntity> = await this._getStartEventsForProcessModel(executionContext, processModelKey);
+    const accessibleStartEventEntities: Array<INodeDefEntity> = await this._filterAccessibleEvents(executionContext, processModelKey, startEvents);
+
+    return accessibleStartEventEntities;
+  }
+
+  private async _getAccessibleEndEvents(executionContext: ExecutionContext, processModelKey: string): Promise<Array<INodeDefEntity>> {
+
+    const endEvents: Array<INodeDefEntity> = await this._getEndEventsForProcessModel(executionContext, processModelKey);
+    const accessibleEndEventEntities: Array<INodeDefEntity> = await this._filterAccessibleEvents(executionContext, processModelKey, endEvents);
+
+    return accessibleEndEventEntities;
+  }
+
+  private async _filterAccessibleEvents(executionContext: ExecutionContext,
+                                        processModelKey: string,
+                                        events: Array<INodeDefEntity>): Promise<Array<INodeDefEntity>> {
+
     const accessibleLaneIds: Array<string> = await this._getIdsOfLanesThatCanBeAccessed(executionContext, processModelKey);
 
     if (accessibleLaneIds.length === 0) {
@@ -526,18 +550,18 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     const processModel: IProcessDefEntity = await this._getProcessModelByKey(executionContext, processModelKey);
     const processDefinitions: IDefinition = await this._getDefinitionsFromProcessModel(processModel);
 
-    const accessibleStartEventEntities: Array<any> = startEvents.filter((startEvent: INodeDefEntity) => {
-      const laneId: string = this._getLaneIdForElement(processDefinitions, startEvent.key);
-      const identityCanAccessStartEvent: boolean = laneId !== undefined && accessibleLaneIds.includes(laneId);
+    const accessibleEventEntities: Array<any> = events.filter((event: INodeDefEntity) => {
+      const laneId: string = this._getLaneIdForElement(processDefinitions, event.key);
+      const identityCanAccessEvent: boolean = laneId !== undefined && accessibleLaneIds.includes(laneId);
 
-      return identityCanAccessStartEvent;
+      return identityCanAccessEvent;
     });
 
-    if (accessibleStartEventEntities.length === 0) {
+    if (accessibleEventEntities.length === 0) {
       throw new ForbiddenError(`Access to Process Model '${processModelKey}' not allowed`);
     }
 
-    return accessibleStartEventEntities;
+    return accessibleEventEntities;
   }
 
   private async _getUserTasksForProcessModel(executionContext: ExecutionContext, processModelKey: string): Promise<Array<IUserTaskEntity>> {
@@ -588,6 +612,16 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
   }
 
   private async _getStartEventsForProcessModel(executionContext: ExecutionContext, processModelKey: string): Promise<Array<INodeDefEntity>> {
+    return this._getEventsByTypeForProcessModel(executionContext, processModelKey, 'bpmn:StartEvent');
+  }
+
+  private async _getEndEventsForProcessModel(executionContext: ExecutionContext, processModelKey: string): Promise<Array<INodeDefEntity>> {
+    return this._getEventsByTypeForProcessModel(executionContext, processModelKey, 'bpmn:EndEvent');
+  }
+
+  private async _getEventsByTypeForProcessModel(executionContext: ExecutionContext,
+                                                processModelKey: string,
+                                                eventType: string): Promise<Array<INodeDefEntity>> {
 
     const queryOptions: IPrivateQueryOptions = {
       query: {
@@ -601,7 +635,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
           {
             attribute: 'type',
             operator: '=',
-            value: 'bpmn:StartEvent',
+            value: eventType,
           },
         ],
       },
@@ -615,15 +649,15 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
       ],
     };
 
-    const startEventEntityType: IEntityType<INodeDefEntity> = await this.datastoreService.getEntityType<INodeDefEntity>('NodeDef');
-    const startEventCollection: IEntityCollection<INodeDefEntity> = await startEventEntityType.query(executionContext, queryOptions);
+    const eventEntityType: IEntityType<INodeDefEntity> = await this.datastoreService.getEntityType<INodeDefEntity>('NodeDef');
+    const eventCollection: IEntityCollection<INodeDefEntity> = await eventEntityType.query(executionContext, queryOptions);
 
-    const startEvents: Array<INodeDefEntity> = [];
-    await startEventCollection.each(executionContext, (startEvent: INodeDefEntity) => {
-      startEvents.push(startEvent);
+    const events: Array<INodeDefEntity> = [];
+    await eventCollection.each(executionContext, (event: INodeDefEntity) => {
+      events.push(event);
     });
 
-    return startEvents;
+    return events;
   }
 
   private executionContextFromConsumerContext(consumerContext: IConsumerContext): Promise<ExecutionContext> {
