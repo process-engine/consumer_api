@@ -1,3 +1,4 @@
+import * as EssentialProjectErrors from '@essential-projects/errors_ts';
 import {
   IConsumerApiService,
   IConsumerContext,
@@ -39,7 +40,13 @@ export class ConsumerApiService implements IConsumerApiService {
                             processModelKey: string,
                             startEventKey: string,
                             payload: IProcessStartRequestPayload,
-                            returnOn: ProcessStartReturnOnOptions): Promise<IProcessStartResponsePayload> {
+                            returnOn: ProcessStartReturnOnOptions = ProcessStartReturnOnOptions.onProcessInstanceStarted,
+                          ): Promise<IProcessStartResponsePayload> {
+
+    if (!(returnOn === ProcessStartReturnOnOptions.onProcessInstanceStarted ||
+          returnOn === ProcessStartReturnOnOptions.onProcessInstanceFinished)) {
+      throw new EssentialProjectErrors.BadRequestError(`${returnOn} is not a valid return option!`);
+    }
 
     return this.processEngineAdapter.startProcess(context, processModelKey, startEventKey, payload, returnOn);
   }
