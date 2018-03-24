@@ -25,6 +25,7 @@ import {
   IPublicGetOptions,
   IQueryClause,
   IQueryObject,
+  IUserEntity,
   TokenType,
 } from '@essential-projects/core_contracts';
 import {IDatastoreService, IEntityCollection, IEntityType} from '@essential-projects/data_model_contracts';
@@ -353,14 +354,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
 
   public async getUserTasksForCorrelation(context: IConsumerContext, correlationId: string): Promise<IUserTaskList> {
     const executionContext: ExecutionContext = await this.executionContextFromConsumerContext(context);
-    const processInstances: Array<IProcessEntity> = await this._getProcessInstancesForCorrelation(executionContext, correlationId);
-
-    let userTasks: Array<IUserTaskEntity> = [];
-    for (const processInstance of processInstances) {
-      // tslint:disable-next-line:max-line-length
-      const userTasksForProcessInstance: Array<IUserTaskEntity> = await this._getAccessibleUserTasksForProcessInstance(executionContext, processInstance);
-      userTasks = userTasks.concat(userTasksForProcessInstance);
-    }
+    const userTasks: Array<IUserTaskEntity> = await this._getUserTasksForCorrelation(executionContext, correlationId);
 
     return this._userTaskEntitiesToUserTaskList(executionContext, userTasks);
 
@@ -375,7 +369,14 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
       throw new NotFoundError(`ProcessModel with key '${processModelKey}' is not part of the correlation mit der id '${correlationId}'`);
     }
 
-    return this.getUserTasksForCorrelation(context, correlationId);
+    const userTasks: Array<IUserTaskEntity> = await this._getUserTasksForCorrelation(executionContext, correlationId);
+
+    const userTasksForProcessModel: Array<IUserTaskEntity> = userTasks.filter((userTask: IUserTaskEntity) => {
+      console.log(userTask.process.processDef.key, processModelKey);
+      return userTask.process.processDef.key === processModelKey;
+    });
+
+    return this._userTaskEntitiesToUserTaskList(executionContext, userTasksForProcessModel);
   }
 
   public async finishUserTask(context: IConsumerContext,
@@ -410,6 +411,27 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     };
 
     return result;
+  }
+
+  private async _getUserTasksForCorrelation(executionContext: ExecutionContext, correlationId: string): Promise<Array<IUserTaskEntity>> {
+    const processInstances: Array<IProcessEntity> = await this._getProcessInstancesForCorrelation(executionContext, correlationId);
+
+    let userTasks: Array<IUserTaskEntity> = [];
+    for (const processInstance of processInstances) {
+      try {
+        // tslint:disable-next-line:max-line-length
+        const userTasksForProcessInstance: Array<IUserTaskEntity> = await this._getAccessibleUserTasksForProcessInstance(executionContext, processInstance);
+        userTasks = userTasks.concat(userTasksForProcessInstance);
+      } catch (error) {
+        // if we're not allowed to access that process instance, then thats fine. In that case, every usertask is invisible to us,
+        // but this sould not make fetching usertasks from other instances fail
+        if (!isError(error, ForbiddenError)) {
+          throw error;
+        }
+      }
+    }
+
+    return userTasks;
   }
 
   private async _getProcessInstancesForCorrelation(executionContext: ExecutionContext, correlationId: string): Promise<Array<IProcessEntity>> {
@@ -880,6 +902,13 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
           attribute: 'process',
           childAttributes: [
             {attribute: 'id'},
+            {
+              attribute: 'processDef',
+              childAttributes: [
+                {attribute: 'id'},
+                {attribute: 'key'},
+              ],
+            },
           ],
         },
       ],
