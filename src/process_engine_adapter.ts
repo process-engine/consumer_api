@@ -354,6 +354,19 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
 
   public async getUserTasksForCorrelation(context: IConsumerContext, correlationId: string): Promise<IUserTaskList> {
     const executionContext: ExecutionContext = await this.executionContextFromConsumerContext(context);
+
+    const processModelsInCorrelation: Array<string> = await this._getProcessModelKeysForCorrelation(executionContext, correlationId);
+    let accessibleLaneIds: Array<string> = [];
+    for (const processModelKey of processModelsInCorrelation) {
+      // tslint:disable-next-line:max-line-length
+      const accessibleLanesInThisProcess: Array<string> = await this._getIdsOfLanesThatCanBeAccessed(executionContext, processModelKey);
+      accessibleLaneIds = accessibleLaneIds.concat(accessibleLanesInThisProcess);
+    }
+
+    if (accessibleLaneIds.length === 0) {
+      throw new ForbiddenError(`Access to correlation '${correlationId}' not allowed`);
+    }
+
     const userTasks: Array<IUserTaskEntity> = await this._getUserTasksForCorrelation(executionContext, correlationId);
 
     return this._userTaskEntitiesToUserTaskList(executionContext, userTasks);
@@ -369,10 +382,15 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
       throw new NotFoundError(`ProcessModel with key '${processModelKey}' is not part of the correlation mit der id '${correlationId}'`);
     }
 
+    const accessibleLaneIds: Array<string> = await this._getIdsOfLanesThatCanBeAccessed(executionContext, processModelKey);
+
+    if (accessibleLaneIds.length === 0) {
+      throw new ForbiddenError(`Access to Process Model '${processModelKey}' not allowed`);
+    }
+
     const userTasks: Array<IUserTaskEntity> = await this._getUserTasksForCorrelation(executionContext, correlationId);
 
     const userTasksForProcessModel: Array<IUserTaskEntity> = userTasks.filter((userTask: IUserTaskEntity) => {
-      console.log(userTask.process.processDef.key, processModelKey);
       return userTask.process.processDef.key === processModelKey;
     });
 
@@ -532,19 +550,24 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
                                                   correlationId: string,
                                                   processModelKey: string): Promise<boolean> {
 
+    const processModelKeys: Array<string> = await this._getProcessModelKeysForCorrelation(executionContext, correlationId);
+
+    return processModelKeys.includes(processModelKey);
+  }
+
+  private async _getProcessModelKeysForCorrelation(executionContext: ExecutionContext, correlationId: string): Promise<Array<string>> {
+
     const mainProcessInstaceId: string = this._correlations[correlationId];
     if (mainProcessInstaceId === undefined) {
       throw new NotFoundError(`correlation with id '${correlationId}' not found`);
     }
 
     const mainProcessInstance: IProcessEntity = await this._getProcessInstanceById(executionContext, mainProcessInstaceId);
-    if (mainProcessInstance.processDef.key === processModelKey) {
-      return true;
-    }
+    const result: Array<string> = [mainProcessInstance.processDef.key];
 
     const subProcessModelKeys: Array<string> = await this._getSubProcessModelKeys(executionContext, mainProcessInstance.key);
 
-    return subProcessModelKeys.includes(processModelKey);
+    return result.concat(subProcessModelKeys);
   }
 
   private async _getSubProcessModelKeys(executionContext: ExecutionContext, processModelKey: string): Promise<Array<string>> {
