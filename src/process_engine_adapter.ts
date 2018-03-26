@@ -13,6 +13,7 @@ import {
   ProcessStartReturnOnOptions,
   UserTask,
   UserTaskConfig,
+  UserTaskFormField,
   UserTaskList,
   UserTaskResult,
 } from '@process-engine/consumer_api_contracts';
@@ -51,7 +52,7 @@ import {
 
 import {BaseError, ForbiddenError, isError, NotFoundError} from '@essential-projects/errors_ts';
 import * as BpmnModdle from 'bpmn-moddle';
-import {CorrelationCache, MessageAction} from './process_engine_adapter_interfaces';
+import {CorrelationCache, MessageAction, NodeDefFormField} from './process_engine_adapter_interfaces';
 
 import {IBpmnModdle, IDefinition, IModdleElement} from './bpmnmodeler/index';
 
@@ -1086,9 +1087,20 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
   }
 
   private _getUserTaskConfigFromUserTaskData(userTaskData: IUserTaskMessageData): UserTaskConfig {
-    // TODO: Implement this
+    const nodeDefFormFields: Array<NodeDefFormField> = userTaskData.userTaskEntity.nodeDef.extensions.formFields;
+    const formFields: Array<UserTaskFormField> = nodeDefFormFields.map((processEngineFormField: NodeDefFormField) => {
+      const result: UserTaskFormField = {
+        id: processEngineFormField.id,
+        label: processEngineFormField.label,
+        type: processEngineFormField.type,
+        default_value: processEngineFormField.defaultValue,
+      };
+
+      return result;
+    });
+
     return {
-      form_fields: [],
+      form_fields: formFields,
     };
   }
 
