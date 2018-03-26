@@ -50,7 +50,7 @@ import {
   IUserTaskMessageData,
 } from '@process-engine/process_engine_contracts';
 
-import {BaseError, ForbiddenError, isError, NotFoundError} from '@essential-projects/errors_ts';
+import {BaseError, ForbiddenError, isError, NotFoundError, UnprocessableEntityError} from '@essential-projects/errors_ts';
 import * as BpmnModdle from 'bpmn-moddle';
 import {CorrelationCache, MessageAction, NodeDefFormField} from './process_engine_adapter_interfaces';
 
@@ -411,7 +411,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
         process_instance_id: userTask.process.id,
         // TODO: 'data' currently contains the response body equals that of the old consumer client.
         // The consumer api concept has no response body defined yet, however, so there MAY be discrepancies.
-        data: this._getUserTaskConfigFromUserTaskData(userTaskData),
+        data: this._getUserTaskConfigFromUserTaskData(userTaskData, userTask.key),
       };
     });
 
@@ -1086,7 +1086,16 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     return this.processEngineiamService.resolveExecutionContext(consumerContext.authorization.substr('Bearer '.length), TokenType.jwt);
   }
 
-  private _getUserTaskConfigFromUserTaskData(userTaskData: IUserTaskMessageData): UserTaskConfig {
+  private _getUserTaskConfigFromUserTaskData(userTaskData: IUserTaskMessageData, userTaskKey: string): UserTaskConfig {
+
+    const userTaskHasNoFormFields: boolean = userTaskData.userTaskEntity.nodeDef.extensions === undefined
+                                          || userTaskData.userTaskEntity.nodeDef.extensions === null
+                                          || userTaskData.userTaskEntity.nodeDef.extensions.formFields === undefined
+                                          || userTaskData.userTaskEntity.nodeDef.extensions.formFields.length === 0;
+    if (userTaskHasNoFormFields) {
+      throw new UnprocessableEntityError(`UserTask with key '${userTaskKey}' has no form fields`);
+    }
+
     const nodeDefFormFields: Array<NodeDefFormField> = userTaskData.userTaskEntity.nodeDef.extensions.formFields;
     const formFields: Array<UserTaskFormField> = nodeDefFormFields.map((processEngineFormField: NodeDefFormField) => {
       const result: UserTaskFormField = {
