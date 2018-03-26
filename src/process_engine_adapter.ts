@@ -1,18 +1,20 @@
 // tslint:disable:max-file-line-count
 import {
+  ConsumerContext,
+  Event as ConsumerApiEvent,
+  EventList as ConsumerApiEventList,
+  EventTriggerPayload,
   IConsumerApiService,
-  IConsumerContext,
-  IEvent as IConsumerApiEvent,
-  IEventList as IConsumerApiEventList,
-  IEventTriggerPayload,
-  IProcessModel,
-  IProcessModel as IConsumerApiProcessModel,
-  IProcessModelList as IConsumerApiProcessModelList,
-  IProcessStartRequestPayload,
-  IProcessStartResponsePayload,
-  IUserTaskList,
-  IUserTaskResult,
+  ProcessModel,
+  ProcessModel as ConsumerApiProcessModel,
+  ProcessModelList as ConsumerApiProcessModelList,
+  ProcessStartRequestPayload,
+  ProcessStartResponsePayload,
   ProcessStartReturnOnOptions,
+  UserTask,
+  UserTaskConfig,
+  UserTaskList,
+  UserTaskResult,
 } from '@process-engine/consumer_api_contracts';
 
 import {
@@ -47,23 +49,7 @@ import {
 
 import {BaseError, ForbiddenError, isError, NotFoundError} from '@essential-projects/errors_ts';
 import * as BpmnModdle from 'bpmn-moddle';
-import {
-  FormWidgetFieldType,
-  IConfirmWidgetAction,
-  IConfirmWidgetConfig,
-  ICorrelationCache,
-  IFormWidgetConfig,
-  IFormWidgetEnumField,
-  IFormWidgetEnumValue,
-  IFormWidgetField,
-  INodeDefFormField,
-  INodeDefFormFieldValue,
-  IUserTaskConfig,
-  SpecificFormWidgetField,
-  UiConfigLayoutElement,
-  UserTaskProceedAction,
-  WidgetType,
-} from './process_engine_adapter_interfaces';
+import {CorrelationCache, MessageAction} from './process_engine_adapter_interfaces';
 
 import {IBpmnModdle, IDefinition, IModdleElement} from './bpmnmodeler/index';
 
@@ -78,7 +64,7 @@ const logger: Logger = Logger.createLogger('consumer_api_core')
 export class ConsumerProcessEngineAdapter implements IConsumerApiService {
   public config: any = undefined;
 
-  private _correlations: ICorrelationCache = {};
+  private _correlations: CorrelationCache = {};
 
   private _processEngineService: IProcessEngineService;
   private _iamService: IIamService;
@@ -156,17 +142,17 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
   }
 
   // Process models
-  public async getProcessModels(context: IConsumerContext): Promise<IConsumerApiProcessModelList> {
+  public async getProcessModels(context: ConsumerContext): Promise<ConsumerApiProcessModelList> {
 
-    const executionContext: ExecutionContext = await this.executionContextFromConsumerContext(context);
+    const executionContext: ExecutionContext = await this._executionContextFromConsumerContext(context);
 
     const processModels: Array<IProcessDefEntity> = await this._getProcessModels(executionContext);
 
-    const result: Array<IProcessModel> = [];
+    const result: Array<ProcessModel> = [];
     for (const processModel of processModels) {
 
       try {
-        const mappedProcessModel: IProcessModel = await this.getProcessModelByKey(context, processModel.key);
+        const mappedProcessModel: ProcessModel = await this.getProcessModelByKey(context, processModel.key);
         result.push(mappedProcessModel);
       } catch (error) {
         if (!isError(error, ForbiddenError)) {
@@ -176,17 +162,13 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     }
 
     return {
-      page_number: 1,
-      page_size: result.length,
-      element_count: result.length,
-      page_count: 1,
       process_models: result,
     };
   }
 
-  public async getProcessModelByKey(context: IConsumerContext, processModelKey: string): Promise<IConsumerApiProcessModel> {
+  public async getProcessModelByKey(context: ConsumerContext, processModelKey: string): Promise<ConsumerApiProcessModel> {
 
-    const executionContext: ExecutionContext = await this.executionContextFromConsumerContext(context);
+    const executionContext: ExecutionContext = await this._executionContextFromConsumerContext(context);
 
     const processDef: IProcessDefEntity = await this._getProcessModelByKey(executionContext, processModelKey);
 
@@ -196,8 +178,8 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
       throw new ForbiddenError(`Access to Process Model '${processModelKey}' not allowed`);
     }
 
-    const startEventMapper: any = (startEventEntity: INodeDefEntity): IConsumerApiEvent => {
-      const consumerApiStartEvent: IConsumerApiEvent = {
+    const startEventMapper: any = (startEventEntity: INodeDefEntity): ConsumerApiEvent => {
+      const consumerApiStartEvent: ConsumerApiEvent = {
         key: startEventEntity.key,
         id: startEventEntity.id,
         process_instance_id: undefined,
@@ -207,9 +189,9 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
       return consumerApiStartEvent;
     };
 
-    const mappedStartEvents: Array<IConsumerApiEvent> = accessibleStartEventEntities.map(startEventMapper);
+    const mappedStartEvents: Array<ConsumerApiEvent> = accessibleStartEventEntities.map(startEventMapper);
 
-    const processModel: IConsumerApiProcessModel = {
+    const processModel: ConsumerApiProcessModel = {
       key: processDef.key,
       startEvents: mappedStartEvents,
     };
@@ -217,13 +199,13 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     return processModel;
   }
 
-  public async startProcess(context: IConsumerContext,
+  public async startProcess(context: ConsumerContext,
                             processModelKey: string,
                             startEventKey: string,
-                            payload: IProcessStartRequestPayload,
-                            returnOn: ProcessStartReturnOnOptions): Promise<IProcessStartResponsePayload> {
+                            payload: ProcessStartRequestPayload,
+                            returnOn: ProcessStartReturnOnOptions): Promise<ProcessStartResponsePayload> {
 
-    const executionContext: ExecutionContext = await this.executionContextFromConsumerContext(context);
+    const executionContext: ExecutionContext = await this._executionContextFromConsumerContext(context);
 
     // Verify that the process model exists and can be accessed
     await this._getProcessModelByKey(executionContext, processModelKey);
@@ -242,20 +224,20 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
       await this.processEngineService.executeProcessInstance(executionContext, processInstanceId, undefined, payload.input_values);
     }
 
-    const response: IProcessStartResponsePayload = {
+    const response: ProcessStartResponsePayload = {
       correlation_id: correlationId,
     };
 
     return response;
   }
 
-  public async startProcessAndAwaitEndEvent(context: IConsumerContext,
+  public async startProcessAndAwaitEndEvent(context: ConsumerContext,
                                             processModelKey: string,
                                             startEventKey: string,
                                             endEventKey: string,
-                                            payload: IProcessStartRequestPayload): Promise<IProcessStartResponsePayload> {
+                                            payload: ProcessStartRequestPayload): Promise<ProcessStartResponsePayload> {
 
-    const executionContext: ExecutionContext = await this.executionContextFromConsumerContext(context);
+    const executionContext: ExecutionContext = await this._executionContextFromConsumerContext(context);
 
     // Verify that the process model exists and can be accessed
     await this._getProcessModelByKey(executionContext, processModelKey);
@@ -269,7 +251,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     const correlationId: string =
       await this._executeProcessInstanceLocally(executionContext, processInstanceId, startEventEntity, endEventEntity, payload);
 
-    const response: IProcessStartResponsePayload = {
+    const response: ProcessStartResponsePayload = {
       correlation_id: correlationId,
     };
 
@@ -277,13 +259,9 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
   }
 
   // Events
-  public async getEventsForProcessModel(context: IConsumerContext, processModelKey: string): Promise<IConsumerApiEventList> {
+  public async getEventsForProcessModel(context: ConsumerContext, processModelKey: string): Promise<ConsumerApiEventList> {
 
-    const mockData: IConsumerApiEventList = {
-      page_number: 0,
-      page_size: 30,
-      element_count: 0,
-      page_count: 0,
+    const mockData: ConsumerApiEventList = {
       events: [{
         key: 'startEvent_1',
         id: '',
@@ -295,13 +273,9 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     return Promise.resolve(mockData);
   }
 
-  public async getEventsForCorrelation(context: IConsumerContext, correlationId: string): Promise<IConsumerApiEventList> {
+  public async getEventsForCorrelation(context: ConsumerContext, correlationId: string): Promise<ConsumerApiEventList> {
 
-    const mockData: IConsumerApiEventList = {
-      page_number: 0,
-      page_size: 30,
-      element_count: 0,
-      page_count: 0,
+    const mockData: ConsumerApiEventList = {
       events: [{
         key: 'startEvent_1',
         id: '',
@@ -313,15 +287,11 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     return Promise.resolve(mockData);
   }
 
-  public async getEventsForProcessModelInCorrelation(context: IConsumerContext,
+  public async getEventsForProcessModelInCorrelation(context: ConsumerContext,
                                                      processModelKey: string,
-                                                     correlationId: string): Promise<IConsumerApiEventList> {
+                                                     correlationId: string): Promise<ConsumerApiEventList> {
 
-    const mockData: IConsumerApiEventList = {
-      page_number: 0,
-      page_size: 30,
-      element_count: 0,
-      page_count: 0,
+    const mockData: ConsumerApiEventList = {
       events: [{
         key: 'startEvent_1',
         id: '',
@@ -333,25 +303,25 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     return Promise.resolve(mockData);
   }
 
-  public async triggerEvent(context: IConsumerContext,
+  public async triggerEvent(context: ConsumerContext,
                             processModelKey: string,
                             correlationId: string,
                             eventId: string,
-                            eventTriggerPayload?: IEventTriggerPayload): Promise<void> {
+                            eventTriggerPayload?: EventTriggerPayload): Promise<void> {
     return Promise.resolve();
   }
 
   // UserTasks
-  public async getUserTasksForProcessModel(context: IConsumerContext, processModelKey: string): Promise<IUserTaskList> {
-    const executionContext: ExecutionContext = await this.executionContextFromConsumerContext(context);
+  public async getUserTasksForProcessModel(context: ConsumerContext, processModelKey: string): Promise<UserTaskList> {
+    const executionContext: ExecutionContext = await this._executionContextFromConsumerContext(context);
 
     const userTasks: Array<IUserTaskEntity> = await this._getAccessibleUserTasksForProcessModel(executionContext, processModelKey);
 
     return this._userTaskEntitiesToUserTaskList(executionContext, userTasks);
   }
 
-  public async getUserTasksForCorrelation(context: IConsumerContext, correlationId: string): Promise<IUserTaskList> {
-    const executionContext: ExecutionContext = await this.executionContextFromConsumerContext(context);
+  public async getUserTasksForCorrelation(context: ConsumerContext, correlationId: string): Promise<UserTaskList> {
+    const executionContext: ExecutionContext = await this._executionContextFromConsumerContext(context);
     const processInstances: Array<IProcessEntity> = await this._getProcessInstancesForCorrelation(executionContext, correlationId);
 
     let userTasks: Array<IUserTaskEntity> = [];
@@ -365,10 +335,10 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
 
   }
 
-  public async getUserTasksForProcessModelInCorrelation(context: IConsumerContext,
+  public async getUserTasksForProcessModelInCorrelation(context: ConsumerContext,
                                                         processModelKey: string,
-                                                        correlationId: string): Promise<IUserTaskList> {
-    const executionContext: ExecutionContext = await this.executionContextFromConsumerContext(context);
+                                                        correlationId: string): Promise<UserTaskList> {
+    const executionContext: ExecutionContext = await this._executionContextFromConsumerContext(context);
 
     if (!this._processModelBelongsToCorrelation(executionContext, correlationId, processModelKey)) {
       throw new NotFoundError(`Der Prozess mit dem key '${processModelKey}' ist nicht Teil der Correlation mit der id '${correlationId}'`);
@@ -377,15 +347,39 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     return this.getUserTasksForProcessModel(context, processModelKey);
   }
 
-  public async finishUserTask(context: IConsumerContext,
+  public async finishUserTask(context: ConsumerContext,
                               processModelKey: string,
                               correlationId: string,
                               userTaskId: string,
-                              userTaskResult: IUserTaskResult): Promise<void> {
-    return Promise.resolve();
+                              userTaskResult: UserTaskResult): Promise<void> {
+
+    const executionContext: ExecutionContext = await this._executionContextFromConsumerContext(context);
+
+    const userTasks: UserTaskList = (await this.getUserTasksForProcessModelInCorrelation(context, processModelKey, correlationId));
+
+    const userTask: UserTask = userTasks.user_tasks.find((task: UserTask) => {
+      return task.id === userTaskId;
+    });
+
+    if (userTask === undefined) {
+      // tslint:disable-next-line:max-line-length
+      throw new NotFoundError(`UserTask with id '${userTaskId}' not found in Process Model with key '${processModelKey}' in correlation with id '${correlationId}'`);
+    }
+
+    const resultForProcessEngine: any = this._getUserTaskResultFromUserTaskConfig(userTaskResult);
+
+    const messageData: any = {
+      action: MessageAction.proceed,
+      token: userTaskResult,
+    };
+
+    const proceedMessage: IDataMessage = this._createDataMessage(messageData, executionContext.encryptedToken, messageData);
+
+    // TODO: Implement the proceed-message sending
+    // return this.messageBusService.sendMessage(`/processengine/node/${userTask.id}`, proceedMessage);
   }
 
-  private async _userTaskEntitiesToUserTaskList(executionContext: ExecutionContext, userTasks: Array<IUserTaskEntity>): Promise<IUserTaskList> {
+  private async _userTaskEntitiesToUserTaskList(executionContext: ExecutionContext, userTasks: Array<IUserTaskEntity>): Promise<UserTaskList> {
     const resultUserTaskPromises: Array<any> = userTasks.map(async(userTask: IUserTaskEntity) => {
 
       const userTaskData: any = await userTask.getUserTaskData(executionContext);
@@ -396,15 +390,11 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
         process_instance_id: userTask.process.id,
         // TODO: 'data' currently contains the response body equals that of the old consumer client.
         // The consumer api concept has no response body defined yet, however, so there MAY be discrepancies.
-        data: this.getUserTaskConfigFromUserTaskData(userTaskData),
+        data: this._getUserTaskConfigFromUserTaskData(userTaskData),
       };
     });
 
-    const result: IUserTaskList = {
-      page_number: 1,
-      page_size: resultUserTaskPromises.length,
-      element_count: resultUserTaskPromises.length,
-      page_count: 1,
+    const result: UserTaskList = {
       user_tasks: await Promise.all(resultUserTaskPromises),
     };
 
@@ -932,7 +922,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
   private async startProcessInstance(context: ExecutionContext,
                                      processInstanceId: string,
                                      startEventDef: INodeDefEntity,
-                                     payload: IProcessStartRequestPayload): Promise<string> {
+                                     payload: ProcessStartRequestPayload): Promise<string> {
 
     const processInstance: IProcessEntity = await this._getProcessInstanceById(context, processInstanceId);
 
@@ -986,7 +976,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
                                          processInstanceId: string,
                                          startEventEntity: INodeDefEntity,
                                          endEventEntity: INodeDefEntity,
-                                         payload: IProcessStartRequestPayload): Promise<any> {
+                                         payload: ProcessStartRequestPayload): Promise<any> {
 
     return new Promise(async(resolve: Function, reject: Function): Promise<void> => {
 
@@ -1024,86 +1014,42 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     });
   }
 
-  private executionContextFromConsumerContext(consumerContext: IConsumerContext): Promise<ExecutionContext> {
+  private _executionContextFromConsumerContext(consumerContext: ConsumerContext): Promise<ExecutionContext> {
     return this.processEngineiamService.resolveExecutionContext(consumerContext.authorization.substr('Bearer '.length), TokenType.jwt);
   }
 
-  private formWidgetFieldIsEnum(formWidgetField: IFormWidgetField<any>): formWidgetField is IFormWidgetEnumField {
-    return formWidgetField.type === FormWidgetFieldType.enumeration;
+  private _getUserTaskConfigFromUserTaskData(userTaskData: IUserTaskMessageData): UserTaskConfig {
+    // TODO: Implement this
+    return {
+      form_fields: [],
+    };
   }
 
-  private getUserTaskConfigFromUserTaskData(userTaskData: IUserTaskMessageData): IUserTaskConfig {
-    const result: any = {
-      title: userTaskData.userTaskEntity.name,
-      widgetType: null,
-      widgetConfig: null,
+  private _getUserTaskResultFromUserTaskConfig(finishedTask: UserTaskResult): any {
+    return {};
+    // TODO: implement this
+  }
+
+  private _createDataMessage(data: any, authToken?: string, participantId?: string): IDataMessage {
+    const message: IDataMessage = {
+      data: data,
+      metadata: {
+        id: uuid.v4(),
+        applicationId: undefined,
+        token: undefined,
+      },
     };
 
-    if (userTaskData.uiName === 'Form') {
-      result.widgetType = WidgetType.form;
-      result.widgetConfig = this.getFormWidgetConfigFromUserTaskData(userTaskData);
+    if (authToken !== undefined && authToken !== null) {
+      message.metadata.token = authToken;
     }
 
-    if (userTaskData.uiName === 'Confirm') {
-      result.widgetType = WidgetType.confirm;
-      result.widgetConfig = this.getConfirmWidgetConfigFromUserTaskData(userTaskData);
+    if (participantId !== undefined && participantId !== null) {
+      message.metadata.options = {
+        participantId: participantId,
+      };
     }
 
-    return result;
-  }
-
-  private getFormWidgetConfigFromUserTaskData(userTaskData: IUserTaskMessageData): IFormWidgetConfig {
-    const formWidgetConfig: IFormWidgetConfig = {
-      fields: null,
-    };
-
-    const nodeDefFormFields: Array<INodeDefFormField> = userTaskData.userTaskEntity.nodeDef.extensions.formFields;
-    formWidgetConfig.fields = nodeDefFormFields.map((nodeDefFormField: INodeDefFormField): SpecificFormWidgetField => {
-      const result: SpecificFormWidgetField = {
-        id: nodeDefFormField.id,
-        label: nodeDefFormField.label,
-        type: nodeDefFormField.type,
-        defaultValue: nodeDefFormField.defaultValue,
-      };
-
-      if (this.formWidgetFieldIsEnum(result)) {
-        result.enumValues = nodeDefFormField.formValues.map((formValue: INodeDefFormFieldValue): IFormWidgetEnumValue => {
-          const enumEntry: IFormWidgetEnumValue = {
-            label: formValue.name,
-            value: formValue.id,
-          };
-
-          return enumEntry;
-        });
-      }
-
-      return result;
-    });
-
-    return formWidgetConfig;
-  }
-
-  private getConfirmWidgetConfigFromUserTaskData(userTaskData: IUserTaskMessageData): IConfirmWidgetConfig {
-    const confirmWidgetConfig: IConfirmWidgetConfig = {
-      message: userTaskData.uiConfig.message,
-      actions: null,
-    };
-
-    confirmWidgetConfig.actions = userTaskData.uiConfig.layout.map((action: UiConfigLayoutElement): IConfirmWidgetAction => {
-      const confirmAction: IConfirmWidgetAction = {
-        label: action.label,
-        action: null,
-      };
-
-      if (action.key === 'confirm') {
-        confirmAction.action = UserTaskProceedAction.proceed;
-      } else if (action.key === 'cancel' || action.isCancel === true) {
-        confirmAction.action = UserTaskProceedAction.cancel;
-      }
-
-      return confirmAction;
-    });
-
-    return confirmWidgetConfig;
+    return message;
   }
 }
