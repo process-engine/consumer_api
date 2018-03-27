@@ -14,7 +14,8 @@ function registerInContainer(container) {
                   'ProcessEngineService',
                   'NodeInstanceEntityTypeService',
                   'MessageBusService',
-                  'ConsumerApiIamService');
+                  'ConsumerApiIamService',
+                  'EventAggregator');
 
   container.register('ConsumerApiService', ConsumerApiService)
     .dependencies('ConsumerProcessEngineAdapter')

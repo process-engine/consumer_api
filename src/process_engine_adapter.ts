@@ -32,6 +32,7 @@ import {
   TokenType,
 } from '@essential-projects/core_contracts';
 import {IDatastoreService, IEntityCollection, IEntityType} from '@essential-projects/data_model_contracts';
+import {IEvent, IEventAggregator, ISubscription} from '@essential-projects/event_aggregator_contracts';
 import {IDataMessage, IMessageBusService, IMessageSubscription} from '@essential-projects/messagebus_contracts';
 import {
   BpmnType,
@@ -76,13 +77,15 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
   private _messageBusService: IMessageBusService;
   private _consumerApiIamService: any;
   private _errorDeserializer: IErrorDeserializer;
+  private _eventAggregator: IEventAggregator;
 
   constructor(datastoreService: IDatastoreService,
               iamService: IIamService,
               processEngineService: IProcessEngineService,
               nodeInstanceEntityTypeService: INodeInstanceEntityTypeService,
               messageBusService: IMessageBusService,
-              consumerApiIamService: any) {
+              consumerApiIamService: any,
+              eventAggregator: IEventAggregator) {
 
     this._datastoreService = datastoreService;
     this._iamService = iamService;
@@ -90,6 +93,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     this._nodeInstanceEntityTypeService = nodeInstanceEntityTypeService;
     this._messageBusService = messageBusService;
     this._consumerApiIamService = consumerApiIamService;
+    this._eventAggregator = eventAggregator;
   }
 
   private get datastoreService(): IDatastoreService {
@@ -114,6 +118,10 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
 
   private get consumerApiIamService(): any {
     return this._consumerApiIamService;
+  }
+
+  private get eventAggregator(): IEventAggregator {
+    return this._eventAggregator;
   }
 
   private get errorDeserializer(): IErrorDeserializer {
@@ -379,7 +387,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     const userTasks: UserTaskList = (await this.getUserTasksForProcessModelInCorrelation(context, processModelKey, correlationId));
 
     const userTask: UserTask = userTasks.user_tasks.find((task: UserTask) => {
-      return task.id === userTaskId;
+      return task.key === userTaskId;
     });
 
     if (userTask === undefined) {
@@ -394,10 +402,27 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
       token: userTaskResult,
     };
 
-    const proceedMessage: IDataMessage = this._createDataMessage(messageData, executionContext.encryptedToken, messageData);
+    return new Promise<void>((resolve: Function, reject: Function): void => {
+      const subscription: ISubscription = this.eventAggregator.subscribe(`/processengine/node/${userTask.id}`, (event: any) => {
+        const eventIsNotUserTaskEndedEvent: boolean = event.data.action !== 'changeState' || event.data.data !== 'end';
+        if (eventIsNotUserTaskEndedEvent) {
+          return;
+        }
 
-    // TODO: Implement the proceed-message sending
-    // return this.messageBusService.sendMessage(`/processengine/node/${userTask.id}`, proceedMessage);
+        subscription.dispose();
+        resolve();
+      });
+
+      this.eventAggregator.publish(`/processengine/node/${userTask.id}`, {
+        data: {
+          action: MessageAction.proceed,
+          token: userTaskResult,
+        },
+        metadata: {
+          context: executionContext,
+        },
+      });
+    });
   }
 
   private async _userTaskEntitiesToUserTaskList(executionContext: ExecutionContext, userTasks: Array<IUserTaskEntity>): Promise<UserTaskList> {
@@ -1114,8 +1139,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
   }
 
   private _getUserTaskResultFromUserTaskConfig(finishedTask: UserTaskResult): any {
-    return {};
-    // TODO: implement this
+    return finishedTask.form_fields;
   }
 
   private _createDataMessage(data: any, authToken?: string, participantId?: string): IDataMessage {
