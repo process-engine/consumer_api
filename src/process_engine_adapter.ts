@@ -51,7 +51,7 @@ import {
   IUserTaskMessageData,
 } from '@process-engine/process_engine_contracts';
 
-import {BaseError, ForbiddenError, isError, NotFoundError, UnprocessableEntityError} from '@essential-projects/errors_ts';
+import {BadRequestError, BaseError, ForbiddenError, isError, NotFoundError, UnprocessableEntityError} from '@essential-projects/errors_ts';
 import * as BpmnModdle from 'bpmn-moddle';
 import {CorrelationCache, MessageAction, NodeDefFormField} from './process_engine_adapter_interfaces';
 
@@ -1139,6 +1139,20 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
   }
 
   private _getUserTaskResultFromUserTaskConfig(finishedTask: UserTaskResult): any {
+    const userTaskIsNotAnObject: boolean = finishedTask === undefined
+                                        || finishedTask.form_fields === undefined
+                                        || typeof finishedTask.form_fields !== 'object'
+                                        || Array.isArray(finishedTask.form_fields);
+
+    if (userTaskIsNotAnObject) {
+      throw new BadRequestError('The UserTasks form_fields is not an object.');
+    }
+
+    const noFormfieldsSubmitted: boolean = Object.keys(finishedTask.form_fields).length === 0;
+    if (noFormfieldsSubmitted) {
+      throw new BadRequestError('The UserTasks form_fields are empty.');
+    }
+
     return finishedTask.form_fields;
   }
 
