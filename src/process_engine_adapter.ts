@@ -1083,7 +1083,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
   }
 
   private _executionContextFromConsumerContext(consumerContext: ConsumerContext): Promise<ExecutionContext> {
-    return this.processEngineiamService.resolveExecutionContext(consumerContext.identiy, TokenType.jwt);
+    return this.processEngineiamService.resolveExecutionContext(consumerContext.identity, TokenType.jwt);
   }
 
   private _getUserTaskConfigFromUserTaskData(userTaskData: IUserTaskMessageData, userTaskKey: string): UserTaskConfig {
