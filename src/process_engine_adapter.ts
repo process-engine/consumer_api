@@ -51,7 +51,15 @@ import {
   IUserTaskMessageData,
 } from '@process-engine/process_engine_contracts';
 
-import {BadRequestError, BaseError, ForbiddenError, isError, NotFoundError, UnprocessableEntityError} from '@essential-projects/errors_ts';
+import {
+  BadRequestError,
+  BaseError,
+  ForbiddenError,
+  InternalServerError,
+  isError,
+  NotFoundError,
+  UnprocessableEntityError,
+} from '@essential-projects/errors_ts';
 import * as BpmnModdle from 'bpmn-moddle';
 import {CorrelationCache, MessageAction, NodeDefFormField} from './process_engine_adapter_interfaces';
 
@@ -1090,7 +1098,8 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
           const deserializedError: Error = this.errorDeserializer(message.data.data);
           logger.error(deserializedError.message);
 
-          reject(deserializedError);
+          // The requester may not be allowed to know why the process terminated
+          reject(new InternalServerError('The process terminated with an error.'));
           processEndSubscription.cancel();
 
           return;
