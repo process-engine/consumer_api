@@ -232,6 +232,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     } else {
       correlationId = payload.correlation_id || uuid.v4();
       this._correlations[correlationId] = processInstanceId;
+      // TODO: This does not take the startEventKey into consideration when starting the process. This needs to be changed, so that it does!
       await this.processEngineService.executeProcessInstance(executionContext, processInstanceId, undefined, payload.input_values);
     }
 
