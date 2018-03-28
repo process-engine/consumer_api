@@ -174,6 +174,8 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
         const mappedProcessModel: ProcessModel = await this.getProcessModelByKey(context, processModel.key);
         result.push(mappedProcessModel);
       } catch (error) {
+        // if we're not allowed to access that process model, then thats fine. In that case, every startevent is invisible to us,
+        // but this sould not make fetching startevents from other instances fail
         if (!isError(error, ForbiddenError)) {
           throw error;
         }
