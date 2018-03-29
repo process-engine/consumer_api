@@ -1,25 +1,31 @@
 'use strict'
 
 const {
-  ConsumerApiRouter,
-  ConsumerApiController,
-  ConsumerApiService
+  ConsumerApiService,
+  ConsumerProcessEngineAdapter,
+  ConsumerApiIamService,
 } = require('./dist/commonjs/index');
 
-const routerDiscoveryTag = require('@essential-projects/core_contracts').RouterDiscoveryTag;
-
 function registerInContainer(container) {
-  container.register('ConsumerApiRouter', ConsumerApiRouter)
-    .dependencies('ConsumerApiController')
-    .tags(routerDiscoveryTag)
-    .configure('consumer_api:consumer_api_router');
-
-  container.register('ConsumerApiController', ConsumerApiController)
-    .dependencies('ConsumerApiService')
-    .configure('consumer_api:consumer_api_controller');
+  
+  container.register('ConsumerProcessEngineAdapter', ConsumerProcessEngineAdapter)
+    .dependencies('DatastoreService',
+                  'IamService',
+                  'ProcessEngineService',
+                  'NodeInstanceEntityTypeService',
+                  'MessageBusService',
+                  'ConsumerApiIamService',
+                  'EventAggregator')
+    .singleton();
 
   container.register('ConsumerApiService', ConsumerApiService)
-    .configure('consumer_api:consumer_api_service');
+    .dependencies('ConsumerProcessEngineAdapter')
+    .singleton();
+
+  // TODO: Temporary workaround until the IdentityServer is in place.
+  container.register('ConsumerApiIamService', ConsumerApiIamService)
+    .configure('consumer_api_core:consumer_api_iam_service')
+    .singleton();
 }
 
 module.exports.registerInContainer = registerInContainer;
