@@ -1093,7 +1093,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
 
           if (!this.errorDeserializer) {
             logger.error('No error deserializer has been set!');
-            logger.error(message.data.event);
+            logger.error(message.data);
             throw new Error(message.data.data);
           }
 
@@ -1107,7 +1107,13 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
           return;
         }
 
-        if (message.data.event !== 'end') {
+        if (message.data.action !== 'endEvent') {
+          return;
+        }
+
+        logger.verbose(`Reached EndEvent '${message.data.endEventKey}'`);
+
+        if (message.data.endEventKey !== endEventEntity.key) {
           return;
         }
 
