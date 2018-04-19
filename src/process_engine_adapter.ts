@@ -1107,11 +1107,11 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
           return;
         }
 
-        if (message.data.action !== 'endEvent') {
+        if (!(message.data.event === 'end' || message.data.event === 'terminate')) {
           return;
         }
 
-        logger.verbose(`Reached EndEvent '${message.data.endEventKey}'`);
+        logger.info(`Reached EndEvent '${message.data.endEventKey}'`);
 
         if (message.data.endEventKey !== endEventEntity.key) {
           return;
