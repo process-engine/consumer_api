@@ -267,7 +267,6 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     const startEventEntity: INodeDefEntity = await this._getStartEventEntity(executionContext, processModelKey, startEventKey);
     const endEventEntity: INodeDefEntity = await this._getEndEventEntity(executionContext, processModelKey, endEventKey);
 
-    // TODO: Return only after the given EndEvent was reached
     const processInstanceId: string = await this.processEngineService.createProcessInstance(executionContext, undefined, processModelKey);
 
     const correlationId: string =
