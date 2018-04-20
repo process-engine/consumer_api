@@ -25,7 +25,7 @@
     "@essential-projects/messagebus_contracts": "^1.0.0",
     "@essential-projects/http_node": "^1.0.0",
     "@process-engine/consumer_api_contracts": "^0.3.0",
-    "@process-engine/process_engine_contracts": "feature~provide_end_event_key_with_process_end_message",
+    "@process-engine/process_engine_contracts": "^3.2.0",
     "addict-ioc": "^2.2.8",
     "async-middleware": "^1.2.1",
     "bluebird": "^3.4.7",
