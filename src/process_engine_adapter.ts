@@ -667,8 +667,10 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
         continue;
       }
 
-      for (const laneSet of rootElement.laneSets) {
-        accessibleLanes = accessibleLanes.concat(await this._getLanesThatCanBeAccessed(identity, laneSet));
+      if (rootElement.laneSets) {
+        for (const laneSet of rootElement.laneSets) {
+          accessibleLanes = accessibleLanes.concat(await this._getLanesThatCanBeAccessed(identity, laneSet));
+        }
       }
     }
 
@@ -723,10 +725,12 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
         continue;
       }
 
-      for (const laneSet of rootElement.laneSets) {
-        const closestLaneId: string = this._getClosestLaneIdToElement(laneSet, elementId);
-        if (closestLaneId !== undefined) {
-          return closestLaneId;
+      if (rootElement.laneSets) {
+        for (const laneSet of rootElement.laneSets) {
+          const closestLaneId: string = this._getClosestLaneIdToElement(laneSet, elementId);
+          if (closestLaneId !== undefined) {
+            return closestLaneId;
+          }
         }
       }
     }
