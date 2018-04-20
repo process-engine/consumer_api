@@ -1106,7 +1106,13 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
           return;
         }
 
-        if (!(message.data.event === 'end' || message.data.event === 'terminate')) {
+        if (message.data.event === 'terminate') {
+          logger.warn(`Unexpected process termination through TerminationEndEvent '${message.data.endEventKey}'!`);
+
+          return reject(new InternalServerError(`The process was terminated through the '${message.data.endEventKey}' TerminationEndEvent!`));
+        }
+
+        if (message.data.event !== 'end') {
           return;
         }
 
