@@ -36,27 +36,28 @@ export class ConsumerApiService implements IConsumerApiService {
     return this.processEngineAdapter.getProcessModelByKey(context, processModelKey);
   }
 
-  public async startProcess(context: ConsumerContext,
-                            processModelKey: string,
-                            startEventKey: string,
-                            payload: ProcessStartRequestPayload,
-                            returnOn: ProcessStartReturnOnOptions = ProcessStartReturnOnOptions.onProcessInstanceStarted,
-                          ): Promise<ProcessStartResponsePayload> {
+  public async startProcessInstance(context: ConsumerContext,
+                                    processModelKey: string,
+                                    startEventKey: string,
+                                    payload: ProcessStartRequestPayload,
+                                    returnOn: ProcessStartReturnOnOptions = ProcessStartReturnOnOptions.onProcessInstanceStarted,
+                                  ): Promise<ProcessStartResponsePayload> {
 
     if (!Object.values(ProcessStartReturnOnOptions).includes(returnOn)) {
       throw new EssentialProjectErrors.BadRequestError(`${returnOn} is not a valid return option!`);
     }
 
-    return this.processEngineAdapter.startProcess(context, processModelKey, startEventKey, payload, returnOn);
+    return this.processEngineAdapter.startProcessInstance(context, processModelKey, startEventKey, payload, returnOn);
   }
 
-  public async startProcessAndAwaitEndEvent(context: ConsumerContext,
-                                            processModelKey: string,
-                                            startEventKey: string,
-                                            endEventKey: string,
-                                            payload: ProcessStartRequestPayload): Promise<ProcessStartResponsePayload> {
+  public async startProcessInstanceAndAwaitEndEvent(context: ConsumerContext,
+                                                    processModelKey: string,
+                                                    startEventKey: string,
+                                                    endEventKey: string,
+                                                    payload: ProcessStartRequestPayload,
+                                                  ): Promise<ProcessStartResponsePayload> {
 
-    return this.processEngineAdapter.startProcessAndAwaitEndEvent(context, processModelKey, startEventKey, endEventKey, payload);
+    return this.processEngineAdapter.startProcessInstanceAndAwaitEndEvent(context, processModelKey, startEventKey, endEventKey, payload);
   }
 
   // Events

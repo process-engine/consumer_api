@@ -220,11 +220,12 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     return processModel;
   }
 
-  public async startProcess(context: ConsumerContext,
-                            processModelKey: string,
-                            startEventKey: string,
-                            payload: ProcessStartRequestPayload,
-                            returnOn: ProcessStartReturnOnOptions): Promise<ProcessStartResponsePayload> {
+  public async startProcessInstance(context: ConsumerContext,
+                                    processModelKey: string,
+                                    startEventKey: string,
+                                    payload: ProcessStartRequestPayload,
+                                    returnOn: ProcessStartReturnOnOptions,
+                                  ): Promise<ProcessStartResponsePayload> {
 
     const executionContext: ExecutionContext = await this._executionContextFromConsumerContext(context);
 
@@ -238,7 +239,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     const processInstanceId: string = await this.processEngineService.createProcessInstance(executionContext, undefined, processModelKey);
 
     if (returnOn === ProcessStartReturnOnOptions.onProcessInstanceStarted) {
-      correlationId = await this.startProcessInstance(executionContext, processInstanceId, startEventEntity, payload);
+      correlationId = await this._startProcessInstance(executionContext, processInstanceId, startEventEntity, payload);
     } else {
       correlationId = payload.correlation_id || uuid.v4();
       this._correlations[correlationId] = processInstanceId;
@@ -253,11 +254,12 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     return response;
   }
 
-  public async startProcessAndAwaitEndEvent(context: ConsumerContext,
-                                            processModelKey: string,
-                                            startEventKey: string,
-                                            endEventKey: string,
-                                            payload: ProcessStartRequestPayload): Promise<ProcessStartResponsePayload> {
+  public async startProcessInstanceAndAwaitEndEvent(context: ConsumerContext,
+                                                    processModelKey: string,
+                                                    startEventKey: string,
+                                                    endEventKey: string,
+                                                    payload: ProcessStartRequestPayload,
+                                                  ): Promise<ProcessStartResponsePayload> {
 
     const executionContext: ExecutionContext = await this._executionContextFromConsumerContext(context);
 
@@ -1026,10 +1028,10 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
   }
 
   // Manually implements "IProcessEntity.start()"
-  private async startProcessInstance(context: ExecutionContext,
-                                     processInstanceId: string,
-                                     startEventDef: INodeDefEntity,
-                                     payload: ProcessStartRequestPayload): Promise<string> {
+  private async _startProcessInstance(context: ExecutionContext,
+                                      processInstanceId: string,
+                                      startEventDef: INodeDefEntity,
+                                      payload: ProcessStartRequestPayload): Promise<string> {
 
     const processInstance: IProcessEntity = await this._getProcessInstanceById(context, processInstanceId);
 
@@ -1130,7 +1132,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
         processEndSubscription.cancel();
       });
 
-      correlationId = await this.startProcessInstance(executionContext, processInstanceId, startEventEntity, payload);
+      correlationId = await this._startProcessInstance(executionContext, processInstanceId, startEventEntity, payload);
     });
   }
 
