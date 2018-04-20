@@ -8,7 +8,7 @@ import {
   ProcessModelList,
   ProcessStartRequestPayload,
   ProcessStartResponsePayload,
-  ProcessStartReturnOnOptions,
+  StartCallbackType,
   UserTaskList,
   UserTaskResult,
 } from '@process-engine/consumer_api_contracts';
@@ -40,14 +40,14 @@ export class ConsumerApiService implements IConsumerApiService {
                                     processModelKey: string,
                                     startEventKey: string,
                                     payload: ProcessStartRequestPayload,
-                                    returnOn: ProcessStartReturnOnOptions = ProcessStartReturnOnOptions.onProcessInstanceStarted,
+                                    startCallbackType: StartCallbackType = StartCallbackType.CallbackOnProcessInstanceCreated,
                                   ): Promise<ProcessStartResponsePayload> {
 
-    if (!Object.values(ProcessStartReturnOnOptions).includes(returnOn)) {
-      throw new EssentialProjectErrors.BadRequestError(`${returnOn} is not a valid return option!`);
+    if (!Object.values(StartCallbackType).includes(startCallbackType)) {
+      throw new EssentialProjectErrors.BadRequestError(`${startCallbackType} is not a valid return option!`);
     }
 
-    return this.processEngineAdapter.startProcessInstance(context, processModelKey, startEventKey, payload, returnOn);
+    return this.processEngineAdapter.startProcessInstance(context, processModelKey, startEventKey, payload, startCallbackType);
   }
 
   public async startProcessInstanceAndAwaitEndEvent(context: ConsumerContext,

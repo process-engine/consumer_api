@@ -10,7 +10,7 @@ import {
   ProcessModelList as ConsumerApiProcessModelList,
   ProcessStartRequestPayload,
   ProcessStartResponsePayload,
-  ProcessStartReturnOnOptions,
+  StartCallbackType,
   UserTask,
   UserTaskConfig,
   UserTaskFormField,
@@ -224,7 +224,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
                                     processModelKey: string,
                                     startEventKey: string,
                                     payload: ProcessStartRequestPayload,
-                                    returnOn: ProcessStartReturnOnOptions,
+                                    startCallbackType: StartCallbackType,
                                   ): Promise<ProcessStartResponsePayload> {
 
     const executionContext: ExecutionContext = await this._executionContextFromConsumerContext(context);
@@ -238,7 +238,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
 
     const processInstanceId: string = await this.processEngineService.createProcessInstance(executionContext, undefined, processModelKey);
 
-    if (returnOn === ProcessStartReturnOnOptions.onProcessInstanceStarted) {
+    if (startCallbackType === StartCallbackType.CallbackOnProcessInstanceCreated) {
       correlationId = await this._startProcessInstance(executionContext, processInstanceId, startEventEntity, payload);
     } else {
       correlationId = payload.correlation_id || uuid.v4();
@@ -732,6 +732,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
       if (!rootElement.laneSets) {
         continue;
       }
+
       for (const laneSet of rootElement.laneSets) {
         const closestLaneId: string = this._getClosestLaneIdToElement(laneSet, elementId);
         if (closestLaneId !== undefined) {
