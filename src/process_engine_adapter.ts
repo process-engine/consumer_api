@@ -267,7 +267,6 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     const startEventEntity: INodeDefEntity = await this._getStartEventEntity(executionContext, processModelKey, startEventKey);
     const endEventEntity: INodeDefEntity = await this._getEndEventEntity(executionContext, processModelKey, endEventKey);
 
-    // TODO: Return only after the given EndEvent was reached
     const processInstanceId: string = await this.processEngineService.createProcessInstance(executionContext, undefined, processModelKey);
 
     const correlationId: string =
@@ -1107,11 +1106,17 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
           return;
         }
 
-        if (message.data.action !== 'endEvent') {
+        if (message.data.event === 'terminate') {
+          logger.warn(`Unexpected process termination through TerminationEndEvent '${message.data.endEventKey}'!`);
+
+          return reject(new InternalServerError(`The process was terminated through the '${message.data.endEventKey}' TerminationEndEvent!`));
+        }
+
+        if (message.data.event !== 'end') {
           return;
         }
 
-        logger.verbose(`Reached EndEvent '${message.data.endEventKey}'`);
+        logger.info(`Reached EndEvent '${message.data.endEventKey}'`);
 
         if (message.data.endEventKey !== endEventEntity.key) {
           return;
