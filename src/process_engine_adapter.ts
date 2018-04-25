@@ -193,10 +193,15 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
 
     const processDef: IProcessDefEntity = await this._getProcessModelByKey(executionContext, processModelKey);
 
-    const accessibleStartEventEntities: Array<INodeDefEntity> = await this._getAccessibleStartEvents(executionContext, processModelKey);
+    let accessibleStartEventEntities: Array<INodeDefEntity> = await this._getAccessibleStartEvents(executionContext, processModelKey);
 
     if (accessibleStartEventEntities.length === 0) {
       throw new ForbiddenError(`Access to Process Model '${processModelKey}' not allowed`);
+    }
+
+    // This is a completely different use case and must therefore happen AFTER the IAM check!
+    if (!processDef.isExecutable) {
+      accessibleStartEventEntities = [];
     }
 
     const startEventMapper: any = (startEventEntity: INodeDefEntity): ConsumerApiEvent => {
@@ -229,8 +234,11 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
 
     const executionContext: ExecutionContext = await this._executionContextFromConsumerContext(context);
 
-    // Verify that the process model exists and can be accessed
-    await this._getProcessModelByKey(executionContext, processModelKey);
+    const processModel: IProcessDefEntity = await this._getProcessModelByKey(executionContext, processModelKey);
+
+    if (!processModel.isExecutable) {
+      throw new BadRequestError(`The Process Model '${processModelKey}' is not executable!`);
+    }
 
     const startEventEntity: INodeDefEntity = await this._getStartEventEntity(executionContext, processModelKey, startEventKey);
 
@@ -263,8 +271,11 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
 
     const executionContext: ExecutionContext = await this._executionContextFromConsumerContext(context);
 
-    // Verify that the process model exists and can be accessed
-    await this._getProcessModelByKey(executionContext, processModelKey);
+    const processModel: IProcessDefEntity = await this._getProcessModelByKey(executionContext, processModelKey);
+
+    if (!processModel.isExecutable) {
+      throw new BadRequestError(`The Process Model '${processModelKey}' is not executable!`);
+    }
 
     const startEventEntity: INodeDefEntity = await this._getStartEventEntity(executionContext, processModelKey, startEventKey);
     const endEventEntity: INodeDefEntity = await this._getEndEventEntity(executionContext, processModelKey, endEventKey);
