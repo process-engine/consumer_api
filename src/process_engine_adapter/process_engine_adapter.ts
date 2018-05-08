@@ -283,7 +283,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
     const processInstanceId: string = await this.processEngineService.createProcessInstance(executionContext, undefined, processModelKey);
 
     const correlationId: string =
-      await this._executeProcessInstanceLocally(executionContext, processInstanceId, startEventEntity, endEventEntity, payload);
+      await this._executeProcessInstanceLocally(executionContext, processInstanceId, startEventEntity, endEventEntity.key, payload);
 
     const response: ProcessStartResponsePayload = {
       correlation_id: correlationId,
@@ -1099,7 +1099,7 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
   private _executeProcessInstanceLocally(executionContext: ExecutionContext,
                                          processInstanceId: string,
                                          startEventEntity: INodeDefEntity,
-                                         endEventEntity: INodeDefEntity,
+                                         endEventToWaitFor: string,
                                          payload: ProcessStartRequestPayload): Promise<any> {
 
     return new Promise(async(resolve: Function, reject: Function): Promise<void> => {
@@ -1139,12 +1139,13 @@ export class ConsumerProcessEngineAdapter implements IConsumerApiService {
 
         logger.info(`Reached EndEvent '${message.data.endEventKey}'`);
 
-        if (message.data.endEventKey !== endEventEntity.key) {
-          return;
+        if (!endEventToWaitFor || (message.data.endEventKey === endEventToWaitFor)) {
+          processEndSubscription.cancel();
+
+          return resolve(correlationId);
         }
 
-        resolve(correlationId);
-        processEndSubscription.cancel();
+        return;
       });
 
       correlationId = await this._startProcessInstance(executionContext, processInstanceId, startEventEntity, payload);
