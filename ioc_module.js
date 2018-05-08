@@ -1,14 +1,14 @@
 'use strict'
 
 const {
-  ConsumerApiService,
-  ConsumerProcessEngineAdapter,
   ConsumerApiIamService,
+  ConsumerApiService,
+  ConsumerApiProcessEngineAdapter,
 } = require('./dist/commonjs/index');
 
 function registerInContainer(container) {
   
-  container.register('ConsumerProcessEngineAdapter', ConsumerProcessEngineAdapter)
+  container.register('ConsumerApiProcessEngineAdapter', ConsumerApiProcessEngineAdapter)
     .dependencies('DatastoreService',
                   'IamService',
                   'ProcessEngineService',
@@ -19,7 +19,7 @@ function registerInContainer(container) {
     .singleton();
 
   container.register('ConsumerApiService', ConsumerApiService)
-    .dependencies('ConsumerProcessEngineAdapter')
+    .dependencies('ConsumerApiProcessEngineAdapter')
     .singleton();
 
   // TODO: Temporary workaround until the IdentityServer is in place.
