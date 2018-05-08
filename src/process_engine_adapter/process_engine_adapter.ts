@@ -642,10 +642,10 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
           }
 
           const deserializedError: Error = this.errorDeserializer(message.data.data);
-          logger.error(deserializedError.message);
+          logger.error('The process failed with an error.', deserializedError.message);
 
           // The requester may not be allowed to know why the process terminated
-          reject(new InternalServerError('The process terminated with an error.'));
+          reject(new InternalServerError('The process failed with an error.'));
           processEndSubscription.cancel();
 
           return;
