@@ -37,7 +37,7 @@
     "@essential-projects/event_aggregator_contracts": "^1.0.0",
     "@essential-projects/tslint-config": "^1.0.0",
     "@types/express": "^4.11.1",
-    "@types/node": "^10.0.4",
+    "@types/node": "^8.0.27",
     "gulp": "^3.9.1",
     "gulptraum": "^2.3.0",
     "gulptraum-typescript": "^1.5.0",
