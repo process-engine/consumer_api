@@ -6,6 +6,7 @@ import {
   EventTriggerPayload,
   IConsumerApiService,
   ICorrelationResult,
+  ICorrelationStore,
   ProcessModel,
   ProcessModel as ConsumerApiProcessModel,
   ProcessModelList as ConsumerApiProcessModelList,
@@ -65,6 +66,7 @@ import * as BpmnModdle from 'bpmn-moddle';
 import {CorrelationCache, MessageAction, NodeDefFormField} from './process_engine_adapter_interfaces';
 
 import {IBpmnModdle, IDefinition, IModdleElement} from './bpmnmodeler/index';
+import {ConsumerApiIamService} from './consumer_api_iam_service';
 
 import {Logger} from 'loggerhythm';
 
@@ -79,42 +81,49 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
 
   private _correlations: CorrelationCache = {};
 
+  private _consumerApiCorrelationStore: ICorrelationStore;
+  private _consumerApiIamService: ConsumerApiIamService;
   private _processEngineService: IProcessEngineService;
   private _iamService: IIamService;
   private _datastoreService: IDatastoreService;
   private _nodeInstanceEntityTypeService: INodeInstanceEntityTypeService;
   private _messageBusService: IMessageBusService;
-  private _consumerApiIamService: any;
   private _errorDeserializer: IErrorDeserializer;
   private _eventAggregator: IEventAggregator;
 
-  constructor(datastoreService: IDatastoreService,
+  constructor(consumerApiCorrelationStore: ICorrelationStore,
+              consumerApiIamService: ConsumerApiIamService,
+              datastoreService: IDatastoreService,
+              eventAggregator: IEventAggregator,
               iamService: IIamService,
-              processEngineService: IProcessEngineService,
-              nodeInstanceEntityTypeService: INodeInstanceEntityTypeService,
               messageBusService: IMessageBusService,
-              consumerApiIamService: any,
-              eventAggregator: IEventAggregator) {
+              nodeInstanceEntityTypeService: INodeInstanceEntityTypeService,
+              processEngineService: IProcessEngineService) {
 
-    this._datastoreService = datastoreService;
-    this._iamService = iamService;
-    this._processEngineService = processEngineService;
-    this._nodeInstanceEntityTypeService = nodeInstanceEntityTypeService;
-    this._messageBusService = messageBusService;
+    this._consumerApiCorrelationStore = consumerApiCorrelationStore;
     this._consumerApiIamService = consumerApiIamService;
+    this._datastoreService = datastoreService;
     this._eventAggregator = eventAggregator;
+    this._iamService = iamService;
+    this._messageBusService = messageBusService;
+    this._nodeInstanceEntityTypeService = nodeInstanceEntityTypeService;
+    this._processEngineService = processEngineService;
+  }
+
+  private get consumerApiCorrelationStore(): ICorrelationStore {
+    return this._consumerApiCorrelationStore;
+  }
+
+  private get consumerApiIamService(): ConsumerApiIamService {
+    return this._consumerApiIamService;
   }
 
   private get datastoreService(): IDatastoreService {
     return this._datastoreService;
   }
 
-  private get processEngineiamService(): IIamService {
-    return this._iamService;
-  }
-
-  private get processEngineService(): IProcessEngineService {
-    return this._processEngineService;
+  private get eventAggregator(): IEventAggregator {
+    return this._eventAggregator;
   }
 
   private get messageBusService(): IMessageBusService {
@@ -125,12 +134,12 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
     return this._nodeInstanceEntityTypeService;
   }
 
-  private get consumerApiIamService(): any {
-    return this._consumerApiIamService;
+  private get processEngineIamService(): IIamService {
+    return this._iamService;
   }
 
-  private get eventAggregator(): IEventAggregator {
-    return this._eventAggregator;
+  private get processEngineService(): IProcessEngineService {
+    return this._processEngineService;
   }
 
   private get errorDeserializer(): IErrorDeserializer {
@@ -460,7 +469,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
   // -------------
 
   private _createExecutionContextFromConsumerContext(consumerContext: ConsumerContext): Promise<ExecutionContext> {
-    return this.processEngineiamService.resolveExecutionContext(consumerContext.identity, TokenType.jwt);
+    return this.processEngineIamService.resolveExecutionContext(consumerContext.identity, TokenType.jwt);
   }
 
   private async _getProcessModels(executionContext: ExecutionContext): Promise<Array<IProcessDefEntity>> {
@@ -587,7 +596,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
     const processTokenType: IEntityType<IProcessTokenEntity> = await this.datastoreService.getEntityType<IProcessTokenEntity>('ProcessToken');
     const startEventType: IEntityType<IStartEventEntity> = await this.datastoreService.getEntityType<IStartEventEntity>('StartEvent');
 
-    const internalContext: ExecutionContext = await this.processEngineiamService.createInternalContext('processengine_system');
+    const internalContext: ExecutionContext = await this.processEngineIamService.createInternalContext('processengine_system');
 
     processInstance.status = 'progress';
 
@@ -964,7 +973,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
   private async _getIdsOfLanesThatCanBeAccessed(executionContext: ExecutionContext, processModelKey: string): Promise<Array<string>> {
     const processModel: IProcessDefEntity = await this._getProcessModelByKey(executionContext, processModelKey);
 
-    const identity: IIdentity = await this.processEngineiamService.getIdentity(executionContext);
+    const identity: IIdentity = await this.processEngineIamService.getIdentity(executionContext);
     const processDefinitions: IDefinition = await this._getDefinitionsFromProcessModel(processModel);
 
     let accessibleLanes: Array<IModdleElement> = [];

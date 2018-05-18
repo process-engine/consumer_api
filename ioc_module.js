@@ -2,29 +2,34 @@
 
 const {
   ConsumerApiIamService,
-  ConsumerApiService,
+  ConsumerApiCorrelationStore,
   ConsumerApiProcessEngineAdapter,
+  ConsumerApiService,
 } = require('./dist/commonjs/index');
 
 function registerInContainer(container) {
   
   container.register('ConsumerApiProcessEngineAdapter', ConsumerApiProcessEngineAdapter)
-    .dependencies('DatastoreService',
-                  'IamService',
-                  'ProcessEngineService',
-                  'NodeInstanceEntityTypeService',
-                  'MessageBusService',
+    .dependencies('ConsumerApiCorrelationStore',
                   'ConsumerApiIamService',
-                  'EventAggregator')
-    .singleton();
-
-  container.register('ConsumerApiService', ConsumerApiService)
-    .dependencies('ConsumerApiProcessEngineAdapter')
+                  'DatastoreService',
+                  'EventAggregator',
+                  'IamService',
+                  'MessageBusService',
+                  'NodeInstanceEntityTypeService',
+                  'ProcessEngineService')
     .singleton();
 
   // TODO: Temporary workaround until the IdentityServer is in place.
   container.register('ConsumerApiIamService', ConsumerApiIamService)
     .configure('consumer_api_core:consumer_api_iam_service')
+    .singleton();
+
+  container.register('ConsumerApiCorrelationStore', ConsumerApiCorrelationStore)
+    .singleton();
+
+  container.register('ConsumerApiService', ConsumerApiService)
+    .dependencies('ConsumerApiProcessEngineAdapter')
     .singleton();
 }
 
