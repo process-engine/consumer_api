@@ -4,6 +4,7 @@ import {
   EventList,
   EventTriggerPayload,
   IConsumerApiService,
+  ICorrelationResult,
   ProcessModel,
   ProcessModelList,
   ProcessStartRequestPayload,
@@ -11,7 +12,6 @@ import {
   StartCallbackType,
   UserTaskList,
   UserTaskResult,
-  ICorrelationResult,
 } from '@process-engine/consumer_api_contracts';
 
 export class ConsumerApiService implements IConsumerApiService {
