@@ -5,10 +5,8 @@ import {
   EventList as ConsumerApiEventList,
   EventTriggerPayload,
   IConsumerApiService,
-  ICorrelationItem,
   ICorrelationResult,
   IProcessInstanceResult,
-  ProcessModel,
   ProcessModel as ConsumerApiProcessModel,
   ProcessModelList as ConsumerApiProcessModelList,
   ProcessStartRequestPayload,
@@ -169,11 +167,11 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
 
     const processModels: Array<IProcessDefEntity> = await this._getProcessModels(executionContext);
 
-    const result: Array<ProcessModel> = [];
+    const result: Array<ConsumerApiProcessModel> = [];
     for (const processModel of processModels) {
 
       try {
-        const mappedProcessModel: ProcessModel = await this.getProcessModelByKey(context, processModel.key);
+        const mappedProcessModel: ConsumerApiProcessModel = await this.getProcessModelByKey(context, processModel.key);
         result.push(mappedProcessModel);
       } catch (error) {
         // if we're not allowed to access that process model, then thats fine. In that case, every startevent is invisible to us,
