@@ -25,7 +25,7 @@
     "@essential-projects/messagebus_contracts": "^1.0.0",
     "@essential-projects/http_node": "^1.0.0",
     "@process-engine/consumer_api_contracts": "feature~add_feature_for_returning_correlation_results",
-    "@process-engine/process_engine_contracts": "^6.1.0",
+    "@process-engine/process_engine_contracts": "^6.2.0",
     "addict-ioc": "^2.3.7",
     "async-middleware": "^1.2.1",
     "bluebird": "^3.5.1",
