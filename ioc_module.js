@@ -4,7 +4,6 @@ const {
   ConsumerApiIamService,
   ConsumerApiProcessEngineAdapter,
   ConsumerApiService,
-  CorrelationStore,
 } = require('./dist/commonjs/index');
 
 function registerInContainer(container) {
@@ -13,13 +12,9 @@ function registerInContainer(container) {
   container.register('ConsumerApiIamService', ConsumerApiIamService)
     .configure('consumer_api_core:consumer_api_iam_service')
     .singleton();
-
-  container.register('ConsumerApiCorrelationStore', CorrelationStore)
-    .singleton();
   
   container.register('ConsumerApiProcessEngineAdapter', ConsumerApiProcessEngineAdapter)
-    .dependencies('ConsumerApiCorrelationStore',
-                  'ConsumerApiIamService',
+    .dependencies('ConsumerApiIamService',
                   'DatastoreService',
                   'EventAggregator',
                   'IamService',
