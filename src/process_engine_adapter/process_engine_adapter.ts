@@ -743,11 +743,11 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
     const processTokenEntityType: IEntityType<IProcessTokenEntity> = await this.datastoreService.getEntityType<IProcessTokenEntity>('ProcessToken');
     const processToken: IProcessTokenEntity = await processTokenEntityType.findOne(executionContext, tokenQueryOptions);
 
-    if (!(processToken || processToken.data)) {
+    if (!(processToken && processToken.data && processToken.data.current)) {
       return {};
     }
 
-    return JSON.parse(processToken.data).current;
+    return processToken.data.current;
   }
 
   private async _getAccessibleUserTasksForProcessModel(executionContext: ExecutionContext, processModelKey: string): Promise<Array<IUserTaskEntity>> {
