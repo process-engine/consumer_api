@@ -6,6 +6,7 @@ import {
   EventTriggerPayload,
   IConsumerApiService,
   ICorrelation,
+  ICorrelationItem,
   ICorrelationResult,
   ICorrelationStore,
   ProcessModel,
@@ -1215,7 +1216,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
   }
 
   private _getMainProcessInstanceIdFromCorrelation(correlationId: string): string {
-    const matchingCorrelations: Array<ICorrelation> = this.consumerApiCorrelationStore.getProcessInstancesInCorrelation(correlationId);
+    const matchingCorrelations: Array<ICorrelationItem> = this.consumerApiCorrelationStore.getProcessInstancesInCorrelation(correlationId);
 
     if (!matchingCorrelations || matchingCorrelations.length === 0) {
       throw new NotFoundError(`correlation with id '${correlationId}' not found`);
