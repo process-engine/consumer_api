@@ -8,7 +8,7 @@ const {
 
 function registerInContainer(container) {
 
-  // TODO: Temporary workaround until the IdentityServer is in place.
+  // Workaround until a suitable authority (identity provider) is in place.
   container.register('ConsumerApiIamService', ConsumerApiIamService)
     .configure('consumer_api_core:consumer_api_iam_service')
     .singleton();
