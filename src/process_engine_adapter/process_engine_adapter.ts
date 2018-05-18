@@ -709,7 +709,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
         }, {
           attribute: 'key',
           operator: '=',
-          value: 'processModelKey',
+          value: processModelKey,
         }, {
           attribute: 'status',
           operator: '=',
