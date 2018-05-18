@@ -5,6 +5,7 @@ import {
   EventList as ConsumerApiEventList,
   EventTriggerPayload,
   IConsumerApiService,
+  ICorrelationResult,
   ProcessModel,
   ProcessModel as ConsumerApiProcessModel,
   ProcessModelList as ConsumerApiProcessModelList,
@@ -287,6 +288,15 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
     };
 
     return response;
+  }
+
+  public async getCorrelationResults(context: ConsumerContext, correlationId: string): Promise<ICorrelationResult> {
+    const mock: ICorrelationResult = {
+      correlationId: 'mock',
+      processInstanceResults: [],
+    };
+
+    return Promise.resolve(mock);
   }
 
   // Events
