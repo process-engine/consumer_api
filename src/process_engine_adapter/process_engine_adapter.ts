@@ -6,7 +6,6 @@ import {
   EventTriggerPayload,
   IConsumerApiService,
   ICorrelationResult,
-  IProcessInstanceResult,
   ProcessModel as ConsumerApiProcessModel,
   ProcessModelList as ConsumerApiProcessModelList,
   ProcessStartRequestPayload,
@@ -289,26 +288,19 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
     return response;
   }
 
-  public async getCorrelationResults(context: ConsumerContext, correlationId: string): Promise<ICorrelationResult> {
+  public async getCorrelationProcessModelResult(context: ConsumerContext,
+                                                correlationId: string,
+                                                processModelKey: string): Promise<ICorrelationResult> {
 
     const executionContext: ExecutionContext = await this._createExecutionContextFromConsumerContext(context);
 
-    const processes: Array<IProcessEntity> = await this._getFinishedProcessInstancesInCorrelation(executionContext, correlationId);
+    const process: IProcessEntity = await this._getFinishedProcessInstanceInCorrelation(executionContext, correlationId, processModelKey);
 
     const correlationResults: ICorrelationResult = {
       correlationId: correlationId,
-      processInstanceResults: [],
+      processModelKey: processModelKey,
+      result: await this._getProcessInstanceResult(executionContext, process.id),
     };
-
-    for (const process of processes) {
-      const result: IProcessInstanceResult = {
-        processInstanceId: process.id,
-        processModelKey: process.key,
-        result: await this._getProcessInstanceResult(executionContext, process.id),
-      };
-
-      correlationResults.processInstanceResults.push(result);
-    }
 
     return Promise.resolve(correlationResults);
   }
@@ -703,7 +695,9 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
     });
   }
 
-  private async _getFinishedProcessInstancesInCorrelation(executionContext: ExecutionContext, correlationId: string): Promise<Array<IProcessEntity>> {
+  private async _getFinishedProcessInstanceInCorrelation(executionContext: ExecutionContext,
+                                                         correlationId: string,
+                                                         processModelKey: string): Promise<IProcessEntity> {
 
     const processInstanceQueryOptions: IPrivateQueryOptions = {
       query: {
@@ -713,6 +707,10 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
           operator: '=',
           value: correlationId,
         }, {
+          attribute: 'key',
+          operator: '=',
+          value: 'processModelKey',
+        }, {
           attribute: 'status',
           operator: '=',
           value: 'end',
@@ -721,13 +719,13 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
     };
 
     const processEntityType: IEntityType<IProcessEntity> = await this.datastoreService.getEntityType<IProcessEntity>('Process');
-    const processCollection: IEntityCollection<IProcessEntity> = await processEntityType.query(executionContext, processInstanceQueryOptions);
+    const process: IProcessEntity = await processEntityType.findOne(executionContext, processInstanceQueryOptions);
 
-    if (!processCollection.data || processCollection.data.length === 0) {
-      throw new NotFoundError(`No finished process instances with correlation id '${correlationId}' found`);
+    if (!process) {
+      throw new NotFoundError(`No matching finished process instance within correlation '${correlationId}' found`);
     }
 
-    return processCollection.data;
+    return process;
   }
 
   private async _getProcessInstanceResult(executionContext: ExecutionContext, processInstanceId: string): Promise<any> {
