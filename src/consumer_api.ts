@@ -11,6 +11,7 @@ import {
   StartCallbackType,
   UserTaskList,
   UserTaskResult,
+  ICorrelationResult,
 } from '@process-engine/consumer_api_contracts';
 
 export class ConsumerApiService implements IConsumerApiService {
@@ -58,6 +59,10 @@ export class ConsumerApiService implements IConsumerApiService {
                                                   ): Promise<ProcessStartResponsePayload> {
 
     return this.processEngineAdapter.startProcessInstanceAndAwaitEndEvent(context, processModelKey, startEventKey, endEventKey, payload);
+  }
+
+  public async getCorrelationResults(context: ConsumerContext, correlationId: string): Promise<ICorrelationResult> {
+    return this.processEngineAdapter.getCorrelationResults(context, correlationId);
   }
 
   // Events
