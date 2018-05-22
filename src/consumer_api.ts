@@ -61,10 +61,10 @@ export class ConsumerApiService implements IConsumerApiService {
     return this.processEngineAdapter.startProcessInstanceAndAwaitEndEvent(context, processModelKey, startEventKey, endEventKey, payload);
   }
 
-  public async getCorrelationProcessModelResult(context: ConsumerContext,
-                                                correlationId: string,
-                                                processModelKey: string): Promise<ICorrelationResult> {
-    return this.processEngineAdapter.getCorrelationProcessModelResult(context, correlationId, processModelKey);
+  public async getProcessResultForCorrelation(context: ConsumerContext,
+                                              correlationId: string,
+                                              processModelKey: string): Promise<ICorrelationResult> {
+    return this.processEngineAdapter.getProcessResultForCorrelation(context, correlationId, processModelKey);
   }
 
   // Events

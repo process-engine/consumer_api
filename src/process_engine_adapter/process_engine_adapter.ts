@@ -288,21 +288,17 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
     return response;
   }
 
-  public async getCorrelationProcessModelResult(context: ConsumerContext,
-                                                correlationId: string,
-                                                processModelKey: string): Promise<ICorrelationResult> {
+  public async getProcessResultForCorrelation(context: ConsumerContext,
+                                              correlationId: string,
+                                              processModelKey: string): Promise<ICorrelationResult> {
 
     const executionContext: ExecutionContext = await this._createExecutionContextFromConsumerContext(context);
 
     const process: IProcessEntity = await this._getFinishedProcessInstanceInCorrelation(executionContext, correlationId, processModelKey);
 
-    const correlationResults: ICorrelationResult = {
-      correlationId: correlationId,
-      processModelKey: processModelKey,
-      result: await this._getProcessInstanceResult(executionContext, process.id),
-    };
+    const processInstanceResult: ICorrelationResult = await this._getProcessInstanceResult(executionContext, process.id);
 
-    return Promise.resolve(correlationResults);
+    return processInstanceResult;
   }
 
   // Events
