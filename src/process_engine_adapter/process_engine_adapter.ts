@@ -5,7 +5,7 @@ import {
   EventList as ConsumerApiEventList,
   EventTriggerPayload,
   IConsumerApiService,
-  ProcessModel,
+  ICorrelationResult,
   ProcessModel as ConsumerApiProcessModel,
   ProcessModelList as ConsumerApiProcessModelList,
   ProcessStartRequestPayload,
@@ -64,6 +64,7 @@ import * as BpmnModdle from 'bpmn-moddle';
 import {CorrelationCache, MessageAction, NodeDefFormField} from './process_engine_adapter_interfaces';
 
 import {IBpmnModdle, IDefinition, IModdleElement} from './bpmnmodeler/index';
+import {ConsumerApiIamService} from './consumer_api_iam_service';
 
 import {Logger} from 'loggerhythm';
 
@@ -76,44 +77,46 @@ const logger: Logger = Logger.createLogger('consumer_api_core')
 export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
   public config: any = undefined;
 
-  private _correlations: CorrelationCache = {};
-
+  private _consumerApiIamService: ConsumerApiIamService;
   private _processEngineService: IProcessEngineService;
   private _iamService: IIamService;
   private _datastoreService: IDatastoreService;
   private _nodeInstanceEntityTypeService: INodeInstanceEntityTypeService;
   private _messageBusService: IMessageBusService;
-  private _consumerApiIamService: any;
   private _errorDeserializer: IErrorDeserializer;
   private _eventAggregator: IEventAggregator;
 
-  constructor(datastoreService: IDatastoreService,
+  constructor(consumerApiIamService: ConsumerApiIamService,
+              datastoreService: IDatastoreService,
+              eventAggregator: IEventAggregator,
               iamService: IIamService,
-              processEngineService: IProcessEngineService,
-              nodeInstanceEntityTypeService: INodeInstanceEntityTypeService,
               messageBusService: IMessageBusService,
-              consumerApiIamService: any,
-              eventAggregator: IEventAggregator) {
+              nodeInstanceEntityTypeService: INodeInstanceEntityTypeService,
+              processEngineService: IProcessEngineService) {
 
-    this._datastoreService = datastoreService;
-    this._iamService = iamService;
-    this._processEngineService = processEngineService;
-    this._nodeInstanceEntityTypeService = nodeInstanceEntityTypeService;
-    this._messageBusService = messageBusService;
     this._consumerApiIamService = consumerApiIamService;
+    this._datastoreService = datastoreService;
     this._eventAggregator = eventAggregator;
+    this._iamService = iamService;
+    this._messageBusService = messageBusService;
+    this._nodeInstanceEntityTypeService = nodeInstanceEntityTypeService;
+    this._processEngineService = processEngineService;
+  }
+
+  private get consumerApiIamService(): ConsumerApiIamService {
+    return this._consumerApiIamService;
   }
 
   private get datastoreService(): IDatastoreService {
     return this._datastoreService;
   }
 
-  private get processEngineiamService(): IIamService {
-    return this._iamService;
+  private get errorDeserializer(): IErrorDeserializer {
+    return this._errorDeserializer;
   }
 
-  private get processEngineService(): IProcessEngineService {
-    return this._processEngineService;
+  private get eventAggregator(): IEventAggregator {
+    return this._eventAggregator;
   }
 
   private get messageBusService(): IMessageBusService {
@@ -124,16 +127,12 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
     return this._nodeInstanceEntityTypeService;
   }
 
-  private get consumerApiIamService(): any {
-    return this._consumerApiIamService;
+  private get processEngineIamService(): IIamService {
+    return this._iamService;
   }
 
-  private get eventAggregator(): IEventAggregator {
-    return this._eventAggregator;
-  }
-
-  private get errorDeserializer(): IErrorDeserializer {
-    return this._errorDeserializer;
+  private get processEngineService(): IProcessEngineService {
+    return this._processEngineService;
   }
 
   public async initialize(): Promise<void> {
@@ -167,11 +166,11 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
 
     const processModels: Array<IProcessDefEntity> = await this._getProcessModels(executionContext);
 
-    const result: Array<ProcessModel> = [];
+    const result: Array<ConsumerApiProcessModel> = [];
     for (const processModel of processModels) {
 
       try {
-        const mappedProcessModel: ProcessModel = await this.getProcessModelByKey(context, processModel.key);
+        const mappedProcessModel: ConsumerApiProcessModel = await this.getProcessModelByKey(context, processModel.key);
         result.push(mappedProcessModel);
       } catch (error) {
         // if we're not allowed to access that process model, then thats fine. In that case, every startevent is invisible to us,
@@ -287,6 +286,19 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
     };
 
     return response;
+  }
+
+  public async getProcessResultForCorrelation(context: ConsumerContext,
+                                              correlationId: string,
+                                              processModelKey: string): Promise<ICorrelationResult> {
+
+    const executionContext: ExecutionContext = await this._createExecutionContextFromConsumerContext(context);
+
+    const process: IProcessEntity = await this._getFinishedProcessInstanceInCorrelation(executionContext, correlationId, processModelKey);
+
+    const processInstanceResult: ICorrelationResult = await this._getProcessInstanceResult(executionContext, process.id);
+
+    return processInstanceResult;
   }
 
   // Events
@@ -450,7 +462,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
   // -------------
 
   private _createExecutionContextFromConsumerContext(consumerContext: ConsumerContext): Promise<ExecutionContext> {
-    return this.processEngineiamService.resolveExecutionContext(consumerContext.identity, TokenType.jwt);
+    return this.processEngineIamService.resolveExecutionContext(consumerContext.identity, TokenType.jwt);
   }
 
   private async _getProcessModels(executionContext: ExecutionContext): Promise<Array<IProcessDefEntity>> {
@@ -577,9 +589,15 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
     const processTokenType: IEntityType<IProcessTokenEntity> = await this.datastoreService.getEntityType<IProcessTokenEntity>('ProcessToken');
     const startEventType: IEntityType<IStartEventEntity> = await this.datastoreService.getEntityType<IStartEventEntity>('StartEvent');
 
-    const internalContext: ExecutionContext = await this.processEngineiamService.createInternalContext('processengine_system');
+    const internalContext: ExecutionContext = await this.processEngineIamService.createInternalContext('processengine_system');
+
+    const correlationId: string = payload.correlation_id || uuid.v4();
 
     processInstance.status = 'progress';
+
+    processInstance.callerId = payload.callerId;
+    processInstance.isSubProcess = (payload.callerId !== undefined && payload.callerId !== null);
+    processInstance.correlationId = correlationId;
 
     if (processInstance.processDef.persist) {
       await processInstance.save(internalContext, { reloadAfterSave: false });
@@ -607,15 +625,12 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
     startEvent.nodeDef = startEventDef;
     startEvent.type = startEventDef.type;
     startEvent.processToken = processToken;
-    startEvent.participant = null; // TODO: Clarify if this might be needed in conjunction with the correlation ID.
+    startEvent.participant = null;
     startEvent.application = null;
 
     startEvent.changeState(context, 'start', this);
 
-    const correlationid: string = payload.correlation_id || uuid.v4();
-    this._correlations[correlationid] = processInstanceId;
-
-    return correlationid;
+    return correlationId;
   }
 
   // Pretty much the same as the private function of the process engine service with the same name,
@@ -674,6 +689,59 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
 
       correlationId = await this._startProcessInstance(executionContext, processInstanceId, startEventEntity, payload);
     });
+  }
+
+  private async _getFinishedProcessInstanceInCorrelation(executionContext: ExecutionContext,
+                                                         correlationId: string,
+                                                         processModelKey: string): Promise<IProcessEntity> {
+
+    const processInstanceQueryOptions: IPrivateQueryOptions = {
+      query: {
+        operator: 'and',
+        queries: [{
+          attribute: 'correlationId',
+          operator: '=',
+          value: correlationId,
+        }, {
+          attribute: 'key',
+          operator: '=',
+          value: processModelKey,
+        }, {
+          attribute: 'status',
+          operator: '=',
+          value: 'end',
+        }],
+      },
+    };
+
+    const processEntityType: IEntityType<IProcessEntity> = await this.datastoreService.getEntityType<IProcessEntity>('Process');
+    const process: IProcessEntity = await processEntityType.findOne(executionContext, processInstanceQueryOptions);
+
+    if (!process) {
+      throw new NotFoundError(`No matching finished process instance within correlation '${correlationId}' found`);
+    }
+
+    return process;
+  }
+
+  private async _getProcessInstanceResult(executionContext: ExecutionContext, processInstanceId: string): Promise<any> {
+
+    const tokenQueryOptions: IPrivateQueryOptions = {
+      query: {
+        attribute: 'process',
+        operator: '=',
+        value: processInstanceId,
+      },
+    };
+
+    const processTokenEntityType: IEntityType<IProcessTokenEntity> = await this.datastoreService.getEntityType<IProcessTokenEntity>('ProcessToken');
+    const processToken: IProcessTokenEntity = await processTokenEntityType.findOne(executionContext, tokenQueryOptions);
+
+    if (!(processToken && processToken.data && processToken.data.current)) {
+      return {};
+    }
+
+    return processToken.data.current;
   }
 
   private async _getAccessibleUserTasksForProcessModel(executionContext: ExecutionContext, processModelKey: string): Promise<Array<IUserTaskEntity>> {
@@ -764,11 +832,8 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
   }
 
   private async _getProcessInstancesForCorrelation(executionContext: ExecutionContext, correlationId: string): Promise<Array<IProcessEntity>> {
-    const mainProcessInstaceId: string = this._correlations[correlationId];
 
-    if (mainProcessInstaceId === undefined) {
-      throw new NotFoundError(`correlation with id '${correlationId}' not found`);
-    }
+    const mainProcessInstaceId: string = await this._getMainProcessInstanceIdFromCorrelation(executionContext, correlationId);
 
     const mainProcessInstance: IProcessEntity = await this._getProcessInstanceById(executionContext, mainProcessInstaceId);
     const subProcessInstances: Array<IProcessEntity> = await this._getSubProcessInstances(executionContext, mainProcessInstaceId);
@@ -868,10 +933,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
 
   private async _getProcessModelKeysForCorrelation(executionContext: ExecutionContext, correlationId: string): Promise<Array<string>> {
 
-    const mainProcessInstaceId: string = this._correlations[correlationId];
-    if (mainProcessInstaceId === undefined) {
-      throw new NotFoundError(`correlation with id '${correlationId}' not found`);
-    }
+    const mainProcessInstaceId: string = await this._getMainProcessInstanceIdFromCorrelation(executionContext, correlationId);
 
     const mainProcessInstance: IProcessEntity = await this._getProcessInstanceById(executionContext, mainProcessInstaceId);
     const result: Array<string> = [mainProcessInstance.processDef.key];
@@ -954,7 +1016,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
   private async _getIdsOfLanesThatCanBeAccessed(executionContext: ExecutionContext, processModelKey: string): Promise<Array<string>> {
     const processModel: IProcessDefEntity = await this._getProcessModelByKey(executionContext, processModelKey);
 
-    const identity: IIdentity = await this.processEngineiamService.getIdentity(executionContext);
+    const identity: IIdentity = await this.processEngineIamService.getIdentity(executionContext);
     const processDefinitions: IDefinition = await this._getDefinitionsFromProcessModel(processModel);
 
     let accessibleLanes: Array<IModdleElement> = [];
@@ -1200,6 +1262,33 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
     }
 
     return finishedTask.form_fields;
+  }
+
+  private async _getMainProcessInstanceIdFromCorrelation(executionContext: ExecutionContext, correlationId: string): Promise<string> {
+
+    const processInstanceQueryOptions: IPrivateQueryOptions = {
+      query: {
+        operator: 'and',
+        queries: [{
+          attribute: 'correlationId',
+          operator: '=',
+          value: correlationId,
+        }],
+      },
+    };
+
+    const processEntityType: IEntityType<IProcessEntity> = await this.datastoreService.getEntityType<IProcessEntity>('Process');
+    const matchingProcesses: IEntityCollection<IProcessEntity> = await processEntityType.query(executionContext, processInstanceQueryOptions);
+
+    if (!matchingProcesses.data || matchingProcesses.data.length === 0) {
+      throw new NotFoundError(`correlation with id '${correlationId}' not found`);
+    }
+
+    const mainProcess: IProcessEntity = matchingProcesses.data.find((process: IProcessEntity): boolean => {
+      return process.isSubProcess === false;
+    });
+
+    return mainProcess.id;
   }
 
   private _createDataMessage(data: any, authToken?: string, participantId?: string): IDataMessage {
