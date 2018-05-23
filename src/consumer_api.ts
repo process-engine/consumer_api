@@ -4,6 +4,7 @@ import {
   EventList,
   EventTriggerPayload,
   IConsumerApiService,
+  ICorrelationResult,
   ProcessModel,
   ProcessModelList,
   ProcessStartRequestPayload,
@@ -58,6 +59,12 @@ export class ConsumerApiService implements IConsumerApiService {
                                                   ): Promise<ProcessStartResponsePayload> {
 
     return this.processEngineAdapter.startProcessInstanceAndAwaitEndEvent(context, processModelKey, startEventKey, endEventKey, payload);
+  }
+
+  public async getProcessResultForCorrelation(context: ConsumerContext,
+                                              correlationId: string,
+                                              processModelKey: string): Promise<ICorrelationResult> {
+    return this.processEngineAdapter.getProcessResultForCorrelation(context, correlationId, processModelKey);
   }
 
   // Events
