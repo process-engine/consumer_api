@@ -19,16 +19,12 @@ import {
 } from '@process-engine/consumer_api_contracts';
 
 import {
-  CombinedQueryOperatorType,
   ExecutionContext,
   IIamService,
   IIdentity,
-  IPrivateGetOptions,
   IPrivateQueryOptions,
   IPublicGetOptions,
   IQueryClause,
-  IQueryObject,
-  IUserEntity,
   TokenType,
 } from '@essential-projects/core_contracts';
 import {IDatastoreService, IEntityCollection, IEntityType} from '@essential-projects/data_model_contracts';
