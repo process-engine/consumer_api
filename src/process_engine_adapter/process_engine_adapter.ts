@@ -28,16 +28,14 @@ import {
   TokenType,
 } from '@essential-projects/core_contracts';
 import {IDatastoreService, IEntityCollection, IEntityType} from '@essential-projects/data_model_contracts';
-import {IEvent, IEventAggregator, ISubscription} from '@essential-projects/event_aggregator_contracts';
+import {IEventAggregator, ISubscription} from '@essential-projects/event_aggregator_contracts';
 import {IDataMessage, IMessageBusService, IMessageSubscription} from '@essential-projects/messagebus_contracts';
 import {
   BpmnType,
   IErrorDeserializer,
-  ILaneEntity,
   INodeDefEntity,
   INodeInstanceEntity,
   INodeInstanceEntityTypeService,
-  IParamStart,
   IProcessDefEntity,
   IProcessEngineService,
   IProcessEntity,
@@ -57,14 +55,13 @@ import {
   UnprocessableEntityError,
 } from '@essential-projects/errors_ts';
 import * as BpmnModdle from 'bpmn-moddle';
-import {CorrelationCache, MessageAction, NodeDefFormField} from './process_engine_adapter_interfaces';
+import {MessageAction, NodeDefFormField} from './process_engine_adapter_interfaces';
 
 import {IBpmnModdle, IDefinition, IModdleElement} from './bpmnmodeler/index';
 import {ConsumerApiIamService} from './consumer_api_iam_service';
 
 import {Logger} from 'loggerhythm';
 
-import * as util from 'util';
 import * as uuid from 'uuid';
 
 const logger: Logger = Logger.createLogger('consumer_api_core')
@@ -386,7 +383,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
     const executionContext: ExecutionContext = await this._createExecutionContextFromConsumerContext(context);
 
     if (!await this._processModelBelongsToCorrelation(executionContext, correlationId, processModelKey)) {
-      throw new NotFoundError(`ProcessModel with key '${processModelKey}' is not part of the correlation mit der id '${correlationId}'`);
+      throw new NotFoundError(`ProcessModel with key '${processModelKey}' is not part of the correlation with id '${correlationId}'`);
     }
 
     const accessibleLaneIds: Array<string> = await this._getIdsOfLanesThatCanBeAccessed(executionContext, processModelKey);
@@ -412,23 +409,17 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
 
     const executionContext: ExecutionContext = await this._createExecutionContextFromConsumerContext(context);
 
-    const userTasks: UserTaskList = (await this.getUserTasksForProcessModelInCorrelation(context, processModelKey, correlationId));
+    const userTasks: UserTaskList = await this.getUserTasksForProcessModelInCorrelation(context, processModelKey, correlationId);
 
     const userTask: UserTask = userTasks.user_tasks.find((task: UserTask) => {
       return task.key === userTaskId;
     });
 
     if (userTask === undefined) {
-      // tslint:disable-next-line:max-line-length
-      throw new NotFoundError(`UserTask with id '${userTaskId}' not found in Process Model with key '${processModelKey}' in correlation with id '${correlationId}'`);
+      throw new NotFoundError(`Process model '${processModelKey}' in correlation '${correlationId}' does not have a user task '${userTaskId}'`);
     }
 
     const resultForProcessEngine: any = this._getUserTaskResultFromUserTaskConfig(userTaskResult);
-
-    const messageData: any = {
-      action: MessageAction.proceed,
-      token: userTaskResult,
-    };
 
     return new Promise<void>((resolve: Function, reject: Function): void => {
       const subscription: ISubscription = this.eventAggregator.subscribe(`/processengine/node/${userTask.id}`, (event: any) => {
@@ -444,7 +435,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
       this.eventAggregator.publish(`/processengine/node/${userTask.id}`, {
         data: {
           action: MessageAction.proceed,
-          token: userTaskResult,
+          token: resultForProcessEngine,
         },
         metadata: {
           context: executionContext,
@@ -1285,28 +1276,5 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
     });
 
     return mainProcess.id;
-  }
-
-  private _createDataMessage(data: any, authToken?: string, participantId?: string): IDataMessage {
-    const message: IDataMessage = {
-      data: data,
-      metadata: {
-        id: uuid.v4(),
-        applicationId: undefined,
-        token: undefined,
-      },
-    };
-
-    if (authToken !== undefined && authToken !== null) {
-      message.metadata.token = authToken;
-    }
-
-    if (participantId !== undefined && participantId !== null) {
-      message.metadata.options = {
-        participantId: participantId,
-      };
-    }
-
-    return message;
   }
 }
