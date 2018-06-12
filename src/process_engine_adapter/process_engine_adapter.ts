@@ -174,8 +174,8 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
       }
     }
 
-    return {
-      process_models: result,
+    return <ConsumerApiProcessModelList> {
+      processModels: result,
     };
   }
 
@@ -200,7 +200,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
       const consumerApiStartEvent: ConsumerApiEvent = {
         key: startEventEntity.key,
         id: startEventEntity.id,
-        process_instance_id: undefined,
+        processInstanceId: undefined,
         data: startEventEntity.startContext,
       };
 
@@ -245,7 +245,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
     }
 
     const response: ProcessStartResponsePayload = {
-      correlation_id: correlationId,
+      correlationId: correlationId,
     };
 
     return response;
@@ -275,7 +275,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
       await this._startProcessInstanceAndAwaitEndEvent(executionContext, processInstanceId, startEventEntity, endEventEntity.key, payload);
 
     const response: ProcessStartResponsePayload = {
-      correlation_id: correlationId,
+      correlationId: correlationId,
     };
 
     return response;
@@ -301,7 +301,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
       events: [{
         key: 'startEvent_1',
         id: '',
-        process_instance_id: '',
+        processInstanceId: '',
         data: {},
       }],
     };
@@ -315,7 +315,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
       events: [{
         key: 'startEvent_1',
         id: '',
-        process_instance_id: '',
+        processInstanceId: '',
         data: {},
       }],
     };
@@ -331,7 +331,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
       events: [{
         key: 'startEvent_1',
         id: '',
-        process_instance_id: '',
+        processInstanceId: '',
         data: {},
       }],
     };
@@ -411,7 +411,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
 
     const userTasks: UserTaskList = await this.getUserTasksForProcessModelInCorrelation(context, processModelKey, correlationId);
 
-    const userTask: UserTask = userTasks.user_tasks.find((task: UserTask) => {
+    const userTask: UserTask = userTasks.userTasks.find((task: UserTask) => {
       return task.key === userTaskId;
     });
 
@@ -578,7 +578,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
 
     const internalContext: ExecutionContext = await this.processEngineIamService.createInternalContext('processengine_system');
 
-    const correlationId: string = payload.correlation_id || uuid.v4();
+    const correlationId: string = payload.correlationId || uuid.v4();
 
     processInstance.status = 'progress';
 
@@ -596,7 +596,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
     const processToken: any = await processTokenType.createEntity(internalContext);
     processToken.process = processInstance;
     processToken.data = {
-      current: payload.input_values,
+      current: payload.inputValues,
     };
 
     if (processInstance.processDef.persist) {
@@ -758,10 +758,10 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
 
       const userTaskData: any = await userTask.getUserTaskData(executionContext);
 
-      return {
+      return <UserTask> {
         key: userTask.key,
         id: userTask.id,
-        process_instance_id: userTask.process.id,
+        processInstanceId: userTask.process.id,
         // TODO: 'data' currently contains the response body equals that of the old consumer client.
         // The consumer api concept has no response body defined yet, however, so there MAY be discrepancies.
         data: this._getUserTaskConfigFromUserTaskData(userTaskData, userTask.key),
@@ -769,7 +769,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
     });
 
     const result: UserTaskList = {
-      user_tasks: await Promise.all(resultUserTaskPromises),
+      userTasks: await Promise.all(resultUserTaskPromises),
     };
 
     return result;
@@ -1222,33 +1222,33 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
         id: processEngineFormField.id,
         label: processEngineFormField.label,
         type: processEngineFormField.type,
-        default_value: processEngineFormField.defaultValue,
+        defaultValue: processEngineFormField.defaultValue,
       };
 
       return result;
     });
 
-    return {
-      form_fields: formFields,
+    return <UserTaskConfig> {
+      formFields: formFields,
     };
   }
 
   private _getUserTaskResultFromUserTaskConfig(finishedTask: UserTaskResult): any {
     const userTaskIsNotAnObject: boolean = finishedTask === undefined
-                                        || finishedTask.form_fields === undefined
-                                        || typeof finishedTask.form_fields !== 'object'
-                                        || Array.isArray(finishedTask.form_fields);
+                                        || finishedTask.formFields === undefined
+                                        || typeof finishedTask.formFields !== 'object'
+                                        || Array.isArray(finishedTask.formFields);
 
     if (userTaskIsNotAnObject) {
-      throw new BadRequestError('The UserTasks form_fields is not an object.');
+      throw new BadRequestError('The UserTasks formFields is not an object.');
     }
 
-    const noFormfieldsSubmitted: boolean = Object.keys(finishedTask.form_fields).length === 0;
+    const noFormfieldsSubmitted: boolean = Object.keys(finishedTask.formFields).length === 0;
     if (noFormfieldsSubmitted) {
-      throw new BadRequestError('The UserTasks form_fields are empty.');
+      throw new BadRequestError('The UserTasks formFields are empty.');
     }
 
-    return finishedTask.form_fields;
+    return finishedTask.formFields;
   }
 
   private async _getMainProcessInstanceIdFromCorrelation(executionContext: ExecutionContext, correlationId: string): Promise<string> {
