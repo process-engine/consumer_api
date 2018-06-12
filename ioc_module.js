@@ -20,7 +20,9 @@ function registerInContainer(container) {
                   'IamService',
                   'MessageBusService',
                   'NodeInstanceEntityTypeService',
-                  'ProcessEngineService')
+                  'ProcessEngineService',
+                  'ProcessEngineStorageService',
+                  'FlowNodeInstancePersistance')
     .singleton();
 
   container.register('ConsumerApiService', ConsumerApiService)

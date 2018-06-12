@@ -43,6 +43,8 @@ import {
   IStartEventEntity,
   IUserTaskEntity,
   IUserTaskMessageData,
+  IFlowNodeInstancePersistance,
+  Model,
 } from '@process-engine/process_engine_contracts';
 
 import {
@@ -78,6 +80,8 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
   private _messageBusService: IMessageBusService;
   private _errorDeserializer: IErrorDeserializer;
   private _eventAggregator: IEventAggregator;
+  private _processEngineStorageService: IProcessEngineStorageService;
+  private _flowNodeInstancePersistance: IFlowNodeInstancePersistance;
 
   constructor(consumerApiIamService: ConsumerApiIamService,
               datastoreService: IDatastoreService,
@@ -85,7 +89,9 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
               iamService: IIamService,
               messageBusService: IMessageBusService,
               nodeInstanceEntityTypeService: INodeInstanceEntityTypeService,
-              processEngineService: IProcessEngineService) {
+              processEngineService: IProcessEngineService,
+              processEngineStorageService: IProcessEngineStorageService,
+              flowNodeInstancePersistance: IFlowNodeInstancePersistance) {
 
     this._consumerApiIamService = consumerApiIamService;
     this._datastoreService = datastoreService;
@@ -94,6 +100,8 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
     this._messageBusService = messageBusService;
     this._nodeInstanceEntityTypeService = nodeInstanceEntityTypeService;
     this._processEngineService = processEngineService;
+    this._processEngineStorageService = processEngineStorageService;
+    this._flowNodeInstancePersistance = flowNodeInstancePersistance;
   }
 
   private get consumerApiIamService(): ConsumerApiIamService {
@@ -126,6 +134,14 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
 
   private get processEngineService(): IProcessEngineService {
     return this._processEngineService;
+  }
+
+  private get processEngineStorageService(): IProcessEngineStorageService {
+    return this._processEngineStorageService;
+  }
+
+  private get flowNodeInstancePersistance(): IFlowNodeInstancePersistance {
+    return this._flowNodeInstancePersistance;
   }
 
   public async initialize(): Promise<void> {
@@ -239,7 +255,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
     const processInstanceId: string = await this.processEngineService.createProcessInstance(executionContext, undefined, processModelKey);
 
     if (startCallbackType === StartCallbackType.CallbackOnProcessInstanceCreated) {
-      correlationId = await this._startProcessInstance(executionContext, processInstanceId, startEventEntity, payload);
+      correlationId = await this._startProcessInstance(executionContext, processModelKey, payload);
     } else {
       correlationId = await this._startProcessInstanceAndAwaitEndEvent(executionContext, processInstanceId, startEventEntity, undefined, payload);
     }
@@ -352,8 +368,14 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
     const executionContext: ExecutionContext = await this._createExecutionContextFromConsumerContext(context);
 
     const userTasks: Array<IUserTaskEntity> = await this._getAccessibleUserTasksForProcessModel(executionContext, processModelKey);
+    
+    const userTaskList: UserTaskList = userTasks.map((userTask) => {
+      return userTask.formFields;
+    });
 
-    return this._userTaskEntitiesToUserTaskList(executionContext, userTasks);
+    return {
+      user_tasks: userTaskList,
+    };
   }
 
   public async getUserTasksForCorrelation(context: ConsumerContext, correlationId: string): Promise<UserTaskList> {
@@ -372,51 +394,80 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
     }
 
     const userTasks: Array<IUserTaskEntity> = await this._getUserTasksForCorrelation(executionContext, correlationId);
+    
+    const userTaskList: UserTaskList = userTasks.map((userTask) => {
+      return userTask.formFields;
+    });
 
-    return this._userTaskEntitiesToUserTaskList(executionContext, userTasks);
-
+    return {
+      user_tasks: userTaskList,
+    };
   }
 
   public async getUserTasksForProcessModelInCorrelation(context: ConsumerContext,
-                                                        processModelKey: string,
+                                                        processModelId: string,
                                                         correlationId: string): Promise<UserTaskList> {
     const executionContext: ExecutionContext = await this._createExecutionContextFromConsumerContext(context);
 
-    if (!await this._processModelBelongsToCorrelation(executionContext, correlationId, processModelKey)) {
-      throw new NotFoundError(`ProcessModel with key '${processModelKey}' is not part of the correlation with id '${correlationId}'`);
+    if (!await this._processModelBelongsToCorrelation(executionContext, correlationId, processModelId)) {
+      throw new NotFoundError(`ProcessModel with key '${processModelId}' is not part of the correlation with id '${correlationId}'`);
     }
 
-    const accessibleLaneIds: Array<string> = await this._getIdsOfLanesThatCanBeAccessed(executionContext, processModelKey);
+    const accessibleLaneIds: Array<string> = await this._getIdsOfLanesThatCanBeAccessed(executionContext, processModelId);
 
     if (accessibleLaneIds.length === 0) {
-      throw new ForbiddenError(`Access to Process Model '${processModelKey}' not allowed`);
+      throw new ForbiddenError(`Access to Process Model '${processModelId}' not allowed`);
     }
 
-    const userTasks: Array<IUserTaskEntity> = await this._getUserTasksForCorrelation(executionContext, correlationId);
+    const userTasks: Array<Model.Activities.UserTask> = await this._getUserTasksForCorrelation(executionContext, correlationId);
+    const processDefinition: Model.Types.Process = await this.processEngineStorageService.getProcess(processModelId);
+    const processUserTasks: Array<Model.Activities.UserTask> = this._getUserTasks(processDefinition);
 
-    const userTasksForProcessModel: Array<IUserTaskEntity> = userTasks.filter((userTask: IUserTaskEntity) => {
-      return userTask.process.processDef.key === processModelKey;
+    const allProcessInstances: Array<Runtime.Types.ProcessInstance> = await this.processEngineStorageService.getProcessInstancesForCorrelation(correlationId);
+    const userTaskProcessInstance: Runtime.Types.ProcessInstance = allProcessInstances.find((processInstance) => {
+      return processInstance.processDefinition.id === processModelId;
     });
 
-    return this._userTaskEntitiesToUserTaskList(executionContext, userTasksForProcessModel);
+    if (!userTaskProcessInstance) {
+      throw new Error(`ProcessInstance for ProcessModel with key '${processModelId}' and correlation with id '${correlationId}' could not be found.`);
+    }
+
+    const userTasksForProcessModel: Array<Model.Activities.UserTask> = userTasks.filter((userTask: Model.Activities.UserTask) => {
+      return processUserTasks.some((processUserTask) => {
+        return processUserTask.id === userTask.id;
+      });
+    });
+
+    const userTaskList: UserTaskList = userTasks.map((userTask) => {
+      return {
+        id: userTask.id, // TODO: guess this should be the flow node instance id
+        key: userTask.id,
+        data: userTask.formFields,
+        processInstanceId: userTaskProcessInstance.id,
+      };
+    });
+
+    return {
+      user_tasks: userTaskList,
+    };
   }
 
   public async finishUserTask(context: ConsumerContext,
-                              processModelKey: string,
+                              processModelId: string,
                               correlationId: string,
                               userTaskId: string,
                               userTaskResult: UserTaskResult): Promise<void> {
 
     const executionContext: ExecutionContext = await this._createExecutionContextFromConsumerContext(context);
 
-    const userTasks: UserTaskList = await this.getUserTasksForProcessModelInCorrelation(context, processModelKey, correlationId);
+    const userTasks: UserTaskList = await this.getUserTasksForProcessModelInCorrelation(context, processModelId, correlationId);
 
     const userTask: UserTask = userTasks.user_tasks.find((task: UserTask) => {
       return task.key === userTaskId;
     });
 
     if (userTask === undefined) {
-      throw new NotFoundError(`Process model '${processModelKey}' in correlation '${correlationId}' does not have a user task '${userTaskId}'`);
+      throw new NotFoundError(`Process model '${processModelId}' in correlation '${correlationId}' does not have a user task '${userTaskId}'`);
     }
 
     const resultForProcessEngine: any = this._getUserTaskResultFromUserTaskConfig(userTaskResult);
@@ -567,55 +618,15 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
 
   // Manually implements "IProcessEntity.start()"
   private async _startProcessInstance(context: ExecutionContext,
-                                      processInstanceId: string,
-                                      startEventDef: INodeDefEntity,
+                                      processModelKey: string,
                                       payload: ProcessStartRequestPayload): Promise<string> {
-
-    const processInstance: IProcessEntity = await this._getProcessInstanceById(context, processInstanceId);
-
-    const processTokenType: IEntityType<IProcessTokenEntity> = await this.datastoreService.getEntityType<IProcessTokenEntity>('ProcessToken');
-    const startEventType: IEntityType<IStartEventEntity> = await this.datastoreService.getEntityType<IStartEventEntity>('StartEvent');
 
     const internalContext: ExecutionContext = await this.processEngineIamService.createInternalContext('processengine_system');
 
     const correlationId: string = payload.correlation_id || uuid.v4();
 
-    processInstance.status = 'progress';
-
-    processInstance.callerId = payload.callerId;
-    processInstance.isSubProcess = (payload.callerId !== undefined && payload.callerId !== null);
-    processInstance.correlationId = correlationId;
-
-    if (processInstance.processDef.persist) {
-      await processInstance.save(internalContext, { reloadAfterSave: false });
-    }
-
-    await processInstance.initializeProcess();
-
-    // create an empty process token
-    const processToken: any = await processTokenType.createEntity(internalContext);
-    processToken.process = processInstance;
-    processToken.data = {
-      current: payload.input_values,
-    };
-
-    if (processInstance.processDef.persist) {
-      await processToken.save(internalContext, { reloadAfterSave: false });
-    }
-
-    logger.verbose(`process id ${processInstance.id} started: `);
-
-    const startEvent: IStartEventEntity = <IStartEventEntity> await this.nodeInstanceEntityTypeService.createNode(internalContext, startEventType);
-    startEvent.name = startEventDef.name;
-    startEvent.key = startEventDef.key;
-    startEvent.process = processInstance;
-    startEvent.nodeDef = startEventDef;
-    startEvent.type = startEventDef.type;
-    startEvent.processToken = processToken;
-    startEvent.participant = null;
-    startEvent.application = null;
-
-    startEvent.changeState(context, 'start', this);
+    // don't use await so that it doesn't wait for the process execution to finish
+    this.processEngineService.executeProcess(internalContext, undefined, processModelKey, payload.input_values, undefined, correlationId);
 
     return correlationId;
   }
@@ -731,7 +742,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
     return processToken.data.current;
   }
 
-  private async _getAccessibleUserTasksForProcessModel(executionContext: ExecutionContext, processModelKey: string): Promise<Array<IUserTaskEntity>> {
+  private async _getAccessibleUserTasksForProcessModel(executionContext: ExecutionContext, processModelKey: string): Promise<Array<Model.Activities.UserTask>> {
 
     const userTasks: Array<IUserTaskEntity> = await this._getUserTasksForProcessModel(executionContext, processModelKey);
     const accessibleLaneIds: Array<string> = await this._getIdsOfLanesThatCanBeAccessed(executionContext, processModelKey);
@@ -743,17 +754,21 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
     const processModel: IProcessDefEntity = await this._getProcessModelByKey(executionContext, processModelKey);
     const processDefinitions: IDefinition = await this._getDefinitionsFromProcessModel(processModel);
 
-    const accessibleUserTaskEntities: Array<any> = userTasks.filter((userTask: IUserTaskEntity) => {
-      const laneId: string = this._getLaneIdForElement(processDefinitions, userTask.key);
-      const identityCanAccessUserTask: boolean = laneId !== undefined && accessibleLaneIds.includes(laneId);
+    return userTasks;
 
-      return identityCanAccessUserTask;
-    });
+    // TODO: complete lane check - this is currently skipped due to having a first PoC of how the user tasks are handled
 
-    return accessibleUserTaskEntities;
+    // const accessibleUserTaskEntities: Array<any> = userTasks.filter((userTask: IUserTaskEntity) => {
+    //   const laneId: string = this._getLaneIdForElement(processDefinitions, userTask.key);
+    //   const identityCanAccessUserTask: boolean = laneId !== undefined && accessibleLaneIds.includes(laneId);
+
+    //   return identityCanAccessUserTask;
+    // });
+
+    // return accessibleUserTaskEntities;
   }
 
-  private async _userTaskEntitiesToUserTaskList(executionContext: ExecutionContext, userTasks: Array<IUserTaskEntity>): Promise<UserTaskList> {
+  private async _userTaskEntitiesToUserTaskList(executionContext: ExecutionContext, userTasks: Array<Model.Activities.UserTask>): Promise<UserTaskList> {
     const resultUserTaskPromises: Array<any> = userTasks.map(async(userTask: IUserTaskEntity) => {
 
       const userTaskData: any = await userTask.getUserTaskData(executionContext);
@@ -797,35 +812,33 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
   }
 
   private async _getAccessibleUserTasksForProcessInstance(executionContext: ExecutionContext,
-                                                          processInstance: IProcessEntity): Promise<Array<IUserTaskEntity>> {
+                                                          processInstance: Runtime.Types.ProcessInstance): Promise<Array<Model.Activities.UserTask>> {
 
-    const userTasks: Array<IUserTaskEntity> = await this._getUserTasksForProcessInstance(executionContext, processInstance.id);
-    const accessibleLaneIds: Array<string> = await this._getIdsOfLanesThatCanBeAccessed(executionContext, processInstance.processDef.key);
+    const userTasks: Array<IUserTaskEntity> = await this._getUserTasksForProcessInstance(executionContext, processInstance);
+    const accessibleLaneIds: Array<string> = await this._getIdsOfLanesThatCanBeAccessed(executionContext, processInstance.processDefinition.id);
 
     if (accessibleLaneIds.length === 0) {
       throw new ForbiddenError(`Access to Process Model '${processInstance.processDef.key}' not allowed`);
     }
 
-    const processDefinitions: IDefinition = await this._getDefinitionsFromProcessModel(processInstance.processDef);
+    return userTasks;
 
-    const accessibleUserTaskEntities: Array<any> = userTasks.filter((userTask: IUserTaskEntity) => {
-      const laneId: string = this._getLaneIdForElement(processDefinitions, userTask.key);
-      const identityCanAccessUserTask: boolean = laneId !== undefined && accessibleLaneIds.includes(laneId);
+    // TODO: complete lane check - this is currently skipped due to having a first PoC of how the user tasks are handled
 
-      return identityCanAccessUserTask;
-    });
+    // const processDefinitions: IDefinition = await this._getDefinitionsFromProcessModel(processInstance.processDef);
 
-    return accessibleUserTaskEntities;
+    // const accessibleUserTaskEntities: Array<any> = userTasks.filter((userTask: IUserTaskEntity) => {
+    //   const laneId: string = this._getLaneIdForElement(processDefinitions, userTask.key);
+    //   const identityCanAccessUserTask: boolean = laneId !== undefined && accessibleLaneIds.includes(laneId);
+
+    //   return identityCanAccessUserTask;
+    // });
+
+    // return accessibleUserTaskEntities;
   }
 
-  private async _getProcessInstancesForCorrelation(executionContext: ExecutionContext, correlationId: string): Promise<Array<IProcessEntity>> {
-
-    const mainProcessInstaceId: string = await this._getMainProcessInstanceIdFromCorrelation(executionContext, correlationId);
-
-    const mainProcessInstance: IProcessEntity = await this._getProcessInstanceById(executionContext, mainProcessInstaceId);
-    const subProcessInstances: Array<IProcessEntity> = await this._getSubProcessInstances(executionContext, mainProcessInstaceId);
-
-    return [mainProcessInstance].concat(subProcessInstances);
+  private async _getProcessInstancesForCorrelation(executionContext: ExecutionContext, correlationId: string): Promise<Array<Runtime.Types.ProcessInstance>> {
+    return this.processEngineStorageService.getProcessInstancesForCorrelation(correlationId);
   }
 
   private async _getSubProcessInstances(executionContext: ExecutionContext, parentProcessInstanceId: string): Promise<Array<IProcessEntity>> {
@@ -920,14 +933,11 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
 
   private async _getProcessModelKeysForCorrelation(executionContext: ExecutionContext, correlationId: string): Promise<Array<string>> {
 
-    const mainProcessInstaceId: string = await this._getMainProcessInstanceIdFromCorrelation(executionContext, correlationId);
-
-    const mainProcessInstance: IProcessEntity = await this._getProcessInstanceById(executionContext, mainProcessInstaceId);
-    const result: Array<string> = [mainProcessInstance.processDef.key];
-
-    const subProcessModelKeys: Array<string> = await this._getSubProcessModelKeys(executionContext, mainProcessInstance.key);
-
-    return result.concat(subProcessModelKeys);
+    const processInstances: Array<Runtime.Types.ProcessInstance> = await this._getProcessInstancesForCorrelation(executionContext, correlationId);
+    
+    return processInstances.map((processInstance: Runtime.Types.ProcessInstance) => {
+      return processInstance.processDefinition.id;
+    })
   }
 
   private async _getSubProcessModelKeys(executionContext: ExecutionContext, processModelKey: string): Promise<Array<string>> {
@@ -1000,38 +1010,25 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
     return nodes;
   }
 
-  private async _getIdsOfLanesThatCanBeAccessed(executionContext: ExecutionContext, processModelKey: string): Promise<Array<string>> {
-    const processModel: IProcessDefEntity = await this._getProcessModelByKey(executionContext, processModelKey);
+  private async _getIdsOfLanesThatCanBeAccessed(executionContext: ExecutionContext, processModelId: string): Promise<Array<string>> {
+
+    const process: Model.Types.Process = await this.processEngineStorageService.getProcess(processModelId);
 
     const identity: IIdentity = await this.processEngineIamService.getIdentity(executionContext);
-    const processDefinitions: IDefinition = await this._getDefinitionsFromProcessModel(processModel);
 
-    let accessibleLanes: Array<IModdleElement> = [];
-    for (const rootElement of processDefinitions.rootElements) {
-      if (rootElement.$type !== 'bpmn:Process') {
-        continue;
-      }
-
-      if (!rootElement.laneSets) {
-        continue;
-      }
-
-      for (const laneSet of rootElement.laneSets) {
-        accessibleLanes = accessibleLanes.concat(await this._getLanesThatCanBeAccessed(identity, laneSet));
-      }
-    }
+    let accessibleLanes: Array<Model.Types.LaneSet> = await this._getLanesThatCanBeAccessed(identity, process.laneSet);
 
     return accessibleLanes.map((lane: IModdleElement) => {
       return lane.id;
     });
   }
 
-  private async _getLanesThatCanBeAccessed(identity: IIdentity, laneSet: IModdleElement): Promise<Array<IModdleElement>> {
+  private async _getLanesThatCanBeAccessed(identity: IIdentity, laneSet: Model.Types.LaneSet): Promise<Array<IModdleElement>> {
     if (laneSet === undefined) {
       return Promise.resolve([]);
     }
 
-    let result: Array<IModdleElement> = [];
+    let result: Array<Model.Types.LaneSet> = [];
 
     for (const lane of laneSet.lanes) {
       const claimIsInvalid: boolean = lane.name === undefined || lane.name === '';
@@ -1152,56 +1149,64 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
     return userTasks;
   }
 
-  private async _getUserTasksForProcessInstance(executionContext: ExecutionContext, processInstanceId: string): Promise<Array<IUserTaskEntity>> {
+  private async _getUserTasksForProcessInstance(executionContext: ExecutionContext, processInstance: Runtime.Types.ProcessInstance): Promise<Array<Model.Activities.UserTask>> {
 
-    const userTaskEntityType: IEntityType<IUserTaskEntity> = await this.datastoreService.getEntityType<IUserTaskEntity>('UserTask');
+    const allUserTasks: Array<Model.Activities.UserTask> = this._getUserTasks(processInstance.processDefinition);
 
-    const query: IPrivateQueryOptions = {
-      query: {
-        operator: 'and',
-        queries: [
-          {
-            attribute: 'process.id',
-            operator: '=',
-            value: processInstanceId,
-          },
-          {
-            attribute: 'state',
-            operator: '=',
-            value: 'wait',
-          },
-        ],
-      },
-      expandCollection: [
-        {attribute: 'processToken'},
-        {
-          attribute: 'nodeDef',
-          childAttributes: [
-            {attribute: 'lane'},
-            {attribute: 'extensions'},
-          ],
-        },
-        {
-          attribute: 'process',
-          childAttributes: [
-            {attribute: 'id'},
-            {
-              attribute: 'processDef',
-              childAttributes: [
-                {attribute: 'id'},
-                {attribute: 'key'},
-              ],
-            },
-          ],
-        },
-      ],
-    };
+    const allFlowNodeInstances: Array<Runtime.Types.FlowNodeInstance> = await this.flowNodeInstancePersistance.querySuspended(processInstance.id);
 
-    const userTaskCollection: IEntityCollection<IUserTaskEntity> = await userTaskEntityType.query(executionContext, query);
-    const userTasks: Array<IUserTaskEntity> = [];
-    await userTaskCollection.each(executionContext, (userTask: IUserTaskEntity) => {
-      userTasks.push(userTask);
+    return allUserTasks.filter((userTask) => {
+      return allFlowNodeInstances.some((flowNodeInstance) => {
+        return flowNodeInstance.flowNodeId === userTask.id;
+      });
     });
+
+    // const suspendedUserTasks: Array<Model.Activities.UserTask> = allFlowNodeInstances.filter((flowNodeInstance: Runtime.Types.FlowNodeInstance) => {
+    //   return flowNodeInstance instanceof Model.Activities.UserTask;
+    // });
+
+    // return suspendedUserTasks;
+    // get all user tasks contained in the process model using process model facade
+    // query all flow node instances from flow_node_instance_persistance
+    // filter for suspended
+  }
+
+  private _getUserTasks(processDefinition: Model.Types.Process): Array<Model.Activities.UserTask> {
+
+    const userTaskFlowNodes: Model.Base.FlowNode = processDefinition.flowNodes.filter((flowNode: Model.Base.FlowNode) => {
+      return flowNode instanceof Model.Activities.UserTask;
+    });
+    
+    const laneUserTasks: Array<Model.Activities.UserTask> = this._getUserTasksFromLaneRecursively(processDefinition.laneSet);
+
+    const allUserTasks: Array<Model.Activities.UserTask> = [
+      ...userTaskFlowNodes,
+    ];
+
+    Array.prototype.push.apply(allUserTasks, laneUserTasks);
+
+    return allUserTasks;
+  }
+
+  private _getUserTasksFromLaneRecursively(laneSet: Model.Types.LaneSet): Array<Model.Activities.UserTask> {
+    
+    const userTasks: Array<Model.Activities.UserTask> = [];
+    
+    if (!laneSet) {
+      return userTasks;
+    }
+
+    for (const lane of laneSet.lanes) {
+
+      const userTaskFlowNodes: Model.Base.FlowNode = lane.flowNodeReferences.filter((flowNode: Model.Base.FlowNode) => {
+        return flowNode instanceof Model.Activities.UserTask;
+      });
+
+      Array.prototype.push.apply(userTasks, userTaskFlowNodes);
+      
+      const childUserTasks = this._getUserTasksFromLaneRecursively(lane.childLaneSet);
+      Array.prototype.push.apply(userTasks, childUserTasks);
+    }
 
     return userTasks;
   }
