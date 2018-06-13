@@ -395,13 +395,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
 
     const userTasks: Array<IUserTaskEntity> = await this._getUserTasksForCorrelation(executionContext, correlationId);
     
-    const userTaskList: UserTaskList = userTasks.map((userTask) => {
-      return userTask.formFields;
-    });
-
-    return {
-      user_tasks: userTaskList,
-    };
+    return this._userTaskEntitiesToUserTaskList(context, userTasks);
   }
 
   public async getUserTasksForProcessModelInCorrelation(context: ConsumerContext,
@@ -474,11 +468,6 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
 
     return new Promise<void>((resolve: Function, reject: Function): void => {
       const subscription: ISubscription = this.eventAggregator.subscribe(`/processengine/node/${userTask.id}`, (event: any) => {
-        const eventIsNotUserTaskEndedEvent: boolean = event.data.action !== 'changeState' || event.data.data !== 'end';
-        if (eventIsNotUserTaskEndedEvent) {
-          return;
-        }
-
         subscription.dispose();
         resolve();
       });
@@ -769,17 +758,22 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
   }
 
   private async _userTaskEntitiesToUserTaskList(executionContext: ExecutionContext, userTasks: Array<Model.Activities.UserTask>): Promise<UserTaskList> {
-    const resultUserTaskPromises: Array<any> = userTasks.map(async(userTask: IUserTaskEntity) => {
+    const resultUserTaskPromises: Array<any> = userTasks.map(async(userTask: Model.Activities.UserTask) => {
 
-      const userTaskData: any = await userTask.getUserTaskData(executionContext);
+      // const userTaskData: any = await userTask.getUserTaskData(executionContext);
 
       return {
-        key: userTask.key,
-        id: userTask.id,
-        process_instance_id: userTask.process.id,
+        key: userTask.id,
+        // TODO (SM): the id here should be the flow node instance id
+        //            -> skipping for now
+        id: userTask.id, 
+        // TODO (SM): the process instance id is not accessible and we would need to reflect via the user task model
+        //            -> skipping for now
+        // process_instance_id: userTask.process.id,
         // TODO: 'data' currently contains the response body equals that of the old consumer client.
         // The consumer api concept has no response body defined yet, however, so there MAY be discrepancies.
-        data: this._getUserTaskConfigFromUserTaskData(userTaskData, userTask.key),
+        // TODO (SM): deactivated the 'data' for now, since it doesn't seem to be needed
+        // data: this._getUserTaskConfigFromUserTaskData(userTaskData, userTask.key),
       };
     });
 
@@ -788,6 +782,40 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
     };
 
     return result;
+
+
+    const allProcessInstances: Array<Runtime.Types.ProcessInstance> = await this.processEngineStorageService.getProcessInstancesForCorrelation(correlationId);
+    const userTaskProcessInstance: Runtime.Types.ProcessInstance = allProcessInstances.find((processInstance) => {
+      return processInstance.processDefinition.id === processModelId;
+    });
+
+    if (!userTaskProcessInstance) {
+      throw new Error(`ProcessInstance for ProcessModel with key '${processModelId}' and correlation with id '${correlationId}' could not be found.`);
+    }
+
+    const userTasksForProcessModel: Array<Model.Activities.UserTask> = userTasks.filter((userTask: Model.Activities.UserTask) => {
+      return processUserTasks.some((processUserTask) => {
+        return processUserTask.id === userTask.id;
+      });
+    });
+
+    const userTaskList: UserTaskList = userTasks.map((userTask) => {
+      return {
+        id: userTask.id, // TODO: guess this should be the flow node instance id
+        key: userTask.id,
+        data: userTask.formFields,
+        processInstanceId: userTaskProcessInstance.id,
+      };
+    });
+
+    return {
+      user_tasks: userTaskList,
+    };
+
+
+
+
+
   }
 
   private async _getUserTasksForCorrelation(executionContext: ExecutionContext, correlationId: string): Promise<Array<IUserTaskEntity>> {
