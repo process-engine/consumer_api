@@ -13,19 +13,25 @@ import {
   UserTaskList,
   UserTaskResult,
 } from '@process-engine/consumer_api_contracts';
+import {IExecuteProcessService} from '@process-engine/process_engine_contracts';
 
 export class ConsumerApiService implements IConsumerApiService {
   public config: any = undefined;
 
-  private _processEngineAdapter: IConsumerApiService;
+  private _executeProcessService: IExecuteProcessService;
+  private _processModelFacadeFactory: IProcessModelFacadeFactory;
 
-  constructor(processEngineAdapter: IConsumerApiService) {
+  constructor(executeProcessService: IExecuteProcessService, processModelFacadeFactory: IProcessModelFacadeFactory) {
 
-    this._processEngineAdapter = processEngineAdapter;
+    this._executeProcessService = executeProcessService;
   }
 
-  private get processEngineAdapter(): IConsumerApiService {
-    return this._processEngineAdapter;
+  private get executeProcessService(): IExecuteProcessService {
+    return this._executeProcessService;
+  }
+
+  private get processModelFacadeFactory(): IProcessModelFacadeFactory {
+    return this._processModelFacadeFactory;
   }
 
   // Process models
@@ -37,18 +43,43 @@ export class ConsumerApiService implements IConsumerApiService {
     return this.processEngineAdapter.getProcessModelByKey(context, processModelKey);
   }
 
+  private _createExecutionContextFromConsumerContext(consumerContext: ConsumerContext): Promise<ExecutionContext> {
+    return this.processEngineIamService.resolveExecutionContext(consumerContext.identity, TokenType.jwt);
+  }
+
   public async startProcessInstance(context: ConsumerContext,
-                                    processModelKey: string,
-                                    startEventKey: string,
+                                    processModelId: string,
+                                    startEventId: string,
                                     payload: ProcessStartRequestPayload,
-                                    startCallbackType: StartCallbackType = StartCallbackType.CallbackOnProcessInstanceCreated,
+                                    startCallbackType: StartCallbackType = StartCallbackType.CallbackOnProcessInstanceCreated
                                   ): Promise<ProcessStartResponsePayload> {
 
     if (!Object.values(StartCallbackType).includes(startCallbackType)) {
       throw new EssentialProjectErrors.BadRequestError(`${startCallbackType} is not a valid return option!`);
     }
 
-    return this.processEngineAdapter.startProcessInstance(context, processModelKey, startEventKey, payload, startCallbackType);
+    const executionContext: ExecutionContext = await this._createExecutionContextFromConsumerContext(context);
+    const correlationId: string = payload.correlation_id || uuid.v4();
+    
+    if (startCallbackType === StartCallbackType.CallbackOnProcessInstanceCreated) {
+      await this._startProcessInstance(executionContext, processModelId, payload);
+    } else {
+      // TODO: not needed in user task integration test
+      // await this._startProcessInstanceAndAwaitEndEvent(executionContext, processInstanceId, startEventId, payload);
+    }
+
+    const response: ProcessStartResponsePayload = {
+      correlation_id: correlationId,
+    };
+
+    return response;
+  }
+
+  private async _startProcessInstance(executionContext: ExecutionContext, processModelId: string, correlationId: string, initialToken?: any): Promise<void> {
+
+    const processDefinition: Model.Types.Process = this.processModelPersistance.getProcessModelById(processModelId);
+
+    this.executeProcessService.start(executionContext, processDefinition, correlationId, initialToken);
   }
 
   public async startProcessInstanceAndAwaitEndEvent(context: ConsumerContext,
@@ -95,8 +126,10 @@ export class ConsumerApiService implements IConsumerApiService {
   }
 
   public async getUserTasksForCorrelation(context: ConsumerContext, correlationId: string): Promise<UserTaskList> {
-    return this.processEngineAdapter.getUserTasksForCorrelation(context, correlationId);
+
+
   }
+
 
   public async getUserTasksForProcessModelInCorrelation(context: ConsumerContext,
                                                         processModelKey: string,

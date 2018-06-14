@@ -767,7 +767,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
         // TODO (SM): the id here should be the flow node instance id
         //            -> skipping for now
         id: userTask.id, 
-        // TODO (SM): the process instance id is not accessible and we would need to reflect via the user task model
+        // TODO (SM): the process instance id is not directly accessible and we would need to reflect via the user task model
         //            -> skipping for now
         // process_instance_id: userTask.process.id,
         // TODO: 'data' currently contains the response body equals that of the old consumer client.
