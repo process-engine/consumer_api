@@ -159,12 +159,15 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
 
     const processModels: Array<IProcessDefEntity> = await this._getProcessModels(executionContext);
 
-    const result: Array<ConsumerApiProcessModel> = [];
+    const resultSet: ConsumerApiProcessModelList = {
+      processModels: [],
+    };
+
     for (const processModel of processModels) {
 
       try {
         const mappedProcessModel: ConsumerApiProcessModel = await this.getProcessModelByKey(context, processModel.key);
-        result.push(mappedProcessModel);
+        resultSet.processModels.push(mappedProcessModel);
       } catch (error) {
         // if we're not allowed to access that process model, then thats fine. In that case, every startevent is invisible to us,
         // but this sould not make fetching startevents from other instances fail
@@ -174,9 +177,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
       }
     }
 
-    return <ConsumerApiProcessModelList> {
-      processModels: result,
-    };
+    return resultSet;
   }
 
   public async getProcessModelByKey(context: ConsumerContext, processModelKey: string): Promise<ConsumerApiProcessModel> {
@@ -222,63 +223,14 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
                                     startEventKey: string,
                                     payload: ProcessStartRequestPayload,
                                     startCallbackType: StartCallbackType,
+                                    endEventKey: string,
                                   ): Promise<ProcessStartResponsePayload> {
 
-    const executionContext: ExecutionContext = await this._createExecutionContextFromConsumerContext(context);
-
-    const processModel: IProcessDefEntity = await this._getProcessModelByKey(executionContext, processModelKey);
-
-    if (!processModel.isExecutable) {
-      throw new BadRequestError(`The Process Model '${processModelKey}' is not executable!`);
+    if (startCallbackType === StartCallbackType.CallbackOnEndEventReached) {
+      return this._startProcessInstanceAndAwaitEndEvent(context, processModelKey, startEventKey, endEventKey, payload);
     }
 
-    const startEventEntity: INodeDefEntity = await this._getStartEventEntity(executionContext, processModelKey, startEventKey);
-
-    let correlationId: string;
-
-    const processInstanceId: string = await this.processEngineService.createProcessInstance(executionContext, undefined, processModelKey);
-
-    if (startCallbackType === StartCallbackType.CallbackOnProcessInstanceCreated) {
-      correlationId = await this._startProcessInstance(executionContext, processInstanceId, startEventEntity, payload);
-    } else {
-      correlationId = await this._startProcessInstanceAndAwaitEndEvent(executionContext, processInstanceId, startEventEntity, undefined, payload);
-    }
-
-    const response: ProcessStartResponsePayload = {
-      correlationId: correlationId,
-    };
-
-    return response;
-  }
-
-  public async startProcessInstanceAndAwaitEndEvent(context: ConsumerContext,
-                                                    processModelKey: string,
-                                                    startEventKey: string,
-                                                    endEventKey: string,
-                                                    payload: ProcessStartRequestPayload,
-                                                  ): Promise<ProcessStartResponsePayload> {
-
-    const executionContext: ExecutionContext = await this._createExecutionContextFromConsumerContext(context);
-
-    const processModel: IProcessDefEntity = await this._getProcessModelByKey(executionContext, processModelKey);
-
-    if (!processModel.isExecutable) {
-      throw new BadRequestError(`The Process Model '${processModelKey}' is not executable!`);
-    }
-
-    const startEventEntity: INodeDefEntity = await this._getStartEventEntity(executionContext, processModelKey, startEventKey);
-    const endEventEntity: INodeDefEntity = await this._getEndEventEntity(executionContext, processModelKey, endEventKey);
-
-    const processInstanceId: string = await this.processEngineService.createProcessInstance(executionContext, undefined, processModelKey);
-
-    const correlationId: string =
-      await this._startProcessInstanceAndAwaitEndEvent(executionContext, processInstanceId, startEventEntity, endEventEntity.key, payload);
-
-    const response: ProcessStartResponsePayload = {
-      correlationId: correlationId,
-    };
-
-    return response;
+    return this._startProcessInstance(context, processModelKey, startEventKey, payload, startCallbackType);
   }
 
   public async getProcessResultForCorrelation(context: ConsumerContext,
@@ -565,11 +517,76 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
     return accessibleEventEntities;
   }
 
+  private async _startProcessInstance(context: ConsumerContext,
+                                      processModelKey: string,
+                                      startEventKey: string,
+                                      payload: ProcessStartRequestPayload,
+                                      startCallbackType: StartCallbackType,
+                                    ): Promise<ProcessStartResponsePayload> {
+
+    const executionContext: ExecutionContext = await this._createExecutionContextFromConsumerContext(context);
+
+    const processModel: IProcessDefEntity = await this._getProcessModelByKey(executionContext, processModelKey);
+
+    if (!processModel.isExecutable) {
+      throw new BadRequestError(`The Process Model '${processModelKey}' is not executable!`);
+    }
+
+    const startEventEntity: INodeDefEntity = await this._getStartEventEntity(executionContext, processModelKey, startEventKey);
+
+    let correlationId: string;
+
+    const processInstanceId: string = await this.processEngineService.createProcessInstance(executionContext, undefined, processModelKey);
+
+    if (startCallbackType === StartCallbackType.CallbackOnProcessInstanceCreated) {
+      correlationId = await this._executeProcessInstance(executionContext, processInstanceId, startEventEntity, payload);
+    } else {
+      // No need to check for StartCallbackType.CallbackOnEndEventReached, because that case is already handled by the calling function
+      correlationId = await this._executeProcessInstanceAndAwaitEndEvent(executionContext, processInstanceId, startEventEntity, undefined, payload);
+    }
+
+    const response: ProcessStartResponsePayload = {
+      correlationId: correlationId,
+    };
+
+    return response;
+  }
+
+  private async _startProcessInstanceAndAwaitEndEvent(context: ConsumerContext,
+                                                      processModelKey: string,
+                                                      startEventKey: string,
+                                                      endEventKey: string,
+                                                      payload: ProcessStartRequestPayload,
+                                                    ): Promise<ProcessStartResponsePayload> {
+
+    const executionContext: ExecutionContext = await this._createExecutionContextFromConsumerContext(context);
+
+    const processModel: IProcessDefEntity = await this._getProcessModelByKey(executionContext, processModelKey);
+
+    if (!processModel.isExecutable) {
+      throw new BadRequestError(`The Process Model '${processModelKey}' is not executable!`);
+    }
+
+    const startEventEntity: INodeDefEntity = await this._getStartEventEntity(executionContext, processModelKey, startEventKey);
+    const endEventEntity: INodeDefEntity = await this._getEndEventEntity(executionContext, processModelKey, endEventKey);
+
+    const processInstanceId: string = await this.processEngineService.createProcessInstance(executionContext, undefined, processModelKey);
+
+    const correlationId: string =
+      await this._executeProcessInstanceAndAwaitEndEvent(executionContext, processInstanceId, startEventEntity, endEventEntity.key, payload);
+
+    const response: ProcessStartResponsePayload = {
+      correlationId: correlationId,
+    };
+
+    return response;
+  }
+
   // Manually implements "IProcessEntity.start()"
-  private async _startProcessInstance(context: ExecutionContext,
-                                      processInstanceId: string,
-                                      startEventDef: INodeDefEntity,
-                                      payload: ProcessStartRequestPayload): Promise<string> {
+  private async _executeProcessInstance(context: ExecutionContext,
+                                        processInstanceId: string,
+                                        startEventDef: INodeDefEntity,
+                                        payload: ProcessStartRequestPayload): Promise<string> {
 
     const processInstance: IProcessEntity = await this._getProcessInstanceById(context, processInstanceId);
 
@@ -622,11 +639,11 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
 
   // Pretty much the same as the private function of the process engine service with the same name,
   //  except that it only resolves on a specific end event.
-  private _startProcessInstanceAndAwaitEndEvent(executionContext: ExecutionContext,
-                                                processInstanceId: string,
-                                                startEventEntity: INodeDefEntity,
-                                                endEventToWaitFor: string,
-                                                payload: ProcessStartRequestPayload): Promise<any> {
+  private _executeProcessInstanceAndAwaitEndEvent(executionContext: ExecutionContext,
+                                                  processInstanceId: string,
+                                                  startEventEntity: INodeDefEntity,
+                                                  endEventToWaitFor: string,
+                                                  payload: ProcessStartRequestPayload): Promise<any> {
 
     return new Promise(async(resolve: Function, reject: Function): Promise<void> => {
 
@@ -674,7 +691,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
         return;
       });
 
-      correlationId = await this._startProcessInstance(executionContext, processInstanceId, startEventEntity, payload);
+      correlationId = await this._executeProcessInstance(executionContext, processInstanceId, startEventEntity, payload);
     });
   }
 
