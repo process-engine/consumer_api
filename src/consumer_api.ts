@@ -42,23 +42,18 @@ export class ConsumerApiService implements IConsumerApiService {
                                     startEventKey: string,
                                     payload: ProcessStartRequestPayload,
                                     startCallbackType: StartCallbackType = StartCallbackType.CallbackOnProcessInstanceCreated,
+                                    endEventKey?: string,
                                   ): Promise<ProcessStartResponsePayload> {
 
     if (!Object.values(StartCallbackType).includes(startCallbackType)) {
       throw new EssentialProjectErrors.BadRequestError(`${startCallbackType} is not a valid return option!`);
     }
 
-    return this.processEngineAdapter.startProcessInstance(context, processModelKey, startEventKey, payload, startCallbackType);
-  }
+    if (startCallbackType === StartCallbackType.CallbackOnEndEventReached && !endEventKey) {
+      throw new EssentialProjectErrors.BadRequestError(`Must provide an EndEventKey, when using callback type 'CallbackOnEndEventReached'!`);
+    }
 
-  public async startProcessInstanceAndAwaitEndEvent(context: ConsumerContext,
-                                                    processModelKey: string,
-                                                    startEventKey: string,
-                                                    endEventKey: string,
-                                                    payload: ProcessStartRequestPayload,
-                                                  ): Promise<ProcessStartResponsePayload> {
-
-    return this.processEngineAdapter.startProcessInstanceAndAwaitEndEvent(context, processModelKey, startEventKey, endEventKey, payload);
+    return this.processEngineAdapter.startProcessInstance(context, processModelKey, startEventKey, payload, startCallbackType, endEventKey);
   }
 
   public async getProcessResultForCorrelation(context: ConsumerContext,
