@@ -202,12 +202,12 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
       accessibleEndEventEntities = [];
     }
 
-    const eventMapper: any = (startEventEntity: INodeDefEntity): ConsumerApiEvent => {
+    const eventMapper: any = (eventEntity: INodeDefEntity): ConsumerApiEvent => {
       const consumerApiStartEvent: ConsumerApiEvent = {
-        key: startEventEntity.key,
-        id: startEventEntity.id,
+        key: eventEntity.key,
+        id: eventEntity.id,
         processInstanceId: undefined,
-        data: startEventEntity.startContext,
+        data: eventEntity.startContext,
       };
 
       return consumerApiStartEvent;
