@@ -223,7 +223,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
                                     startEventKey: string,
                                     payload: ProcessStartRequestPayload,
                                     startCallbackType: StartCallbackType,
-                                    endEventKey: string,
+                                    endEventKey?: string,
                                   ): Promise<ProcessStartResponsePayload> {
 
     const executionContext: ExecutionContext = await this._createExecutionContextFromConsumerContext(context);
