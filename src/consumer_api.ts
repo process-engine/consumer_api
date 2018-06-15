@@ -50,7 +50,7 @@ export class ConsumerApiService implements IConsumerApiService {
     }
 
     if (startCallbackType === StartCallbackType.CallbackOnEndEventReached && !endEventKey) {
-      throw new EssentialProjectErrors.BadRequestError(`Must provide and EndEventKey, when using callback type 'CallbackOnEndEventReached'!`);
+      throw new EssentialProjectErrors.BadRequestError(`Must provide an EndEventKey, when using callback type 'CallbackOnEndEventReached'!`);
     }
 
     return this.processEngineAdapter.startProcessInstance(context, processModelKey, startEventKey, payload, startCallbackType, endEventKey);
