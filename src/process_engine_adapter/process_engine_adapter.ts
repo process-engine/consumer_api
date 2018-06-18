@@ -45,6 +45,7 @@ import {
   IUserTaskEntity,
   IUserTaskMessageData,
   IFlowNodeInstancePersistance,
+  IProcessModelPersistance,
   Model,
 } from '@process-engine/process_engine_contracts';
 
@@ -81,7 +82,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
   private _messageBusService: IMessageBusService;
   private _errorDeserializer: IErrorDeserializer;
   private _eventAggregator: IEventAggregator;
-  private _processEngineStorageService: IProcessEngineStorageService;
+  private _processModelPersistance: IProcessModelPersistance;
   private _flowNodeInstancePersistance: IFlowNodeInstancePersistance;
 
   constructor(consumerApiIamService: ConsumerApiIamService,
@@ -91,7 +92,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
               messageBusService: IMessageBusService,
               nodeInstanceEntityTypeService: INodeInstanceEntityTypeService,
               processEngineService: IProcessEngineService,
-              processEngineStorageService: IProcessEngineStorageService,
+              processModelPersistance: IProcessModelPersistance,
               flowNodeInstancePersistance: IFlowNodeInstancePersistance) {
 
     this._consumerApiIamService = consumerApiIamService;
@@ -101,7 +102,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
     this._messageBusService = messageBusService;
     this._nodeInstanceEntityTypeService = nodeInstanceEntityTypeService;
     this._processEngineService = processEngineService;
-    this._processEngineStorageService = processEngineStorageService;
+    this._processModelPersistance = processModelPersistance;
     this._flowNodeInstancePersistance = flowNodeInstancePersistance;
   }
 
@@ -137,8 +138,8 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
     return this._processEngineService;
   }
 
-  private get processEngineStorageService(): IProcessEngineStorageService {
-    return this._processEngineStorageService;
+  private get processModelPersistance(): IProcessModelPersistance {
+    return this._processModelPersistance;
   }
 
   private get flowNodeInstancePersistance(): IFlowNodeInstancePersistance {
@@ -172,7 +173,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
   // Process models
   public async getProcessModels(context: ConsumerContext): Promise<ConsumerApiProcessModelList> {
 
-    const executionContext: ExecutionContext = await this._createExecutionContextFromConsumerContext(context);
+    const executionContext: ExecutionContext = await this.createExecutionContextFromConsumerContext(context);
 
     const processModels: Array<IProcessDefEntity> = await this._getProcessModels(executionContext);
 
@@ -199,7 +200,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
 
   public async getProcessModelByKey(context: ConsumerContext, processModelKey: string): Promise<ConsumerApiProcessModel> {
 
-    const executionContext: ExecutionContext = await this._createExecutionContextFromConsumerContext(context);
+    const executionContext: ExecutionContext = await this.createExecutionContextFromConsumerContext(context);
 
     const processDef: IProcessDefEntity = await this._getProcessModelByKey(executionContext, processModelKey);
 
@@ -249,7 +250,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
                                     endEventKey?: string,
                                   ): Promise<ProcessStartResponsePayload> {
 
-    const executionContext: ExecutionContext = await this._createExecutionContextFromConsumerContext(context);
+    const executionContext: ExecutionContext = await this.createExecutionContextFromConsumerContext(context);
 
     const processModel: IProcessDefEntity = await this._getProcessModelByKey(executionContext, processModelKey);
 
@@ -288,7 +289,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
                                               correlationId: string,
                                               processModelKey: string): Promise<ICorrelationResult> {
 
-    const executionContext: ExecutionContext = await this._createExecutionContextFromConsumerContext(context);
+    const executionContext: ExecutionContext = await this.createExecutionContextFromConsumerContext(context);
 
     const process: IProcessEntity = await this._getFinishedProcessInstanceInCorrelation(executionContext, correlationId, processModelKey);
 
@@ -367,7 +368,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
 
   // UserTasks
   public async getUserTasksForProcessModel(context: ConsumerContext, processModelKey: string): Promise<UserTaskList> {
-    const executionContext: ExecutionContext = await this._createExecutionContextFromConsumerContext(context);
+    const executionContext: ExecutionContext = await this.createExecutionContextFromConsumerContext(context);
 
     const userTasks: Array<IUserTaskEntity> = await this._getAccessibleUserTasksForProcessModel(executionContext, processModelKey);
 
@@ -375,7 +376,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
   }
 
   public async getUserTasksForCorrelation(context: ConsumerContext, correlationId: string): Promise<UserTaskList> {
-    const executionContext: ExecutionContext = await this._createExecutionContextFromConsumerContext(context);
+    const executionContext: ExecutionContext = await this.createExecutionContextFromConsumerContext(context);
 
     const processModelsInCorrelation: Array<string> = await this._getProcessModelKeysForCorrelation(executionContext, correlationId);
     let accessibleLaneIds: Array<string> = [];
@@ -397,7 +398,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
   public async getUserTasksForProcessModelInCorrelation(context: ConsumerContext,
                                                         processModelId: string,
                                                         correlationId: string): Promise<UserTaskList> {
-    const executionContext: ExecutionContext = await this._createExecutionContextFromConsumerContext(context);
+    const executionContext: ExecutionContext = await this.createExecutionContextFromConsumerContext(context);
 
     if (!await this._processModelBelongsToCorrelation(executionContext, correlationId, processModelId)) {
       throw new NotFoundError(`ProcessModel with key '${processModelId}' is not part of the correlation with id '${correlationId}'`);
@@ -448,7 +449,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
                               userTaskId: string,
                               userTaskResult: UserTaskResult): Promise<void> {
 
-    const executionContext: ExecutionContext = await this._createExecutionContextFromConsumerContext(context);
+    const executionContext: ExecutionContext = await this.createExecutionContextFromConsumerContext(context);
 
     const userTasks: UserTaskList = await this.getUserTasksForProcessModelInCorrelation(context, processModelId, correlationId);
 
@@ -489,7 +490,7 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
   // Process Engine Accessor Functions. Here be dragons. With lasers.
   // -------------
 
-  private _createExecutionContextFromConsumerContext(consumerContext: ConsumerContext): Promise<ExecutionContext> {
+  public createExecutionContextFromConsumerContext(consumerContext: ConsumerContext): Promise<ExecutionContext> {
     return this.processEngineIamService.resolveExecutionContext(consumerContext.identity, TokenType.jwt);
   }
 

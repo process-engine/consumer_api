@@ -21,12 +21,17 @@ function registerInContainer(container) {
                   'MessageBusService',
                   'NodeInstanceEntityTypeService',
                   'ProcessEngineService',
-                  'ProcessEngineStorageService',
+                  'ProcessModelPersistance',
                   'FlowNodeInstancePersistance')
     .singleton();
 
   container.register('ConsumerApiService', ConsumerApiService)
-    .dependencies('ConsumerApiProcessEngineAdapter')
+    .dependencies('ConsumerApiProcessEngineAdapter',
+                  'ExecuteProcessService',
+                  'ProcessModelFacadeFactory',
+                  'ProcessModelPersistance',
+                  'FlowNodeInstancePersistance',
+                  'EventAggregator')
     .singleton();
 }
 
