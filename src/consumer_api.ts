@@ -26,6 +26,10 @@ export class ConsumerApiService implements IConsumerApiService {
     this._executeProcessService = executeProcessService;
   }
 
+  private get processEngineAdapter(): IConsumerApiService {
+    return this._processEngineAdapter;
+ }
+ 
   private get executeProcessService(): IExecuteProcessService {
     return this._executeProcessService;
   }
@@ -51,13 +55,17 @@ export class ConsumerApiService implements IConsumerApiService {
                                     processModelId: string,
                                     startEventId: string,
                                     payload: ProcessStartRequestPayload,
-                                    startCallbackType: StartCallbackType = StartCallbackType.CallbackOnProcessInstanceCreated
+                                    startCallbackType: StartCallbackType = StartCallbackType.CallbackOnProcessInstanceCreated,
+                                    endEventKey?: string,
                                   ): Promise<ProcessStartResponsePayload> {
 
     if (!Object.values(StartCallbackType).includes(startCallbackType)) {
       throw new EssentialProjectErrors.BadRequestError(`${startCallbackType} is not a valid return option!`);
     }
 
+    if (startCallbackType === StartCallbackType.CallbackOnEndEventReached && !endEventKey) {
+      throw new EssentialProjectErrors.BadRequestError(`Must provide an EndEventKey, when using callback type 'CallbackOnEndEventReached'!`);
+    }
     const executionContext: ExecutionContext = await this._createExecutionContextFromConsumerContext(context);
     const correlationId: string = payload.correlation_id || uuid.v4();
     
@@ -126,10 +134,8 @@ export class ConsumerApiService implements IConsumerApiService {
   }
 
   public async getUserTasksForCorrelation(context: ConsumerContext, correlationId: string): Promise<UserTaskList> {
-
-
+    return this.processEngineAdapter.getUserTasksForCorrelation(context, correlationId);
   }
-
 
   public async getUserTasksForProcessModelInCorrelation(context: ConsumerContext,
                                                         processModelKey: string,
