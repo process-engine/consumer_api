@@ -67,11 +67,29 @@ export class ConsumerApiService implements IConsumerApiService {
 
   // Process models
   public async getProcessModels(context: ConsumerContext): Promise<ProcessModelList> {
-    return this.processEngineAdapter.getProcessModels(context);
+    // TODO: implement accessibility check
+    return this.processModelPersistance.getProcessModels();
   }
 
   public async getProcessModelByKey(context: ConsumerContext, processModelKey: string): Promise<ProcessModel> {
-    return this.processEngineAdapter.getProcessModelByKey(context, processModelKey);
+    // TODO: implement accessibility check
+    const processModelDefinition: Model.Types.Process = await this.processModelPersistance.getProcessModelById(processModelKey);
+
+    const startEvents = processModelDefinition.flowNodes.filter((flowNode) => {
+      return flowNode instanceof Model.Events.StartEvent;
+    });
+
+    const endEvents = processModelDefinition.flowNodes.filter((flowNode) => {
+      return flowNode instanceof Model.Events.StartEvent;
+    });
+
+    const processModelResponse: ProcessModel = {
+      key: processModelDefinition.id,
+      startEvents: startEvents,
+      endEvents: endEvents,
+    }
+
+    return processModelResponse;
   }
 
   public async startProcessInstance(context: ConsumerContext,
@@ -87,12 +105,12 @@ export class ConsumerApiService implements IConsumerApiService {
 
     const executionContext: ExecutionContext = await this.processEngineAdapter.createExecutionContextFromConsumerContext(context);
     const correlationId: string = payload.correlation_id || uuid.v4();
+    const processModel: Model.Types.Process = await this.processModelPersistance.getProcessModelById(processModelId);
     
     if (startCallbackType === StartCallbackType.CallbackOnProcessInstanceCreated) {
-      await this._startProcessInstance(executionContext, processModelId, correlationId, payload.inputValues);
+      this.executeProcessService.start(executionContext, processModel, correlationId, payload.inputValues);
     } else {
-      // TODO: not needed in user task integration test
-      // await this._startProcessInstanceAndAwaitEndEvent(executionContext, processInstanceId, startEventId, payload);
+      this.executeProcessService.startAndAwaitEndEvent(executionContext, processModel, correlationId, payload.inputValues);
     }
 
     const response: ProcessStartResponsePayload = {
@@ -102,13 +120,6 @@ export class ConsumerApiService implements IConsumerApiService {
     return response;
   }
 
-  private async _startProcessInstance(executionContext: ExecutionContext, processModelId: string, correlationId: string, initialToken?: any): Promise<void> {
-
-    const processDefinition: Model.Types.Process = await this.processModelPersistance.getProcessModelById(processModelId);
-
-    this.executeProcessService.start(executionContext, processDefinition, correlationId, initialToken);
-  }
-
   public async startProcessInstanceAndAwaitEndEvent(context: ConsumerContext,
                                                     processModelKey: string,
                                                     startEventKey: string,
@@ -116,13 +127,80 @@ export class ConsumerApiService implements IConsumerApiService {
                                                     payload: ProcessStartRequestPayload,
                                                   ): Promise<ProcessStartResponsePayload> {
 
-    return this.processEngineAdapter.startProcessInstanceAndAwaitEndEvent(context, processModelKey, startEventKey, endEventKey, payload);
+    const executionContext: ExecutionContext = await this.processEngineAdapter.createExecutionContextFromConsumerContext(context);
+    const correlationId: string = payload.correlation_id || uuid.v4();
+    const processModel: Model.Types.Process = await this.processModelPersistance.getProcessModelById(processModelId);
+
+    await this.executeProcessService.startAndAwaitSpecificEndEvent(executionContext, processModel, correlationId, endEventKey, payload.inputValues);
+
+    const response: ProcessStartResponsePayload = {
+      correlationId: correlationId,
+    };
+
+    return response;
+  }
+
+  public async getAllProcessResultsForCorrelation(context: ConsumerContext,
+                                                  correlationId: string,
+                                                  processModelId: string): Promise<Array<ICorrelationResult>> {
+
+    const processModel: Model.Types.Process =
+      await this.processModelPersistance.getProcessModelById(processModelId);
+
+    const processModelFacade: IProcessModelFacade = this.processModelFacadeFactory.create(processModel);
+    const endEvents: Array<Model.Events.EndEvent> = processModelFacade.getEndEvents();
+    
+    const flowNodeInstances: Array<Runtime.Types.FlowNodeInstance> = 
+      await this.flowNodeInstancePersistance.queryBy(correlationId);
+
+    const endEventFlowNodeInstances = flowNodeInstances.filter((flowNodeInstance) => {
+
+      const isEndEvent: boolean = endEvents.some((endEvent) => {
+        return endEvent.id === flowNodeInstance.flowNodeId;
+      });
+
+      return isEndEvent
+        && flowNodeInstance.token.caller === undefined // only from the process who started the correlation
+        && flowNodeInstance.token.processModelId === processModelId;
+    });
+    
+    const correlationResults: Array<ICorrelationResult> = endEventFlowNodeInstances.map((endEventFlowNodeInstance) => {
+      return endEventFlowNodeInstance.token.payload;
+    });
+
+    return correlationResults;
   }
 
   public async getProcessResultForCorrelation(context: ConsumerContext,
                                               correlationId: string,
-                                              processModelKey: string): Promise<ICorrelationResult> {
-    return this.processEngineAdapter.getProcessResultForCorrelation(context, correlationId, processModelKey);
+                                              processModelId: string): Promise<ICorrelationResult> {
+    // TODO: implement accessibility check
+    
+    const processModel: Model.Types.Process =
+      await this.processModelPersistance.getProcessModelById(processModelId);
+
+    const processModelFacade: IProcessModelFacade = this.processModelFacadeFactory.create(processModel);
+    const endEvents: Array<Model.Events.EndEvent> = processModelFacade.getEndEvents();
+    
+    const flowNodeInstances: Array<Runtime.Types.FlowNodeInstance> = 
+      await this.flowNodeInstancePersistance.queryBy(correlationId);
+
+    const endEventInstances: Array<Runtime.Types.FlowNodeInstance> = flowNodeInstances.filter((flowNodeInstance) => {
+      const isEndEvent: boolean = endEvents.some((endEvent) => {
+        return flowNodeInstance.flowNodeId === endEvent.id;
+      });
+
+      return isEndEvent;
+    });
+
+    const correlationResult: ICorrelationResult = {};
+
+    // merge results
+    for (const endEventInstance of endEventInstances) {
+      Object.assign(correlationResult, endEventInstance.token.payload);
+    }
+
+    return correlationResult;
   }
 
   // Events
@@ -148,43 +226,53 @@ export class ConsumerApiService implements IConsumerApiService {
   }
 
   // UserTasks
-  public async getUserTasksForProcessModel(context: ConsumerContext, processModelKey: string): Promise<UserTaskList> {
-    return this.processEngineAdapter.getUserTasksForProcessModel(context, processModelKey);
+  public async getUserTasksForProcessModel(context: ConsumerContext, processModelId: string): Promise<UserTaskList> {
+
+    const processModel: Model.Types.Process =
+      await this.processModelPersistance.getProcessModelById(processModelId);
+
+    const processModelFacade: IProcessModelFacade = this.processModelFacadeFactory.create(processModel);
+
+    const userTasks: Array<Model.Activities.UserTask> = processModelFacade.getUserTasks();
+
+    return {
+      userTasks: userTasks,
+    };
   }
 
   public async getUserTasksForCorrelation(context: ConsumerContext, correlationId: string): Promise<UserTaskList> {
+
     const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
       await this.flowNodeInstancePersistance.querySuspended(correlationId);
 
-    const suspendedUserTaskPromises: Array<Promise<UserTask>> = suspendedFlowNodes.map(async (suspendedUserTask) => {
+    const suspendedUserTasks: Array<UserTask> = [];
+
+    for (const suspendedFlowNode of suspendedFlowNodes) {
 
       const processModel: Model.Types.Process =
-        await this.processModelPersistance.getProcessModelById(suspendedUserTask.token.processModelId);
+        await this.processModelPersistance.getProcessModelById(suspendedFlowNode.token.processModelId);
 
       const processModelFacade: IProcessModelFacade = this.processModelFacadeFactory.create(processModel);
-      const userTask: Model.Activities.UserTask = processModelFacade.getFlowNodeById(suspendedUserTask.flowNodeId);
+      const userTask: Model.Activities.UserTask = processModelFacade.getFlowNodeById(suspendedFlowNode.flowNodeId);
       
-      if (!userTask instanceof Model.Activities.UserTask) {
-        return undefined;
+      if (!(userTask instanceof Model.Activities.UserTask)) {
+        continue;
       }
       
       const userTaskConfig: UserTaskConfig = {
         formFields: userTask.formFields,
       };
 
-      return {
-        key: suspendedUserTask.flowNodeId,
-        id: suspendedUserTask.flowNodeId,
-        processInstanceId: suspendedUserTask.token.processInstanceId,
+      const externalUserTask: UserTask = {
+        key: suspendedFlowNode.flowNodeId,
+        id: suspendedFlowNode.flowNodeId,
+        processInstanceId: suspendedFlowNode.token.processInstanceId,
         data: userTaskConfig,
-        payload: suspendedUserTask.token.payload,
+        payload: suspendedFlowNode.token.payload,
       };
-    });
 
-    const suspendedUserTasks: Array<Promise<UserTask>> = (await Promise.all(suspendedUserTaskPromises))
-                                                                      .filter((suspendedUserTask) => {
-                                                                        return suspendedUserTask !== undefined;
-                                                                      });
+      suspendedUserTasks.push(externalUserTask);
+    }
 
     const userTaskList: UserTaskList = {
       userTasks: suspendedUserTasks,
@@ -201,39 +289,38 @@ export class ConsumerApiService implements IConsumerApiService {
     const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
       await this.flowNodeInstancePersistance.querySuspended(correlationId);
 
-    const suspendedUserTaskPromises: Array<Promise<UserTask>> = suspendedFlowNodes.map(async (suspendedUserTask) => {
+    const suspendedUserTasks: Array<UserTask> = [];
 
-      if (!suspendedUserTask.token.processModelId === processModelId) {
-        return undefined;
+    for (const suspendedFlowNode of suspendedFlowNodes) {
+
+      if (suspendedFlowNode.token.processModelId !== processModelId) {
+        continue;
       }
 
       const processModel: Model.Types.Process =
-        await this.processModelPersistance.getProcessModelById(suspendedUserTask.token.processModelId);
+        await this.processModelPersistance.getProcessModelById(suspendedFlowNode.token.processModelId);
 
       const processModelFacade: IProcessModelFacade = this.processModelFacadeFactory.create(processModel);
-      const userTask: Model.Activities.UserTask = processModelFacade.getFlowNodeById(suspendedUserTask.flowNodeId);
+      const userTask: Model.Activities.UserTask = processModelFacade.getFlowNodeById(suspendedFlowNode.flowNodeId);
       
-      if (!userTask instanceof Model.Activities.UserTask) {
-        return undefined;
+      if (!(userTask instanceof Model.Activities.UserTask)) {
+        continue;
       }
       
       const userTaskConfig: UserTaskConfig = {
         formFields: userTask.formFields,
       };
 
-      return {
-        key: suspendedUserTask.flowNodeId,
-        id: suspendedUserTask.flowNodeId,
-        processInstanceId: suspendedUserTask.token.processInstanceId,
+      const externalUserTask: UserTask = {
+        key: suspendedFlowNode.flowNodeId,
+        id: suspendedFlowNode.flowNodeId,
+        processInstanceId: suspendedFlowNode.token.processInstanceId,
         data: userTaskConfig,
-        payload: suspendedUserTask.token.payload,
+        payload: suspendedFlowNode.token.payload,
       };
-    });
 
-    const suspendedUserTasks: Array<Promise<UserTask>> = (await Promise.all(suspendedUserTaskPromises))
-                                                                      .filter((suspendedUserTask) => {
-                                                                        return suspendedUserTask !== undefined;
-                                                                      });
+      suspendedUserTasks.push(externalUserTask);
+    }
 
     const userTaskList: UserTaskList = {
       userTasks: suspendedUserTasks,
