@@ -350,24 +350,14 @@ export class ConsumerApiService implements IConsumerApiService {
     const resultForProcessEngine: any = this._getUserTaskResultFromUserTaskConfig(userTaskResult);
 
     return new Promise<void>((resolve: Function, reject: Function): void => {
-      const subscription: ISubscription = this.eventAggregator.subscribe(`/processengine/node/${userTask.id}`, (event: any) => {
-        const eventIsNotUserTaskEndedEvent: boolean = event.data.action !== 'changeState' || event.data.data !== 'end';
-        if (eventIsNotUserTaskEndedEvent) {
-          return;
-        }
-
-        subscription.dispose();
+      this.eventAggregator.subscribeOnce(`/processengine/node/${userTask.id}`, (event: any) => {
         resolve();
       });
 
-      this.eventAggregator.publish(`/processengine/node/${userTask.id}`, {
+      this.eventAggregator.publish(`/processengine/node/${userTask.id}/finish`, {
         data: {
-          action: MessageAction.proceed,
           token: resultForProcessEngine,
-        },
-        metadata: {
-          context: executionContext,
-        },
+        }
       });
     });
 
