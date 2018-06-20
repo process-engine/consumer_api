@@ -75,14 +75,20 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
   public config: any = undefined;
 
   private _consumerApiIamService: ConsumerApiIamService;
+  private _iamService: IIamService;
   private _errorDeserializer: IErrorDeserializer;
 
-  constructor(consumerApiIamService: ConsumerApiIamService) {
+  constructor(consumerApiIamService: ConsumerApiIamService, iamService: IIamService) {
     this._consumerApiIamService = consumerApiIamService;
+    this._iamService = iamService;
   }
 
   private get consumerApiIamService(): ConsumerApiIamService {
     return this._consumerApiIamService;
+  }
+
+  private get processEngineIamService(): IIamService {
+    return this._iamService;
   }
 
   private get errorDeserializer(): IErrorDeserializer {
