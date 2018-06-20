@@ -12,18 +12,20 @@ function registerInContainer(container) {
   container.register('ConsumerApiIamService', ConsumerApiIamService)
     .configure('consumer_api_core:consumer_api_iam_service')
     .singleton();
-  
+
   container.register('ConsumerApiProcessEngineAdapter', ConsumerApiProcessEngineAdapter)
-    .dependencies('ConsumerApiIamService', 'IamService')
+    .dependencies('ConsumerApiIamService')
     .singleton();
 
   container.register('ConsumerApiService', ConsumerApiService)
-    .dependencies('ConsumerApiProcessEngineAdapter',
-                  'ExecuteProcessService',
-                  'ProcessModelFacadeFactory',
-                  'ProcessModelPersistance',
-                  'FlowNodeInstancePersistance',
-                  'EventAggregator')
+    .dependencies(
+      'ConsumerApiProcessEngineAdapter',
+      'ExecuteProcessService',
+      'ProcessModelFacadeFactory',
+      'ProcessModelPersistance',
+      'FlowNodeInstancePersistance',
+      'EventAggregator',
+      'IamService')
     .singleton();
 }
 

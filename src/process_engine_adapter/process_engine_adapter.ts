@@ -1,94 +1,44 @@
 // tslint:disable:max-file-line-count
 import {
+  ExecutionContext,
+  IIamService,
+  TokenType,
+} from '@essential-projects/core_contracts';
+import {
   ConsumerContext,
   Event as ConsumerApiEvent,
   EventList as ConsumerApiEventList,
   EventTriggerPayload,
   IConsumerApiService,
-  ICorrelationResult,
   ProcessModel as ConsumerApiProcessModel,
   ProcessModelList as ConsumerApiProcessModelList,
-  ProcessStartRequestPayload,
-  ProcessStartResponsePayload,
-  StartCallbackType,
-  UserTask,
-  UserTaskConfig,
-  UserTaskFormField,
-  UserTaskList,
-  UserTaskResult,
 } from '@process-engine/consumer_api_contracts';
-
 import {
-  ExecutionContext,
-  IIamService,
-  IIdentity,
-  IPrivateQueryOptions,
-  IPublicGetOptions,
-  IQueryClause,
-  TokenType,
-} from '@essential-projects/core_contracts';
-import {IDatastoreService, IEntityCollection, IEntityType} from '@essential-projects/data_model_contracts';
-import {IEventAggregator, ISubscription} from '@essential-projects/event_aggregator_contracts';
-import {IDataMessage, IMessageBusService, IMessageSubscription} from '@essential-projects/messagebus_contracts';
-import {
-  BpmnType,
-  IEndEventEntity,
   IErrorDeserializer,
-  INodeDefEntity,
-  INodeInstanceEntity,
-  INodeInstanceEntityTypeService,
-  IProcessDefEntity,
-  IProcessEngineService,
-  IProcessEntity,
-  IProcessTokenEntity,
-  IStartEventEntity,
-  IUserTaskEntity,
-  IUserTaskMessageData,
-  IFlowNodeInstancePersistance,
-  IProcessModelPersistance,
-  Model,
 } from '@process-engine/process_engine_contracts';
 
 import {
-  BadRequestError,
   BaseError,
-  ForbiddenError,
-  InternalServerError,
-  isError,
-  NotFoundError,
-  UnprocessableEntityError,
 } from '@essential-projects/errors_ts';
-import * as BpmnModdle from 'bpmn-moddle';
-import {MessageAction, NodeDefFormField} from './process_engine_adapter_interfaces';
-
-import {IBpmnModdle, IDefinition, IModdleElement} from './bpmnmodeler/index';
 import {ConsumerApiIamService} from './consumer_api_iam_service';
 
 import {Logger} from 'loggerhythm';
 
-import * as uuid from 'uuid';
-
 const logger: Logger = Logger.createLogger('consumer_api_core')
                              .createChildLogger('process_engine_adapter');
 
-export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
+export class ConsumerApiProcessEngineAdapter {
   public config: any = undefined;
 
   private _consumerApiIamService: ConsumerApiIamService;
-  private _iamService: IIamService;
   private _errorDeserializer: IErrorDeserializer;
 
-  constructor(consumerApiIamService: ConsumerApiIamService, iamService: IIamService) {
+  constructor(consumerApiIamService: ConsumerApiIamService) {
     this._consumerApiIamService = consumerApiIamService;
-    this._iamService = iamService;
   }
 
   private get consumerApiIamService(): ConsumerApiIamService {
     return this._consumerApiIamService;
-  }
-
-  private get processEngineIamService(): IIamService {
-    return this._iamService;
   }
 
   private get errorDeserializer(): IErrorDeserializer {
@@ -171,13 +121,4 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
                             eventTriggerPayload?: EventTriggerPayload): Promise<void> {
     return Promise.resolve();
   }
-
-  // -------------
-  // Process Engine Accessor Functions. Here be dragons. With lasers.
-  // -------------
-
-  public createExecutionContextFromConsumerContext(consumerContext: ConsumerContext): Promise<ExecutionContext> {
-    return this.processEngineIamService.resolveExecutionContext(consumerContext.identity, TokenType.jwt);
-  }
-
 }
