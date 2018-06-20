@@ -14,15 +14,7 @@ function registerInContainer(container) {
     .singleton();
   
   container.register('ConsumerApiProcessEngineAdapter', ConsumerApiProcessEngineAdapter)
-    .dependencies('ConsumerApiIamService',
-                  'DatastoreService',
-                  'EventAggregator',
-                  'IamService',
-                  'MessageBusService',
-                  'NodeInstanceEntityTypeService',
-                  'ProcessEngineService',
-                  'ProcessModelPersistance',
-                  'FlowNodeInstancePersistance')
+    .dependencies('ConsumerApiIamService')
     .singleton();
 
   container.register('ConsumerApiService', ConsumerApiService)

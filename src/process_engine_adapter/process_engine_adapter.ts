@@ -75,75 +75,18 @@ export class ConsumerApiProcessEngineAdapter implements IConsumerApiService {
   public config: any = undefined;
 
   private _consumerApiIamService: ConsumerApiIamService;
-  private _processEngineService: IProcessEngineService;
-  private _iamService: IIamService;
-  private _datastoreService: IDatastoreService;
-  private _nodeInstanceEntityTypeService: INodeInstanceEntityTypeService;
-  private _messageBusService: IMessageBusService;
   private _errorDeserializer: IErrorDeserializer;
-  private _eventAggregator: IEventAggregator;
-  private _processModelPersistance: IProcessModelPersistance;
-  private _flowNodeInstancePersistance: IFlowNodeInstancePersistance;
 
-  constructor(consumerApiIamService: ConsumerApiIamService,
-              datastoreService: IDatastoreService,
-              eventAggregator: IEventAggregator,
-              iamService: IIamService,
-              messageBusService: IMessageBusService,
-              nodeInstanceEntityTypeService: INodeInstanceEntityTypeService,
-              processEngineService: IProcessEngineService,
-              processModelPersistance: IProcessModelPersistance,
-              flowNodeInstancePersistance: IFlowNodeInstancePersistance) {
-
+  constructor(consumerApiIamService: ConsumerApiIamService) {
     this._consumerApiIamService = consumerApiIamService;
-    this._datastoreService = datastoreService;
-    this._eventAggregator = eventAggregator;
-    this._iamService = iamService;
-    this._messageBusService = messageBusService;
-    this._nodeInstanceEntityTypeService = nodeInstanceEntityTypeService;
-    this._processEngineService = processEngineService;
-    this._processModelPersistance = processModelPersistance;
-    this._flowNodeInstancePersistance = flowNodeInstancePersistance;
   }
 
   private get consumerApiIamService(): ConsumerApiIamService {
     return this._consumerApiIamService;
   }
 
-  private get datastoreService(): IDatastoreService {
-    return this._datastoreService;
-  }
-
   private get errorDeserializer(): IErrorDeserializer {
     return this._errorDeserializer;
-  }
-
-  private get eventAggregator(): IEventAggregator {
-    return this._eventAggregator;
-  }
-
-  private get messageBusService(): IMessageBusService {
-    return this._messageBusService;
-  }
-
-  private get nodeInstanceEntityTypeService(): INodeInstanceEntityTypeService {
-    return this._nodeInstanceEntityTypeService;
-  }
-
-  private get processEngineIamService(): IIamService {
-    return this._iamService;
-  }
-
-  private get processEngineService(): IProcessEngineService {
-    return this._processEngineService;
-  }
-
-  private get processModelPersistance(): IProcessModelPersistance {
-    return this._processModelPersistance;
-  }
-
-  private get flowNodeInstancePersistance(): IFlowNodeInstancePersistance {
-    return this._flowNodeInstancePersistance;
   }
 
   public async initialize(): Promise<void> {
