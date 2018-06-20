@@ -350,7 +350,7 @@ export class ConsumerApiService implements IConsumerApiService {
     const resultForProcessEngine: any = this._getUserTaskResultFromUserTaskConfig(userTaskResult);
 
     return new Promise<void>((resolve: Function, reject: Function): void => {
-      this.eventAggregator.subscribeOnce(`/processengine/node/${userTask.id}`, (event: any) => {
+      this.eventAggregator.subscribeOnce(`/processengine/node/${userTask.id}/finished`, (event: any) => {
         resolve();
       });
 
