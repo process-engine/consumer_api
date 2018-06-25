@@ -278,7 +278,7 @@ export class ConsumerApiService implements IConsumerApiService {
       id: flowNodeInstance.flowNodeId,
       processInstanceId: flowNodeInstance.token.processInstanceId,
       data: userTaskConfig,
-      payload: flowNodeInstance.token.payload,
+      tokenPayload: flowNodeInstance.token.payload,
     };
 
     return consumerApiUserTask;
