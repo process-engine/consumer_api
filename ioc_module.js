@@ -1,10 +1,6 @@
 'use strict'
 
-const {
-  ConsumerApiIamService,
-  ConsumerApiProcessEngineAdapter,
-  ConsumerApiService,
-} = require('./dist/commonjs/index');
+const ConsumerApiService = require('./dist/commonjs/index').ConsumerApiService;
 
 function registerInContainer(container) {
 
