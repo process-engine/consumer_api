@@ -201,15 +201,47 @@ export class ConsumerApiService implements IConsumerApiService {
 
   // Events
   public async getEventsForProcessModel(context: ConsumerContext, processModelKey: string): Promise<EventList> {
-    return this.processEngineAdapter.getEventsForProcessModel(context, processModelKey);
+
+    const mockData: EventList = {
+      events: [{
+        key: 'startEvent_1',
+        id: '',
+        processInstanceId: '',
+        data: {},
+      }],
+    };
+
+    return Promise.resolve(mockData);
   }
 
   public async getEventsForCorrelation(context: ConsumerContext, correlationId: string): Promise<EventList> {
-    return this.processEngineAdapter.getEventsForCorrelation(context, correlationId);
+
+    const mockData: EventList = {
+      events: [{
+        key: 'startEvent_1',
+        id: '',
+        processInstanceId: '',
+        data: {},
+      }],
+    };
+
+    return Promise.resolve(mockData);
   }
 
-  public async getEventsForProcessModelInCorrelation(context: ConsumerContext, processModelKey: string, correlationId: string): Promise<EventList> {
-    return this.processEngineAdapter.getEventsForProcessModelInCorrelation(context, processModelKey, correlationId);
+  public async getEventsForProcessModelInCorrelation(context: ConsumerContext,
+                                                     processModelKey: string,
+                                                     correlationId: string): Promise<EventList> {
+
+    const mockData: EventList = {
+      events: [{
+        key: 'startEvent_1',
+        id: '',
+        processInstanceId: '',
+        data: {},
+      }],
+    };
+
+    return Promise.resolve(mockData);
   }
 
   public async triggerEvent(context: ConsumerContext,
@@ -217,8 +249,7 @@ export class ConsumerApiService implements IConsumerApiService {
                             correlationId: string,
                             eventId: string,
                             eventTriggerPayload?: EventTriggerPayload): Promise<void> {
-
-    return this.processEngineAdapter.triggerEvent(context, processModelKey, correlationId, eventId, eventTriggerPayload);
+    return Promise.resolve();
   }
 
   // UserTasks
@@ -269,11 +300,17 @@ export class ConsumerApiService implements IConsumerApiService {
     return userTaskFormField;
   }
 
-  private async _convertSuspendedFlowNodesToUserTaskList(suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance>): Promise<UserTaskList> {
+  private async _convertSuspendedFlowNodesToUserTaskList(suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance>,
+                                                         processModelId?: string,
+                                                        ): Promise<UserTaskList> {
 
     const suspendedUserTasks: Array<UserTask> = [];
 
     for (const suspendedFlowNode of suspendedFlowNodes) {
+
+      if (processModelId && suspendedFlowNode.token.processModelId !== processModelId) {
+        continue;
+      }
 
       const userTask: UserTask = await this._convertSuspendedFlowNodeToUserTask(suspendedFlowNode);
 
@@ -303,14 +340,6 @@ export class ConsumerApiService implements IConsumerApiService {
       return undefined;
     }
 
-    const consumerApiFormFields: Array<UserTaskFormField> = userTask.formFields.map((formField: Model.Types.FormField) => {
-      return this._convertToConsumerApiFormField(formField);
-    });
-
-    const userTaskConfig: UserTaskConfig = {
-      formFields: consumerApiFormFields,
-    };
-
     return this._convertToConsumerApiUserTask(userTask, flowNodeInstance);
   }
 
@@ -331,28 +360,7 @@ export class ConsumerApiService implements IConsumerApiService {
     const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
       await this.flowNodeInstancePersistance.querySuspendedByCorrelation(correlationId);
 
-    const suspendedUserTasks: Array<UserTask> = [];
-
-    for (const suspendedFlowNode of suspendedFlowNodes) {
-
-      // this duplicates _convertSuspendedFlowNodesToUserTaskList because it
-      // needs to perform an additional check for the process model
-      if (suspendedFlowNode.token.processModelId !== processModelId) {
-        continue;
-      }
-
-      const userTask: UserTask = await this._convertSuspendedFlowNodeToUserTask(suspendedFlowNode);
-
-      if (userTask === undefined) {
-        continue;
-      }
-
-      suspendedUserTasks.push(userTask);
-    }
-
-    const userTaskList: UserTaskList = {
-      userTasks: suspendedUserTasks,
-    };
+    const userTaskList: UserTaskList = await this._convertSuspendedFlowNodesToUserTaskList(suspendedFlowNodes, processModelId);
 
     return userTaskList;
   }
