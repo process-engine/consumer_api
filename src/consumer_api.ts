@@ -257,92 +257,12 @@ export class ConsumerApiService implements IConsumerApiService {
   // UserTasks
   public async getUserTasksForProcessModel(context: ConsumerContext, processModelId: string): Promise<UserTaskList> {
 
-    const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance>
-      = await this.flowNodeInstancePersistance.querySuspendedByProcessModel(processModelId);
+    const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
+      await this.flowNodeInstancePersistance.querySuspendedByProcessModel(processModelId);
 
     const userTaskList: UserTaskList = await this._convertSuspendedFlowNodesToUserTaskList(suspendedFlowNodes);
 
     return userTaskList;
-  }
-
-  private _convertToConsumerApiUserTask(userTask: Model.Activities.UserTask, flowNodeInstance: Runtime.Types.FlowNodeInstance): UserTask {
-
-    const consumerApiFormFields: Array<UserTaskFormField> = userTask.formFields.map((formField: Model.Types.FormField) => {
-      return this._convertToConsumerApiFormField(formField);
-    });
-
-    const userTaskConfig: UserTaskConfig = {
-      formFields: consumerApiFormFields,
-    };
-
-    const consumerApiUserTask: UserTask = {
-      key: flowNodeInstance.flowNodeId,
-      id: flowNodeInstance.flowNodeId,
-      processInstanceId: flowNodeInstance.token.processInstanceId,
-      data: userTaskConfig,
-      tokenPayload: flowNodeInstance.token.payload,
-    };
-
-    return consumerApiUserTask;
-  }
-
-  private _convertToConsumerApiFormFieldType(type: string): UserTaskFormFieldType {
-    return UserTaskFormFieldType[type];
-  }
-
-  private _convertToConsumerApiFormField(formField: Model.Types.FormField): UserTaskFormField {
-
-    const userTaskFormField: UserTaskFormField = new UserTaskFormField();
-    userTaskFormField.id = formField.id;
-    userTaskFormField.label = formField.label;
-    userTaskFormField.type = this._convertToConsumerApiFormFieldType(formField.type);
-    userTaskFormField.defaultValue = formField.defaultValue;
-    userTaskFormField.preferredControl = formField.preferredControl;
-
-    return userTaskFormField;
-  }
-
-  private async _convertSuspendedFlowNodesToUserTaskList(suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance>,
-                                                         processModelId?: string,
-                                                        ): Promise<UserTaskList> {
-
-    const suspendedUserTasks: Array<UserTask> = [];
-
-    for (const suspendedFlowNode of suspendedFlowNodes) {
-
-      if (processModelId && suspendedFlowNode.token.processModelId !== processModelId) {
-        continue;
-      }
-
-      const userTask: UserTask = await this._convertSuspendedFlowNodeToUserTask(suspendedFlowNode);
-
-      if (userTask === undefined) {
-        continue;
-      }
-
-      suspendedUserTasks.push(userTask);
-    }
-
-    const userTaskList: UserTaskList = {
-      userTasks: suspendedUserTasks,
-    };
-
-    return userTaskList;
-  }
-
-  private async _convertSuspendedFlowNodeToUserTask(flowNodeInstance: Runtime.Types.FlowNodeInstance): Promise<UserTask> {
-
-    const processModel: Model.Types.Process =
-    await this.processModelPersistance.getProcessModelById(flowNodeInstance.token.processModelId);
-
-    const processModelFacade: IProcessModelFacade = this.processModelFacadeFactory.create(processModel);
-    const userTask: Model.Activities.UserTask = processModelFacade.getFlowNodeById(flowNodeInstance.flowNodeId) as Model.Activities.UserTask;
-
-    if (!(userTask instanceof Model.Activities.UserTask)) {
-      return undefined;
-    }
-
-    return this._convertToConsumerApiUserTask(userTask, flowNodeInstance);
   }
 
   public async getUserTasksForCorrelation(context: ConsumerContext, correlationId: string): Promise<UserTaskList> {
@@ -365,10 +285,6 @@ export class ConsumerApiService implements IConsumerApiService {
     const userTaskList: UserTaskList = await this._convertSuspendedFlowNodesToUserTaskList(suspendedFlowNodes, processModelId);
 
     return userTaskList;
-  }
-
-  private _createExecutionContextFromConsumerContext(consumerContext: ConsumerContext): Promise<ExecutionContext> {
-    return this.processEngineIamService.resolveExecutionContext(consumerContext.identity, TokenType.jwt);
   }
 
   public async finishUserTask(context: ConsumerContext,
@@ -404,6 +320,95 @@ export class ConsumerApiService implements IConsumerApiService {
       });
     });
 
+  }
+
+  private _createExecutionContextFromConsumerContext(consumerContext: ConsumerContext): Promise<ExecutionContext> {
+    return this.processEngineIamService.resolveExecutionContext(consumerContext.identity, TokenType.jwt);
+  }
+
+  private async _convertSuspendedFlowNodesToUserTaskList(suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance>,
+                                                         processModelId?: string,
+                                                        ): Promise<UserTaskList> {
+
+    const userTaskFlowNodes: Array<Runtime.Types.FlowNodeInstance> = this._getUserTasksFromFlowNodeInstanceList(suspendedFlowNodes, processModelId);
+
+    const suspendedUserTasks: Array<UserTask> = [];
+
+    for (const suspendedFlowNode of userTaskFlowNodes) {
+      const userTask: UserTask = await this._convertSuspendedFlowNodeToUserTask(suspendedFlowNode);
+      suspendedUserTasks.push(userTask);
+    }
+
+    const userTaskList: UserTaskList = {
+      userTasks: suspendedUserTasks,
+    };
+
+    return userTaskList;
+  }
+
+  private _getUserTasksFromFlowNodeInstanceList(suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance>,
+                                                processModelId?: string,
+                                               ): Array<Runtime.Types.FlowNodeInstance> {
+
+    const flowNodeFilter: any = (flowNode: Runtime.Types.FlowNodeInstance): boolean => {
+
+      const isUserTask: boolean = flowNode instanceof Model.Activities.UserTask;
+      const hasMatchingProcessModelId: boolean = !processModelId || flowNode.token.processModelId === processModelId;
+
+      return isUserTask && hasMatchingProcessModelId;
+    };
+
+    const userTaskFlowNodes: Array<Runtime.Types.FlowNodeInstance> = suspendedFlowNodes.filter(flowNodeFilter);
+
+    return userTaskFlowNodes;
+  }
+
+  private async _convertSuspendedFlowNodeToUserTask(flowNodeInstance: Runtime.Types.FlowNodeInstance): Promise<UserTask> {
+
+    const processModel: Model.Types.Process =
+      await this.processModelPersistance.getProcessModelById(flowNodeInstance.token.processModelId);
+
+    const processModelFacade: IProcessModelFacade = this.processModelFacadeFactory.create(processModel);
+    const userTask: Model.Activities.UserTask = processModelFacade.getFlowNodeById(flowNodeInstance.flowNodeId) as Model.Activities.UserTask;
+
+    return this._convertToConsumerApiUserTask(userTask, flowNodeInstance);
+  }
+
+  private _convertToConsumerApiFormFieldType(type: string): UserTaskFormFieldType {
+    return UserTaskFormFieldType[type];
+  }
+
+  private _convertToConsumerApiUserTask(userTask: Model.Activities.UserTask, flowNodeInstance: Runtime.Types.FlowNodeInstance): UserTask {
+
+    const consumerApiFormFields: Array<UserTaskFormField> = userTask.formFields.map((formField: Model.Types.FormField) => {
+      return this._convertToConsumerApiFormField(formField);
+    });
+
+    const userTaskConfig: UserTaskConfig = {
+      formFields: consumerApiFormFields,
+    };
+
+    const consumerApiUserTask: UserTask = {
+      key: flowNodeInstance.flowNodeId,
+      id: flowNodeInstance.flowNodeId,
+      processInstanceId: flowNodeInstance.token.processInstanceId,
+      data: userTaskConfig,
+      tokenPayload: flowNodeInstance.token.payload,
+    };
+
+    return consumerApiUserTask;
+  }
+
+  private _convertToConsumerApiFormField(formField: Model.Types.FormField): UserTaskFormField {
+
+    const userTaskFormField: UserTaskFormField = new UserTaskFormField();
+    userTaskFormField.id = formField.id;
+    userTaskFormField.label = formField.label;
+    userTaskFormField.type = this._convertToConsumerApiFormFieldType(formField.type);
+    userTaskFormField.defaultValue = formField.defaultValue;
+    userTaskFormField.preferredControl = formField.preferredControl;
+
+    return userTaskFormField;
   }
 
   private _getUserTaskResultFromUserTaskConfig(finishedTask: UserTaskResult): any {
