@@ -12,8 +12,8 @@ function registerInContainer(container) {
     .dependencies(
       'ExecuteProcessService',
       'ProcessModelFacadeFactory',
-      'ProcessModelPersistance',
-      'FlowNodeInstancePersistance',
+      'ProcessModelPersistence',
+      'FlowNodeInstancePersistence',
       'EventAggregator',
       'IamService')
     .singleton();
