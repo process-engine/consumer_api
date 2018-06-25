@@ -330,12 +330,20 @@ export class ConsumerApiService implements IConsumerApiService {
                                                          processModelId?: string,
                                                         ): Promise<UserTaskList> {
 
-    const userTaskFlowNodes: Array<Runtime.Types.FlowNodeInstance> = this._getUserTasksFromFlowNodeInstanceList(suspendedFlowNodes, processModelId);
-
     const suspendedUserTasks: Array<UserTask> = [];
 
-    for (const suspendedFlowNode of userTaskFlowNodes) {
+    for (const suspendedFlowNode of suspendedFlowNodes) {
+
+      if (processModelId && suspendedFlowNode.token.processModelId !== processModelId) {
+        continue;
+      }
+
       const userTask: UserTask = await this._convertSuspendedFlowNodeToUserTask(suspendedFlowNode);
+
+      if (userTask === undefined) {
+        continue;
+      }
+
       suspendedUserTasks.push(userTask);
     }
 
@@ -344,23 +352,6 @@ export class ConsumerApiService implements IConsumerApiService {
     };
 
     return userTaskList;
-  }
-
-  private _getUserTasksFromFlowNodeInstanceList(suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance>,
-                                                processModelId?: string,
-                                               ): Array<Runtime.Types.FlowNodeInstance> {
-
-    const flowNodeFilter: any = (flowNode: Runtime.Types.FlowNodeInstance): boolean => {
-
-      const isUserTask: boolean = flowNode instanceof Model.Activities.UserTask;
-      const hasMatchingProcessModelId: boolean = !processModelId || flowNode.token.processModelId === processModelId;
-
-      return isUserTask && hasMatchingProcessModelId;
-    };
-
-    const userTaskFlowNodes: Array<Runtime.Types.FlowNodeInstance> = suspendedFlowNodes.filter(flowNodeFilter);
-
-    return userTaskFlowNodes;
   }
 
   private async _convertSuspendedFlowNodeToUserTask(flowNodeInstance: Runtime.Types.FlowNodeInstance): Promise<UserTask> {
