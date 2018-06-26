@@ -152,31 +152,67 @@ export class ConsumerApiService implements IConsumerApiService {
     const correlationId: string = payload.correlationId || uuid.v4();
     const processModel: Model.Types.Process = await this.processModelPersistence.getProcessModelById(processModelId);
 
-    let endEventReachedMessage: EndEventReachedMessage;
+    const response: ProcessStartResponsePayload = await this._startProcessInstance(executionContext,
+                                                                                   correlationId,
+                                                                                   processModel,
+                                                                                   startEventId,
+                                                                                   payload,
+                                                                                   startCallbackType,
+                                                                                   endEventKey);
 
-    if (startCallbackType === StartCallbackType.CallbackOnProcessInstanceCreated) {
-      this.executeProcessService.start(executionContext, processModel, correlationId, payload.inputValues);
-    } else if (startCallbackType === StartCallbackType.CallbackOnEndEventReached && endEventKey) {
-      endEventReachedMessage = await this.executeProcessService.startAndAwaitSpecificEndEvent(executionContext,
-                                                                                              processModel,
-                                                                                              correlationId,
-                                                                                              endEventKey,
-                                                                                              payload.inputValues);
-    } else {
-      endEventReachedMessage = await this.executeProcessService.startAndAwaitEndEvent(executionContext,
-                                                                                      processModel,
-                                                                                      correlationId,
-                                                                                      payload.inputValues);
-    }
+    return response;
+  }
+
+  private async _startProcessInstance(executionContext: ExecutionContext,
+                                      correlationId: string,
+                                      processModel: Model.Types.Process,
+                                      startEventId: string,
+                                      payload: ProcessStartRequestPayload,
+                                      startCallbackType: StartCallbackType = StartCallbackType.CallbackOnProcessInstanceCreated,
+                                      endEventKey?: string,
+                                    ): Promise<ProcessStartResponsePayload> {
 
     const response: ProcessStartResponsePayload = {
       correlationId: correlationId,
     };
 
-    if (endEventReachedMessage) {
+    // Only start the process instance and return
+
+    if (startCallbackType === StartCallbackType.CallbackOnProcessInstanceCreated) {
+
+      this.executeProcessService.start(executionContext, processModel, correlationId, payload.inputValues);
+
+      return response;
+    }
+
+    let endEventReachedMessage: EndEventReachedMessage;
+
+    // Start the process instance and wait for a specific end event result
+
+    if (startCallbackType === StartCallbackType.CallbackOnEndEventReached && endEventKey) {
+      endEventReachedMessage
+        = await this.executeProcessService.startAndAwaitSpecificEndEvent(executionContext,
+                                                                         processModel,
+                                                                         correlationId,
+                                                                         endEventKey,
+                                                                         payload.inputValues);
+
       response.endEventId = endEventReachedMessage.endEventId;
       response.tokenPayload = endEventReachedMessage.tokenPayload;
+
+      return response;
     }
+
+    // Start the process instance and wait for the first end event result
+
+    endEventReachedMessage
+      = await this.executeProcessService.startAndAwaitEndEvent(executionContext,
+                                                               processModel,
+                                                               correlationId,
+                                                               payload.inputValues);
+
+    response.endEventId = endEventReachedMessage.endEventId;
+    response.tokenPayload = endEventReachedMessage.tokenPayload;
 
     return response;
   }
