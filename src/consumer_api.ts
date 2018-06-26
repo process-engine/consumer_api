@@ -25,6 +25,7 @@ import {
   UserTaskResult,
 } from '@process-engine/consumer_api_contracts';
 import {
+  EndEventReachedMessage,
   IExecuteProcessService,
   IFlowNodeInstancePersistence,
   IProcessModelFacade,
@@ -151,17 +152,31 @@ export class ConsumerApiService implements IConsumerApiService {
     const correlationId: string = payload.correlationId || uuid.v4();
     const processModel: Model.Types.Process = await this.processModelPersistence.getProcessModelById(processModelId);
 
+    let endEventReachedMessage: EndEventReachedMessage;
+
     if (startCallbackType === StartCallbackType.CallbackOnProcessInstanceCreated) {
       this.executeProcessService.start(executionContext, processModel, correlationId, payload.inputValues);
     } else if (startCallbackType === StartCallbackType.CallbackOnEndEventReached && endEventKey) {
-      this.executeProcessService.startAndAwaitSpecificEndEvent(executionContext, processModel, correlationId, endEventKey, payload.inputValues);
+      endEventReachedMessage = await this.executeProcessService.startAndAwaitSpecificEndEvent(executionContext,
+                                                                                              processModel,
+                                                                                              correlationId,
+                                                                                              endEventKey,
+                                                                                              payload.inputValues);
     } else {
-      this.executeProcessService.startAndAwaitEndEvent(executionContext, processModel, correlationId, payload.inputValues);
+      endEventReachedMessage = await this.executeProcessService.startAndAwaitEndEvent(executionContext,
+                                                                                      processModel,
+                                                                                      correlationId,
+                                                                                      payload.inputValues);
     }
 
     const response: ProcessStartResponsePayload = {
       correlationId: correlationId,
     };
+
+    if (endEventReachedMessage) {
+      response.endEventId = endEventReachedMessage.endEventId;
+      response.tokenPayload = endEventReachedMessage.tokenPayload;
+    }
 
     return response;
   }
