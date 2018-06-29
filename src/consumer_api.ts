@@ -336,7 +336,7 @@ export class ConsumerApiService implements IConsumerApiService {
 
     if (startCallbackType === StartCallbackType.CallbackOnProcessInstanceCreated) {
 
-      this.executeProcessService.start(executionContext, processModel, correlationId, payload.inputValues);
+      this.executeProcessService.start(executionContext, processModel, startEventId, correlationId, payload.inputValues);
 
       return response;
     }
@@ -349,6 +349,7 @@ export class ConsumerApiService implements IConsumerApiService {
       endEventReachedMessage
         = await this.executeProcessService.startAndAwaitSpecificEndEvent(executionContext,
                                                                          processModel,
+                                                                         startEventId,
                                                                          correlationId,
                                                                          endEventKey,
                                                                          payload.inputValues);
@@ -364,6 +365,7 @@ export class ConsumerApiService implements IConsumerApiService {
     endEventReachedMessage
       = await this.executeProcessService.startAndAwaitEndEvent(executionContext,
                                                                processModel,
+                                                               startEventId,
                                                                correlationId,
                                                                payload.inputValues);
 
