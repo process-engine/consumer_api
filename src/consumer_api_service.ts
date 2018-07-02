@@ -103,7 +103,6 @@ export class ConsumerApiService implements IConsumerApiService {
     return consumerApiProcessModel;
   }
 
-  // TODO: implement use of specific start event
   public async startProcessInstance(context: ConsumerContext,
                                     processModelId: string,
                                     startEventId: string,
@@ -112,25 +111,11 @@ export class ConsumerApiService implements IConsumerApiService {
                                     endEventId?: string,
                                   ): Promise<ProcessStartResponsePayload> {
 
-    if (!Object.values(StartCallbackType).includes(startCallbackType)) {
-      throw new EssentialProjectErrors.BadRequestError(`${startCallbackType} is not a valid return option!`);
-    }
-
-    if (startCallbackType === StartCallbackType.CallbackOnEndEventReached && !endEventId) {
-      throw new EssentialProjectErrors.BadRequestError(`Must provide an EndEventId, when using callback type 'CallbackOnEndEventReached'!`);
-    }
-
     const executionContext: ExecutionContext = await this._createExecutionContextFromConsumerContext(context);
     const correlationId: string = payload.correlationId || uuid.v4();
     const processModel: Model.Types.Process = await this.processModelPersistence.getProcessModelById(processModelId);
 
-    const hasMatchingStartEvent: boolean = processModel.flowNodes.some((flowNode: Model.Base.FlowNode): boolean => {
-      return flowNode.id === startEventId;
-    });
-
-    if (!hasMatchingStartEvent) {
-      throw new EssentialProjectErrors.NotFoundError(`StartEvent with ID '${startEventId}' not found`);
-    }
+    this._validateStartRequest(processModel, startEventId, endEventId, startCallbackType);
 
     const response: ProcessStartResponsePayload = await this._startProcessInstance(executionContext,
                                                                                    correlationId,
@@ -325,6 +310,40 @@ export class ConsumerApiService implements IConsumerApiService {
     };
 
     return processModelResponse;
+  }
+
+  private _validateStartRequest(processModel: Model.Types.Process,
+                                startEventId: string,
+                                endEventId: string,
+                                startCallbackType: StartCallbackType,
+                               ): void {
+
+    if (!Object.values(StartCallbackType).includes(startCallbackType)) {
+      throw new EssentialProjectErrors.BadRequestError(`${startCallbackType} is not a valid return option!`);
+    }
+
+    const hasMatchingStartEvent: boolean = processModel.flowNodes.some((flowNode: Model.Base.FlowNode): boolean => {
+      return flowNode.id === startEventId;
+    });
+
+    if (!hasMatchingStartEvent) {
+      throw new EssentialProjectErrors.NotFoundError(`StartEvent with ID '${startEventId}' not found!`);
+    }
+
+    if (startCallbackType === StartCallbackType.CallbackOnEndEventReached) {
+
+      if (!endEventId) {
+        throw new EssentialProjectErrors.BadRequestError(`Must provide an EndEventId, when using callback type 'CallbackOnEndEventReached'!`);
+      }
+
+      const hasMatchingEndEvent: boolean = processModel.flowNodes.some((flowNode: Model.Base.FlowNode): boolean => {
+        return flowNode.id === endEventId;
+      });
+
+      if (!hasMatchingEndEvent) {
+        throw new EssentialProjectErrors.NotFoundError(`EndEvent with ID '${startEventId}' not found!`);
+      }
+    }
   }
 
   private async _startProcessInstance(executionContext: ExecutionContext,
