@@ -124,6 +124,14 @@ export class ConsumerApiService implements IConsumerApiService {
     const correlationId: string = payload.correlationId || uuid.v4();
     const processModel: Model.Types.Process = await this.processModelPersistence.getProcessModelById(processModelId);
 
+    const hasMatchingStartEvent: boolean = processModel.flowNodes.some((flowNode: Model.Base.FlowNode): boolean => {
+      return flowNode.id === startEventId;
+    });
+
+    if (!hasMatchingStartEvent) {
+      throw new EssentialProjectErrors.NotFoundError(`StartEvent with ID '${startEventId}' not found`);
+    }
+
     const response: ProcessStartResponsePayload = await this._startProcessInstance(executionContext,
                                                                                    correlationId,
                                                                                    processModel,
