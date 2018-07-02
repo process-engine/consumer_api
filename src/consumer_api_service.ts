@@ -109,15 +109,15 @@ export class ConsumerApiService implements IConsumerApiService {
                                     startEventId: string,
                                     payload: ProcessStartRequestPayload,
                                     startCallbackType: StartCallbackType = StartCallbackType.CallbackOnProcessInstanceCreated,
-                                    endEventKey?: string,
+                                    endEventId?: string,
                                   ): Promise<ProcessStartResponsePayload> {
 
     if (!Object.values(StartCallbackType).includes(startCallbackType)) {
       throw new EssentialProjectErrors.BadRequestError(`${startCallbackType} is not a valid return option!`);
     }
 
-    if (startCallbackType === StartCallbackType.CallbackOnEndEventReached && !endEventKey) {
-      throw new EssentialProjectErrors.BadRequestError(`Must provide an EndEventKey, when using callback type 'CallbackOnEndEventReached'!`);
+    if (startCallbackType === StartCallbackType.CallbackOnEndEventReached && !endEventId) {
+      throw new EssentialProjectErrors.BadRequestError(`Must provide an EndEventId, when using callback type 'CallbackOnEndEventReached'!`);
     }
 
     const executionContext: ExecutionContext = await this._createExecutionContextFromConsumerContext(context);
@@ -138,7 +138,7 @@ export class ConsumerApiService implements IConsumerApiService {
                                                                                    startEventId,
                                                                                    payload,
                                                                                    startCallbackType,
-                                                                                   endEventKey);
+                                                                                   endEventId);
 
     return response;
   }
@@ -333,7 +333,7 @@ export class ConsumerApiService implements IConsumerApiService {
                                       startEventId: string,
                                       payload: ProcessStartRequestPayload,
                                       startCallbackType: StartCallbackType = StartCallbackType.CallbackOnProcessInstanceCreated,
-                                      endEventKey?: string,
+                                      endEventId?: string,
                                     ): Promise<ProcessStartResponsePayload> {
 
     const response: ProcessStartResponsePayload = {
@@ -353,13 +353,13 @@ export class ConsumerApiService implements IConsumerApiService {
 
     // Start the process instance and wait for a specific end event result
 
-    if (startCallbackType === StartCallbackType.CallbackOnEndEventReached && endEventKey) {
+    if (startCallbackType === StartCallbackType.CallbackOnEndEventReached && endEventId) {
       endEventReachedMessage
         = await this.executeProcessService.startAndAwaitSpecificEndEvent(executionContext,
                                                                          processModel,
                                                                          startEventId,
                                                                          correlationId,
-                                                                         endEventKey,
+                                                                         endEventId,
                                                                          payload.inputValues);
 
       response.endEventId = endEventReachedMessage.endEventId;
