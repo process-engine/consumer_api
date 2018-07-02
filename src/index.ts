@@ -1,1 +1,1 @@
-export * from './consumer_api';
+export * from './consumer_api_service';
