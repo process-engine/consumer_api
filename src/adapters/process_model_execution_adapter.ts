@@ -1,5 +1,4 @@
 import {ExecutionContext} from '@essential-projects/core_contracts';
-import * as EssentialProjectErrors from '@essential-projects/errors_ts';
 import {
   EndEventReachedMessage,
   IExecuteProcessService,
@@ -25,9 +24,10 @@ export interface IProcessModelExecutionAdapter {
                        endEventId?: string): Promise<ProcessStartResponsePayload>;
 }
 
-// NOTE: When running processes, we need to pass full process model to the ExecuteProcessService. This can only be done,
-// if all claim checks against the persistence service pass. To that end, this adapter - and this adapter ONLY! -
-// will have to use a mock for the IAM facade, until the consumer api is able to authenticate itself against the external authority.
+// TODO: When running processes, we need to pass full process model to the ExecuteProcessService.
+// Right now, this can only be achieved, if all claim checks against the persistence service pass, regardless of who makes the request.
+// To that end, this adapter - and this adapter ONLY! - will have to use a mock for the IAM facade,
+// until the consumer api is able to authenticate itself against the external authority.
 export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapter {
 
   private _executeProcessService: IExecuteProcessService;
@@ -62,9 +62,9 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
                                     endEventId?: string): Promise<ProcessStartResponsePayload> {
 
     const correlationId: string = payload.correlationId || uuid.v4();
-    const processModel: Model.Types.Process = await this.processModelPersistenceService.getProcessModelById(executionContextFacade, processModelId);
 
-    this._validateStartRequest(processModel, startEventId, endEventId, startCallbackType);
+    // Uses the mock IAM facade with the processModelPersistenceService => The process model will always be complete.
+    const processModel: Model.Types.Process = await this.processModelPersistenceService.getProcessModelById(executionContextFacade, processModelId);
 
     const response: ProcessStartResponsePayload = await this._startProcessInstance(executionContextFacade,
                                                                                    correlationId,
@@ -75,40 +75,6 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
                                                                                    endEventId);
 
     return response;
-  }
-
-  private _validateStartRequest(processModel: Model.Types.Process,
-                                startEventId: string,
-                                endEventId: string,
-                                startCallbackType: StartCallbackType,
-                               ): void {
-
-    if (!Object.values(StartCallbackType).includes(startCallbackType)) {
-      throw new EssentialProjectErrors.BadRequestError(`${startCallbackType} is not a valid return option!`);
-    }
-
-    const hasMatchingStartEvent: boolean = processModel.flowNodes.some((flowNode: Model.Base.FlowNode): boolean => {
-      return flowNode.id === startEventId;
-    });
-
-    if (!hasMatchingStartEvent) {
-      throw new EssentialProjectErrors.NotFoundError(`StartEvent with ID '${startEventId}' not found!`);
-    }
-
-    if (startCallbackType === StartCallbackType.CallbackOnEndEventReached) {
-
-      if (!endEventId) {
-        throw new EssentialProjectErrors.BadRequestError(`Must provide an EndEventId, when using callback type 'CallbackOnEndEventReached'!`);
-      }
-
-      const hasMatchingEndEvent: boolean = processModel.flowNodes.some((flowNode: Model.Base.FlowNode): boolean => {
-        return flowNode.id === endEventId;
-      });
-
-      if (!hasMatchingEndEvent) {
-        throw new EssentialProjectErrors.NotFoundError(`EndEvent with ID '${startEventId}' not found!`);
-      }
-    }
   }
 
   private async _startProcessInstance(executionContextFacade: IExecutionContextFacade,

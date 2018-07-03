@@ -139,6 +139,11 @@ export class ConsumerApiService implements IConsumerApiService {
 
     const executionContextFacade: IExecutionContextFacade = await this._createExecutionContextFacadeFromConsumerContext(context);
 
+    // Uses the standard IAM facade with the processModelPersistenceService => The process model gets filtered.
+    const processModel: Model.Types.Process = await this.processModelPersistenceService.getProcessModelById(executionContextFacade, processModelId);
+
+    this._validateStartRequest(processModel, startEventId, endEventId, startCallbackType);
+
     return this.processModelExecutionAdapter
       .startProcessInstance(executionContextFacade, processModelId, startEventId, payload, startCallbackType, endEventId);
   }
@@ -277,6 +282,40 @@ export class ConsumerApiService implements IConsumerApiService {
     const executionContext: ExecutionContext = await this.iamService.resolveExecutionContext(consumerContext.identity, TokenType.jwt);
 
     return this.executionContextFacadeFactory.create(executionContext);
+  }
+
+  private _validateStartRequest(processModel: Model.Types.Process,
+                                startEventId: string,
+                                endEventId: string,
+                                startCallbackType: StartCallbackType,
+                               ): void {
+
+    if (!Object.values(StartCallbackType).includes(startCallbackType)) {
+      throw new EssentialProjectErrors.BadRequestError(`${startCallbackType} is not a valid return option!`);
+    }
+
+    const hasMatchingStartEvent: boolean = processModel.flowNodes.some((flowNode: Model.Base.FlowNode): boolean => {
+      return flowNode.id === startEventId;
+    });
+
+    if (!hasMatchingStartEvent) {
+      throw new EssentialProjectErrors.NotFoundError(`StartEvent with ID '${startEventId}' not found!`);
+    }
+
+    if (startCallbackType === StartCallbackType.CallbackOnEndEventReached) {
+
+      if (!endEventId) {
+        throw new EssentialProjectErrors.BadRequestError(`Must provide an EndEventId, when using callback type 'CallbackOnEndEventReached'!`);
+      }
+
+      const hasMatchingEndEvent: boolean = processModel.flowNodes.some((flowNode: Model.Base.FlowNode): boolean => {
+        return flowNode.id === endEventId;
+      });
+
+      if (!hasMatchingEndEvent) {
+        throw new EssentialProjectErrors.NotFoundError(`EndEvent with ID '${startEventId}' not found!`);
+      }
+    }
   }
 
   private _getUserTaskResultFromUserTaskConfig(finishedTask: UserTaskResult): any {
