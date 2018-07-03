@@ -1,4 +1,3 @@
-import {ExecutionContext} from '@essential-projects/core_contracts';
 import {
   EndEventReachedMessage,
   IExecuteProcessService,
@@ -86,15 +85,13 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
                                       endEventId?: string,
                                     ): Promise<ProcessStartResponsePayload> {
 
-    const executionContext: ExecutionContext = executionContextFacade.getExecutionContext();
-
     const response: ProcessStartResponsePayload = {
       correlationId: correlationId,
     };
 
     // Only start the process instance and return
     if (startCallbackType === StartCallbackType.CallbackOnProcessInstanceCreated) {
-      this.executeProcessService.start(executionContext, processModel, startEventId, correlationId, payload.inputValues);
+      this.executeProcessService.start(executionContextFacade, processModel, startEventId, correlationId, payload.inputValues);
 
       return response;
     }
@@ -103,7 +100,7 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
 
     // Start the process instance and wait for a specific end event result
     if (startCallbackType === StartCallbackType.CallbackOnEndEventReached && endEventId) {
-      endEventReachedMessage = await this.executeProcessService.startAndAwaitSpecificEndEvent(executionContext,
+      endEventReachedMessage = await this.executeProcessService.startAndAwaitSpecificEndEvent(executionContextFacade,
                                                                                               processModel,
                                                                                               startEventId,
                                                                                               correlationId,
@@ -117,8 +114,11 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
     }
 
     // Start the process instance and wait for the first end event result
-    endEventReachedMessage
-      = await this.executeProcessService.startAndAwaitEndEvent(executionContext, processModel, startEventId, correlationId, payload.inputValues);
+    endEventReachedMessage = await this.executeProcessService.startAndAwaitEndEvent(executionContextFacade,
+                                                                                    processModel,
+                                                                                    startEventId,
+                                                                                    correlationId,
+                                                                                    payload.inputValues);
 
     response.endEventId = endEventReachedMessage.endEventId;
     response.tokenPayload = endEventReachedMessage.tokenPayload;

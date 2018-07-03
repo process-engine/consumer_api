@@ -1,6 +1,6 @@
-import {ExecutionContext, IIamService, TokenType} from '@essential-projects/core_contracts';
 import * as EssentialProjectErrors from '@essential-projects/errors_ts';
 import {IEventAggregator} from '@essential-projects/event_aggregator_contracts';
+import {IIdentity} from '@essential-projects/iam_contracts';
 import {
   ConsumerContext,
   EventList,
@@ -17,6 +17,7 @@ import {
   UserTaskResult,
 } from '@process-engine/consumer_api_contracts';
 import {
+  ExecutionContext,
   IExecutionContextFacade,
   IExecutionContextFacadeFactory,
   IFlowNodeInstancePersistenceService,
@@ -48,7 +49,6 @@ export class ConsumerApiService implements IConsumerApiService {
   private _processModelFacadeFactory: IProcessModelFacadeFactory;
   private _processModelPersistenceService: IProcessModelPersistenceService;
   private _flowNodeInstancePersistenceService: IFlowNodeInstancePersistenceService;
-  private _iamService: IIamService;
 
   private convertProcessModel: Function;
   private convertUserTasks: Function;
@@ -56,7 +56,6 @@ export class ConsumerApiService implements IConsumerApiService {
   constructor(eventAggregator: IEventAggregator,
               executionContextFacadeFactory: IExecutionContextFacadeFactory,
               flowNodeInstancePersistenceService: IFlowNodeInstancePersistenceService,
-              iamService: IIamService,
               processModelExecutionAdapter: IProcessModelExecutionAdapter,
               processModelFacadeFactory: IProcessModelFacadeFactory,
               processModelPersistenceService: IProcessModelPersistenceService) {
@@ -64,7 +63,6 @@ export class ConsumerApiService implements IConsumerApiService {
     this._eventAggregator = eventAggregator;
     this._executionContextFacadeFactory = executionContextFacadeFactory;
     this._flowNodeInstancePersistenceService = flowNodeInstancePersistenceService;
-    this._iamService = iamService;
     this._processModelExecutionAdapter = processModelExecutionAdapter;
     this._processModelFacadeFactory = processModelFacadeFactory;
     this._processModelPersistenceService = processModelPersistenceService;
@@ -80,10 +78,6 @@ export class ConsumerApiService implements IConsumerApiService {
 
   private get flowNodeInstancePersistenceService(): IFlowNodeInstancePersistenceService {
     return this._flowNodeInstancePersistenceService;
-  }
-
-  private get iamService(): IIamService {
-    return this._iamService;
   }
 
   private get processModelExecutionAdapter(): IProcessModelExecutionAdapter {
@@ -279,7 +273,10 @@ export class ConsumerApiService implements IConsumerApiService {
   }
 
   private async _createExecutionContextFacadeFromConsumerContext(consumerContext: ConsumerContext): Promise<IExecutionContextFacade> {
-    const executionContext: ExecutionContext = await this.iamService.resolveExecutionContext(consumerContext.identity, TokenType.jwt);
+    const identity: IIdentity = {
+      token: consumerContext.identity,
+    };
+    const executionContext: ExecutionContext = new ExecutionContext(identity);
 
     return this.executionContextFacadeFactory.create(executionContext);
   }
