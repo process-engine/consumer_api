@@ -27,7 +27,7 @@ import {
   Runtime,
 } from '@process-engine/process_engine_contracts';
 
-import {IProcessModelExecutionAdapter} from './adapters';
+import {IProcessModelExecutionAdapter} from './adapters/index';
 import * as Converters from './converters/index';
 
 const mockEventList: EventList = {
