@@ -1,18 +1,26 @@
 'use strict'
 
-const ConsumerApiService = require('./dist/commonjs/index').ConsumerApiService;
+const {
+  ConsumerApiService,
+  ProcessModelExecutionAdapter,
+} = require('./dist/commonjs/index');
 
 function registerInContainer(container) {
+
+  container.register('ProcessModelExecutionAdapter', ProcessModelExecutionAdapter)
+    .dependencies('ExecuteProcessService','ProcessModelPersistenceService')
+    .injectPromiseLazy('ProcessModelPersistenceService')
+    .singleton();
 
   container.register('ConsumerApiService', ConsumerApiService)
     .dependencies(
       'EventAggregator',
-      'ExecuteProcessService',
       'ExecutionContextFacadeFactory',
-      'FlowNodeInstancePersistence',
+      'FlowNodeInstancePersistenceService',
       'IamService',
+      'ProcessModelExecutionAdapter',
       'ProcessModelFacadeFactory',
-      'ProcessModelPersistence')
+      'ProcessModelPersistenceService')
     .singleton();
 }
 
