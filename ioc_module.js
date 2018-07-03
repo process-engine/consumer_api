@@ -6,12 +6,13 @@ function registerInContainer(container) {
 
   container.register('ConsumerApiService', ConsumerApiService)
     .dependencies(
-      'ExecuteProcessService',
-      'ProcessModelFacadeFactory',
-      'ProcessModelPersistence',
-      'FlowNodeInstancePersistence',
       'EventAggregator',
-      'IamService')
+      'ExecuteProcessService',
+      'ExecutionContextFacadeFactory',
+      'FlowNodeInstancePersistence',
+      'IamService',
+      'ProcessModelFacadeFactory',
+      'ProcessModelPersistence')
     .singleton();
 }
 
