@@ -1,9 +1,4 @@
-// tslint:disable:max-file-line-count
-import {
-  ExecutionContext,
-  IIamService,
-  TokenType,
-} from '@essential-projects/core_contracts';
+import {ExecutionContext, IIamService, TokenType} from '@essential-projects/core_contracts';
 import * as EssentialProjectErrors from '@essential-projects/errors_ts';
 import {IEventAggregator} from '@essential-projects/event_aggregator_contracts';
 import {
@@ -28,6 +23,7 @@ import {
 import {
   EndEventReachedMessage,
   IExecuteProcessService,
+  IExecutionContextFacadeFactory,
   IFlowNodeInstancePersistenceService,
   IProcessModelFacade,
   IProcessModelFacadeFactory,
@@ -38,32 +34,61 @@ import {
 
 import * as uuid from 'uuid';
 
+const mockEventList: EventList = {
+  events: [{
+    key: 'startEvent_1',
+    id: '',
+    processInstanceId: '',
+    data: {},
+  }],
+};
+
 export class ConsumerApiService implements IConsumerApiService {
   public config: any = undefined;
 
+  private _eventAggregator: IEventAggregator;
   private _executeProcessService: IExecuteProcessService;
+  private _executionContextFacadeFactory: IExecutionContextFacadeFactory;
   private _processModelFacadeFactory: IProcessModelFacadeFactory;
   private _processModelPersistenceService: IProcessModelPersistenceService;
   private _flowNodeInstancePersistenceService: IFlowNodeInstancePersistenceService;
-  private _eventAggregator: IEventAggregator;
   private _iamService: IIamService;
 
-  constructor(executeProcessService: IExecuteProcessService,
-              processModelFacadeFactory: IProcessModelFacadeFactory,
-              processModelPersistenceService: IProcessModelPersistenceService,
+  constructor(eventAggregator: IEventAggregator,
+              executeProcessService: IExecuteProcessService,
+              executionContextFacadeFactory: IExecutionContextFacadeFactory,
               flowNodeInstancePersistenceService: IFlowNodeInstancePersistenceService,
-              eventAggregator: IEventAggregator,
-              iamService: IIamService) {
+              iamService: IIamService,
+              processModelFacadeFactory: IProcessModelFacadeFactory,
+              processModelPersistenceService: IProcessModelPersistenceService) {
+
+    this._eventAggregator = eventAggregator;
     this._executeProcessService = executeProcessService;
+    this._executionContextFacadeFactory = executionContextFacadeFactory;
+    this._flowNodeInstancePersistenceService = flowNodeInstancePersistenceService;
+    this._iamService = iamService;
     this._processModelFacadeFactory = processModelFacadeFactory;
     this._processModelPersistenceService = processModelPersistenceService;
-    this._flowNodeInstancePersistenceService = flowNodeInstancePersistenceService;
-    this._eventAggregator = eventAggregator;
-    this._iamService = iamService;
+  }
+
+  private get eventAggregator(): IEventAggregator {
+    return this._eventAggregator;
   }
 
   private get executeProcessService(): IExecuteProcessService {
     return this._executeProcessService;
+  }
+
+  private get executionContextFacadeFactory(): IExecutionContextFacadeFactory {
+    return this._executionContextFacadeFactory;
+  }
+
+  private get flowNodeInstancePersistenceService(): IFlowNodeInstancePersistenceService {
+    return this._flowNodeInstancePersistenceService;
+  }
+
+  private get iamService(): IIamService {
+    return this._iamService;
   }
 
   private get processModelFacadeFactory(): IProcessModelFacadeFactory {
@@ -72,18 +97,6 @@ export class ConsumerApiService implements IConsumerApiService {
 
   private get processModelPersistenceService(): IProcessModelPersistenceService {
     return this._processModelPersistenceService;
-  }
-
-  private get flowNodeInstancePersistenceService(): IFlowNodeInstancePersistenceService {
-    return this._flowNodeInstancePersistenceService;
-  }
-
-  private get eventAggregator(): IEventAggregator {
-    return this._eventAggregator;
-  }
-
-  private get processEngineIamService(): IIamService {
-    return this._iamService;
   }
 
   // Process models
@@ -167,47 +180,15 @@ export class ConsumerApiService implements IConsumerApiService {
 
   // Events
   public async getEventsForProcessModel(context: ConsumerContext, processModelKey: string): Promise<EventList> {
-
-    const mockData: EventList = {
-      events: [{
-        key: 'startEvent_1',
-        id: '',
-        processInstanceId: '',
-        data: {},
-      }],
-    };
-
-    return Promise.resolve(mockData);
+    return Promise.resolve(mockEventList);
   }
 
   public async getEventsForCorrelation(context: ConsumerContext, correlationId: string): Promise<EventList> {
-
-    const mockData: EventList = {
-      events: [{
-        key: 'startEvent_1',
-        id: '',
-        processInstanceId: '',
-        data: {},
-      }],
-    };
-
-    return Promise.resolve(mockData);
+    return Promise.resolve(mockEventList);
   }
 
-  public async getEventsForProcessModelInCorrelation(context: ConsumerContext,
-                                                     processModelKey: string,
-                                                     correlationId: string): Promise<EventList> {
-
-    const mockData: EventList = {
-      events: [{
-        key: 'startEvent_1',
-        id: '',
-        processInstanceId: '',
-        data: {},
-      }],
-    };
-
-    return Promise.resolve(mockData);
+  public async getEventsForProcessModelInCorrelation(context: ConsumerContext, processModelKey: string, correlationId: string): Promise<EventList> {
+    return Promise.resolve(mockEventList);
   }
 
   public async triggerEvent(context: ConsumerContext,
@@ -257,8 +238,6 @@ export class ConsumerApiService implements IConsumerApiService {
                               userTaskId: string,
                               userTaskResult: UserTaskResult): Promise<void> {
 
-    const executionContext: ExecutionContext = await this._createExecutionContextFromConsumerContext(context);
-
     const userTasks: UserTaskList = await this.getUserTasksForProcessModelInCorrelation(context, processModelId, correlationId);
 
     const userTask: UserTask = userTasks.userTasks.find((task: UserTask) => {
@@ -284,6 +263,10 @@ export class ConsumerApiService implements IConsumerApiService {
       });
     });
 
+  }
+
+  private _createExecutionContextFromConsumerContext(consumerContext: ConsumerContext): Promise<ExecutionContext> {
+    return this.iamService.resolveExecutionContext(consumerContext.identity, TokenType.jwt);
   }
 
   private _convertToConsumerApiEvent(event: Model.Events.Event): Event {
@@ -362,9 +345,7 @@ export class ConsumerApiService implements IConsumerApiService {
     };
 
     // Only start the process instance and return
-
     if (startCallbackType === StartCallbackType.CallbackOnProcessInstanceCreated) {
-
       this.executeProcessService.start(executionContext, processModel, startEventId, correlationId, payload.inputValues);
 
       return response;
@@ -373,15 +354,13 @@ export class ConsumerApiService implements IConsumerApiService {
     let endEventReachedMessage: EndEventReachedMessage;
 
     // Start the process instance and wait for a specific end event result
-
     if (startCallbackType === StartCallbackType.CallbackOnEndEventReached && endEventId) {
-      endEventReachedMessage
-        = await this.executeProcessService.startAndAwaitSpecificEndEvent(executionContext,
-                                                                         processModel,
-                                                                         startEventId,
-                                                                         correlationId,
-                                                                         endEventId,
-                                                                         payload.inputValues);
+      endEventReachedMessage = await this.executeProcessService.startAndAwaitSpecificEndEvent(executionContext,
+                                                                                              processModel,
+                                                                                              startEventId,
+                                                                                              correlationId,
+                                                                                              endEventId,
+                                                                                              payload.inputValues);
 
       response.endEventId = endEventReachedMessage.endEventId;
       response.tokenPayload = endEventReachedMessage.tokenPayload;
@@ -390,22 +369,13 @@ export class ConsumerApiService implements IConsumerApiService {
     }
 
     // Start the process instance and wait for the first end event result
-
     endEventReachedMessage
-      = await this.executeProcessService.startAndAwaitEndEvent(executionContext,
-                                                               processModel,
-                                                               startEventId,
-                                                               correlationId,
-                                                               payload.inputValues);
+      = await this.executeProcessService.startAndAwaitEndEvent(executionContext, processModel, startEventId, correlationId, payload.inputValues);
 
     response.endEventId = endEventReachedMessage.endEventId;
     response.tokenPayload = endEventReachedMessage.tokenPayload;
 
     return response;
-  }
-
-  private _createExecutionContextFromConsumerContext(consumerContext: ConsumerContext): Promise<ExecutionContext> {
-    return this.processEngineIamService.resolveExecutionContext(consumerContext.identity, TokenType.jwt);
   }
 
   private async _convertSuspendedFlowNodesToUserTaskList(suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance>,
