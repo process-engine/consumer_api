@@ -1,7 +1,7 @@
 import {IIdentity} from '@essential-projects/iam_contracts';
 import {IIamFacade} from '@process-engine/process_engine_contracts';
 
-// TODO: This mock will be removed, when the process engine itself is capable of authenticating itself
+// TODO: This mock will be removed, when the consumer api itself is capable of authenticating itself
 // against the external authority.
 // Until then, we need this mock for the ConsumerApiService, so that it is able to retrieve a full process model,
 // regardless of the requesting users access rights.
