@@ -1,4 +1,4 @@
-'use strict'
+'use strict';
 
 const {
   ConsumerApiService,
@@ -8,7 +8,7 @@ const {
 function registerInContainer(container) {
 
   container.register('ProcessModelExecutionAdapter', ProcessModelExecutionAdapter)
-    .dependencies('ExecuteProcessService','ProcessModelPersistenceService')
+    .dependencies('ExecuteProcessService', 'ProcessModelPersistenceService')
     .injectPromiseLazy('ProcessModelPersistenceService')
     .singleton();
 
@@ -17,7 +17,6 @@ function registerInContainer(container) {
       'EventAggregator',
       'ExecutionContextFacadeFactory',
       'FlowNodeInstancePersistenceService',
-      'IamService',
       'ProcessModelExecutionAdapter',
       'ProcessModelFacadeFactory',
       'ProcessModelPersistenceService')
