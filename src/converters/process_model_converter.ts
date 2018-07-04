@@ -15,11 +15,18 @@ export function createProcessModelConverter(processModelFacadeFactory: IProcessM
       return consumerApiEvent;
     }
 
-    const startEvents: Array<Model.Events.StartEvent> = processModelFacade.getStartEvents();
-    const consumerApiStartEvents: Array<Event> = startEvents.map(consumerApiEventConverter);
+    let consumerApiStartEvents: Array<Event> = [];
+    let consumerApiEndEvents: Array<Event> = [];
 
-    const endEvents: Array<Model.Events.EndEvent> = processModelFacade.getEndEvents();
-    const consumerApiEndEvents: Array<Event> = endEvents.map(consumerApiEventConverter);
+    const processModelIsExecutable: boolean = processModelFacade.getIsExecutable();
+
+    if (processModelIsExecutable) {
+      const startEvents: Array<Model.Events.StartEvent> = processModelFacade.getStartEvents();
+      consumerApiStartEvents = startEvents.map(consumerApiEventConverter);
+
+      const endEvents: Array<Model.Events.EndEvent> = processModelFacade.getEndEvents();
+      consumerApiEndEvents = endEvents.map(consumerApiEventConverter);
+    }
 
     const processModelResponse: ProcessModel = {
       key: processModel.id,

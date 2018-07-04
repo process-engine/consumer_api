@@ -291,6 +291,10 @@ export class ConsumerApiService implements IConsumerApiService {
       throw new EssentialProjectErrors.BadRequestError(`${startCallbackType} is not a valid return option!`);
     }
 
+    if (!processModel.isExecutable) {
+      throw new EssentialProjectErrors.BadRequestError('The process model is not executable!');
+    }
+
     const hasMatchingStartEvent: boolean = processModel.flowNodes.some((flowNode: Model.Base.FlowNode): boolean => {
       return flowNode.id === startEventId;
     });
