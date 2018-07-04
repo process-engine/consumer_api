@@ -7,12 +7,14 @@ const {
 
 function registerInContainer(container) {
 
-  container.register('ProcessModelExecutionAdapter', ProcessModelExecutionAdapter)
+  container
+    .register('ProcessModelExecutionAdapter', ProcessModelExecutionAdapter)
     .dependencies('ExecuteProcessService', 'ProcessModelPersistenceService')
     .injectPromiseLazy('ProcessModelPersistenceService')
     .singleton();
 
-  container.register('ConsumerApiService', ConsumerApiService)
+  container
+    .register('ConsumerApiService', ConsumerApiService)
     .dependencies(
       'EventAggregator',
       'ExecutionContextFacadeFactory',

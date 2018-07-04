@@ -90,7 +90,8 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
     };
 
     // Only start the process instance and return
-    if (startCallbackType === StartCallbackType.CallbackOnProcessInstanceCreated) {
+    const resolveImmediatelyAfterStart: boolean = startCallbackType === StartCallbackType.CallbackOnProcessInstanceCreated;
+    if (resolveImmediatelyAfterStart) {
       this.executeProcessService.start(executionContextFacade, processModel, startEventId, correlationId, payload.inputValues);
 
       return response;
@@ -99,7 +100,8 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
     let endEventReachedMessage: EndEventReachedMessage;
 
     // Start the process instance and wait for a specific end event result
-    if (startCallbackType === StartCallbackType.CallbackOnEndEventReached && endEventId) {
+    const resolveAfterReachingSpecificEndEvent: boolean = startCallbackType === StartCallbackType.CallbackOnEndEventReached;
+    if (resolveAfterReachingSpecificEndEvent) {
       endEventReachedMessage = await this.executeProcessService.startAndAwaitSpecificEndEvent(executionContextFacade,
                                                                                               processModel,
                                                                                               startEventId,
