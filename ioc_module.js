@@ -9,7 +9,7 @@ function registerInContainer(container) {
 
   container
     .register('ProcessModelExecutionAdapter', ProcessModelExecutionAdapter)
-    .dependencies('container', 'ExecuteProcessService', 'ProcessModelService')
+    .dependencies('ExecuteProcessService', 'ProcessModelService')
     .singleton();
 
   container

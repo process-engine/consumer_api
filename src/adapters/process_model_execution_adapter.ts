@@ -48,7 +48,7 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
   public async initialize(): Promise<void> {
 
     const iamServiceMock: IamServiceMock = new IamServiceMock();
-    (this._processModelService as any).iamService = iamServiceMock;
+    (this._processModelService as any)._iamService = iamServiceMock;
   }
 
   public async startProcessInstance(executionContextFacade: IExecutionContextFacade,
