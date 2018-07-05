@@ -9,7 +9,7 @@ function registerInContainer(container) {
 
   container
     .register('ProcessModelExecutionAdapter', ProcessModelExecutionAdapter)
-    .dependencies('ExecuteProcessService', 'ProcessModelPersistenceService')
+    .dependencies('container', 'ExecuteProcessService', 'ProcessModelPersistenceService')
     .injectPromiseLazy('ProcessModelPersistenceService')
     .singleton();
 
