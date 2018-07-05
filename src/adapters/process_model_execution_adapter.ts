@@ -2,16 +2,13 @@ import {
   EndEventReachedMessage,
   IExecuteProcessService,
   IExecutionContextFacade,
-  IProcessModelPersistenceRepository,
-  IProcessModelPersistenceService,
+  IProcessModelService,
   Model,
 } from '@process-engine/process_engine_contracts';
 
 import {ProcessStartRequestPayload, ProcessStartResponsePayload, StartCallbackType} from '@process-engine/consumer_api_contracts';
 
 import * as uuid from 'uuid';
-
-import {IFactoryAsync, InvocationContainer} from 'addict-ioc';
 
 import {IamServiceMock} from './iam_service_mock';
 
@@ -30,36 +27,28 @@ export interface IProcessModelExecutionAdapter {
 // until the consumer api is able to authenticate itself against the external authority.
 export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapter {
 
-  private _container: InvocationContainer;
   private _executeProcessService: IExecuteProcessService;
-  private _processModelPersistenceService: IProcessModelPersistenceService;
-  private _processModelPersistenceServiceFactory: IFactoryAsync<IProcessModelPersistenceService>;
+  private _processModelService: IProcessModelService;
 
-  constructor(container: InvocationContainer,
-              executeProcessService: IExecuteProcessService,
-              processModelPersistenceServiceFactory: IFactoryAsync<IProcessModelPersistenceService>) {
+  constructor(executeProcessService: IExecuteProcessService,
+              processModelService: IProcessModelService) {
 
-    this._container = container;
     this._executeProcessService = executeProcessService;
-    this._processModelPersistenceServiceFactory = processModelPersistenceServiceFactory;
+    this._processModelService = processModelService;
   }
 
   private get executeProcessService(): IExecuteProcessService {
     return this._executeProcessService;
   }
 
-  private get processModelPersistenceService(): IProcessModelPersistenceService {
-    return this._processModelPersistenceService;
+  private get processModelService(): IProcessModelService {
+    return this._processModelService;
   }
 
   public async initialize(): Promise<void> {
 
-    const processModelPeristanceRepository: IProcessModelPersistenceRepository =
-      await this._container.resolveAsync<IProcessModelPersistenceRepository>('ProcessModelPersistenceRepository');
-
     const iamServiceMock: IamServiceMock = new IamServiceMock();
-
-    this._processModelPersistenceService = await this._processModelPersistenceServiceFactory([processModelPeristanceRepository, iamServiceMock]);
+    (this._processModelService as any).iamService = iamServiceMock;
   }
 
   public async startProcessInstance(executionContextFacade: IExecutionContextFacade,
@@ -71,8 +60,8 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
 
     const correlationId: string = payload.correlationId || uuid.v4();
 
-    // Uses the mock IAM facade with the processModelPersistenceService => The process model will always be complete.
-    const processModel: Model.Types.Process = await this.processModelPersistenceService.getProcessModelById(executionContextFacade, processModelId);
+    // Uses the mock IAM facade with the processModelService => The process model will always be complete.
+    const processModel: Model.Types.Process = await this.processModelService.getProcessModelById(executionContextFacade, processModelId);
 
     const response: ProcessStartResponsePayload = await this._startProcessInstance(executionContextFacade,
                                                                                    correlationId,

@@ -3,19 +3,19 @@ import {
   IExecutionContextFacade,
   IProcessModelFacade,
   IProcessModelFacadeFactory,
-  IProcessModelPersistenceService,
+  IProcessModelService,
   Model,
   Runtime,
 } from '@process-engine/process_engine_contracts';
 
 let _processModelFacadeFactory: IProcessModelFacadeFactory;
-let _processModelPersistenceService: IProcessModelPersistenceService;
+let _processModelService: IProcessModelService;
 
 export function createUserTaskConverter(processModelFacadeFactory: IProcessModelFacadeFactory,
-                                        processModelPersistenceService: IProcessModelPersistenceService): Function {
+                                        processModelService: IProcessModelService): Function {
 
   _processModelFacadeFactory = processModelFacadeFactory;
-  _processModelPersistenceService = processModelPersistenceService;
+  _processModelService = processModelService;
 
   return async(executionContextFacade: IExecutionContextFacade,
                suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance>,
@@ -51,7 +51,7 @@ async function convertSuspendedFlowNodeToUserTask(executionContextFacade: IExecu
                                                   flowNodeInstance: Runtime.Types.FlowNodeInstance): Promise<UserTask> {
 
   const processModel: Model.Types.Process =
-    await _processModelPersistenceService.getProcessModelById(executionContextFacade, flowNodeInstance.token.processModelId);
+    await _processModelService.getProcessModelById(executionContextFacade, flowNodeInstance.token.processModelId);
 
   const processModelFacade: IProcessModelFacade = _processModelFacadeFactory.create(processModel);
   const userTask: Model.Activities.UserTask = processModelFacade.getFlowNodeById(flowNodeInstance.flowNodeId) as Model.Activities.UserTask;
