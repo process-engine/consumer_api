@@ -209,6 +209,8 @@ export class ConsumerApiService implements IConsumerApiService {
 
     const executionContextFacade: IExecutionContextFacade = await this._createExecutionContextFacadeFromConsumerContext(context);
 
+    await this._checkIfProcessModelInstanceExists(executionContextFacade, processModelId);
+
     const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
       await this.flowNodeInstancePersistenceService.querySuspendedByProcessModel(executionContextFacade, processModelId);
 
@@ -220,6 +222,8 @@ export class ConsumerApiService implements IConsumerApiService {
   public async getUserTasksForCorrelation(context: ConsumerContext, correlationId: string): Promise<UserTaskList> {
 
     const executionContextFacade: IExecutionContextFacade = await this._createExecutionContextFacadeFromConsumerContext(context);
+
+    await this._checkIfCorrelationExists(executionContextFacade, correlationId);
 
     const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
       await this.flowNodeInstancePersistenceService.querySuspendedByCorrelation(executionContextFacade, correlationId);
@@ -234,6 +238,9 @@ export class ConsumerApiService implements IConsumerApiService {
                                                         correlationId: string): Promise<UserTaskList> {
 
     const executionContextFacade: IExecutionContextFacade = await this._createExecutionContextFacadeFromConsumerContext(context);
+
+    await this._checkIfCorrelationExists(executionContextFacade, correlationId);
+    await this._checkIfProcessModelInstanceExists(executionContextFacade, processModelId);
 
     const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
       await this.flowNodeInstancePersistenceService.querySuspendedByCorrelation(executionContextFacade, correlationId);
@@ -320,6 +327,24 @@ export class ConsumerApiService implements IConsumerApiService {
       if (!hasMatchingEndEvent) {
         throw new EssentialProjectErrors.NotFoundError(`EndEvent with ID '${startEventId}' not found!`);
       }
+    }
+  }
+
+  private async _checkIfCorrelationExists(executionContextFacade: IExecutionContextFacade, correlationId: string): Promise<void> {
+    const flowNodeInstances: Array<Runtime.Types.FlowNodeInstance> =
+      await this.flowNodeInstancePersistenceService.queryByCorrelation(executionContextFacade, correlationId);
+
+    if (!flowNodeInstances || flowNodeInstances.length === 0) {
+      throw new EssentialProjectErrors.NotFoundError(`No Correlation with id '${correlationId}' found.`);
+    }
+  }
+
+  private async _checkIfProcessModelInstanceExists(executionContextFacade: IExecutionContextFacade, processInstanceId: string): Promise<void> {
+    const flowNodeInstances: Array<Runtime.Types.FlowNodeInstance> =
+      await this.flowNodeInstancePersistenceService.queryByProcessModel(executionContextFacade, processInstanceId);
+
+    if (!flowNodeInstances || flowNodeInstances.length === 0) {
+      throw new EssentialProjectErrors.NotFoundError(`No process instance with id '${processInstanceId}' found.`);
     }
   }
 
