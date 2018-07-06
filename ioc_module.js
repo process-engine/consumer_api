@@ -1,30 +1,26 @@
-'use strict'
+'use strict';
 
 const {
-  ConsumerApiIamService,
-  ConsumerApiProcessEngineAdapter,
   ConsumerApiService,
+  ProcessModelExecutionAdapter,
 } = require('./dist/commonjs/index');
 
 function registerInContainer(container) {
 
-  // Workaround until a suitable authority (identity provider) is in place.
-  container.register('ConsumerApiIamService', ConsumerApiIamService)
-    .configure('consumer_api_core:consumer_api_iam_service')
-    .singleton();
-  
-  container.register('ConsumerApiProcessEngineAdapter', ConsumerApiProcessEngineAdapter)
-    .dependencies('ConsumerApiIamService',
-                  'DatastoreService',
-                  'EventAggregator',
-                  'IamService',
-                  'MessageBusService',
-                  'NodeInstanceEntityTypeService',
-                  'ProcessEngineService')
+  container
+    .register('ProcessModelExecutionAdapter', ProcessModelExecutionAdapter)
+    .dependencies('ExecuteProcessService', 'ProcessModelService')
     .singleton();
 
-  container.register('ConsumerApiService', ConsumerApiService)
-    .dependencies('ConsumerApiProcessEngineAdapter')
+  container
+    .register('ConsumerApiService', ConsumerApiService)
+    .dependencies(
+      'EventAggregator',
+      'ExecutionContextFacadeFactory',
+      'FlowNodeInstanceService',
+      'ProcessModelExecutionAdapter',
+      'ProcessModelFacadeFactory',
+      'ProcessModelService')
     .singleton();
 }
 
