@@ -47,8 +47,8 @@ pipeline {
       steps {
         sh('node --version')
         sh('npm run build')
-        sh('npm run build-schemas')
-        sh('npm run build-doc')
+        // sh('npm run build-schemas')
+        // sh('npm run build-doc')
       }
     }
     stage('test') {

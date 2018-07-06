@@ -1,17 +1,26 @@
-'use strict'
+'use strict';
 
-const ConsumerApiService = require('./dist/commonjs/index').ConsumerApiService;
+const {
+  ConsumerApiService,
+  ProcessModelExecutionAdapter,
+} = require('./dist/commonjs/index');
 
 function registerInContainer(container) {
 
-  container.register('ConsumerApiService', ConsumerApiService)
+  container
+    .register('ProcessModelExecutionAdapter', ProcessModelExecutionAdapter)
+    .dependencies('ExecuteProcessService', 'ProcessModelService')
+    .singleton();
+
+  container
+    .register('ConsumerApiService', ConsumerApiService)
     .dependencies(
-      'ExecuteProcessService',
-      'ProcessModelFacadeFactory',
-      'ProcessModelPersistence',
-      'FlowNodeInstancePersistence',
       'EventAggregator',
-      'IamService')
+      'ExecutionContextFacadeFactory',
+      'FlowNodeInstanceService',
+      'ProcessModelExecutionAdapter',
+      'ProcessModelFacadeFactory',
+      'ProcessModelService')
     .singleton();
 }
 
