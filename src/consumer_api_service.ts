@@ -169,7 +169,7 @@ export class ConsumerApiService implements IConsumerApiService {
         });
 
         return isEndEvent
-          && flowNodeInstance.token.caller === undefined // only from the process who started the correlation
+          && !flowNodeInstance.token.caller // only from the process who started the correlation
           && flowNodeInstance.token.processModelId === processModelId;
     });
 

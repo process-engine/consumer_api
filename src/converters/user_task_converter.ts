@@ -26,21 +26,21 @@ export function createUserTaskConverter(processModelFacadeFactory: IProcessModel
 
     for (const suspendedFlowNode of suspendedFlowNodes) {
 
-    if (processModelId && suspendedFlowNode.token.processModelId !== processModelId) {
-    continue;
-    }
+      if (processModelId && suspendedFlowNode.token.processModelId !== processModelId) {
+        continue;
+      }
 
-    const userTask: UserTask = await convertSuspendedFlowNodeToUserTask(executionContextFacade, suspendedFlowNode);
+      const userTask: UserTask = await convertSuspendedFlowNodeToUserTask(executionContextFacade, suspendedFlowNode);
 
-    if (userTask === undefined) {
-    continue;
-    }
+      if (userTask === undefined) {
+        continue;
+      }
 
-    suspendedUserTasks.push(userTask);
+      suspendedUserTasks.push(userTask);
     }
 
     const userTaskList: UserTaskList = {
-    userTasks: suspendedUserTasks,
+      userTasks: suspendedUserTasks,
     };
 
     return userTaskList;
