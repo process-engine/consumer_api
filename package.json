@@ -20,10 +20,10 @@
   "homepage": "https://github.com/process-engine/consumer_api#readme",
   "dependencies": {
     "@essential-projects/errors_ts": "^1.1.0",
-    "@essential-projects/event_aggregator_contracts": "^2.0.0",
+    "@essential-projects/event_aggregator_contracts": "feature~remove_old_datastore_implementation",
     "@essential-projects/iam_contracts": "^3.0.0",
     "@process-engine/consumer_api_contracts": "^0.12.1",
-    "@process-engine/process_engine_contracts": "^13.0.0",
+    "@process-engine/process_engine_contracts": "feature~remove_old_datastore_implementation",
     "addict-ioc": "^2.3.7",
     "async-middleware": "^1.2.1",
     "bluebird": "^3.5.1",
