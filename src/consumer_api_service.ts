@@ -144,7 +144,7 @@ export class ConsumerApiService implements IConsumerApiService {
 
   public async getProcessResultForCorrelation(context: ConsumerContext,
                                               correlationId: string,
-                                              processModelId: string): Promise<ICorrelationResult> {
+                                              processModelId: string): Promise<Array<ICorrelationResult>> {
 
     const executionContextFacade: IExecutionContextFacade = await this._createExecutionContextFacadeFromConsumerContext(context);
 
@@ -173,14 +173,20 @@ export class ConsumerApiService implements IConsumerApiService {
           && flowNodeInstance.token.processModelId === processModelId;
     });
 
-    const correlationResult: ICorrelationResult = {};
+    const results: Array<ICorrelationResult> = [];
 
     // merge results
     for (const endEventInstance of endEventInstances) {
-      Object.assign(correlationResult, endEventInstance.token.payload);
+      const correlationResult: ICorrelationResult = {
+        correlationId: endEventInstance.token.correlationId,
+        endEventId: endEventInstance.flowNodeId,
+        tokenPayload: endEventInstance.token.payload,
+      };
+
+      results.push(correlationResult);
     }
 
-    return correlationResult;
+    return results;
   }
 
   // Events
