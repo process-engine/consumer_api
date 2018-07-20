@@ -3,10 +3,10 @@ import {IEventAggregator} from '@essential-projects/event_aggregator_contracts';
 import {IIdentity} from '@essential-projects/iam_contracts';
 import {
   ConsumerContext,
+  CorrelationResult,
   EventList,
   EventTriggerPayload,
   IConsumerApiService,
-  ICorrelationResult,
   ProcessModel,
   ProcessModelList,
   ProcessStartRequestPayload,
@@ -144,7 +144,7 @@ export class ConsumerApiService implements IConsumerApiService {
 
   public async getProcessResultForCorrelation(context: ConsumerContext,
                                               correlationId: string,
-                                              processModelId: string): Promise<ICorrelationResult> {
+                                              processModelId: string): Promise<Array<CorrelationResult>> {
 
     const executionContextFacade: IExecutionContextFacade = await this._createExecutionContextFacadeFromConsumerContext(context);
 
@@ -173,14 +173,20 @@ export class ConsumerApiService implements IConsumerApiService {
           && flowNodeInstance.token.processModelId === processModelId;
     });
 
-    const correlationResult: ICorrelationResult = {};
+    const results: Array<CorrelationResult> = [];
 
     // merge results
     for (const endEventInstance of endEventInstances) {
-      Object.assign(correlationResult, endEventInstance.token.payload);
+      const correlationResult: CorrelationResult = {
+        correlationId: endEventInstance.token.correlationId,
+        endEventId: endEventInstance.flowNodeId,
+        tokenPayload: endEventInstance.token.payload,
+      };
+
+      results.push(correlationResult);
     }
 
-    return correlationResult;
+    return results;
   }
 
   // Events
