@@ -9,7 +9,6 @@ export function createProcessModelConverter(processModelFacadeFactory: IProcessM
 
     function consumerApiEventConverter(event: Model.Events.Event): Event {
       const consumerApiEvent: Event = new Event();
-      consumerApiEvent.key = event.id;
       consumerApiEvent.id = event.id;
 
       return consumerApiEvent;
@@ -29,7 +28,7 @@ export function createProcessModelConverter(processModelFacadeFactory: IProcessM
     }
 
     const processModelResponse: ProcessModel = {
-      key: processModel.id,
+      id: processModel.id,
       startEvents: consumerApiStartEvents,
       endEvents: consumerApiEndEvents,
     };
