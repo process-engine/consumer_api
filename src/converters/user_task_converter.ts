@@ -70,9 +70,9 @@ function convertToConsumerApiUserTask(userTask: Model.Activities.UserTask, flowN
   };
 
   const consumerApiUserTask: UserTask = {
-    key: flowNodeInstance.flowNodeId,
     id: flowNodeInstance.flowNodeId,
-    processInstanceId: flowNodeInstance.token.processInstanceId,
+    correlationId: flowNodeInstance.token.correlationId,
+    processModelId: flowNodeInstance.token.processModelId,
     data: userTaskConfig,
     tokenPayload: flowNodeInstance.token.payload,
   };
@@ -86,6 +86,7 @@ function convertToConsumerApiFormField(formField: Model.Types.FormField): UserTa
   userTaskFormField.id = formField.id;
   userTaskFormField.label = formField.label;
   userTaskFormField.type = convertToConsumerApiFormFieldType(formField.type);
+  userTaskFormField.enumValues = formField.enumValues;
   userTaskFormField.defaultValue = formField.defaultValue;
   userTaskFormField.preferredControl = formField.preferredControl;
 

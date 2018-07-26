@@ -266,7 +266,7 @@ export class ConsumerApiService implements IConsumerApiService {
     const userTasks: UserTaskList = await this.getUserTasksForProcessModelInCorrelation(context, processModelId, correlationId);
 
     const userTask: UserTask = userTasks.userTasks.find((task: UserTask) => {
-      return task.key === userTaskId;
+      return task.id === userTaskId;
     });
 
     if (userTask === undefined) {
