@@ -33,8 +33,7 @@ import * as Converters from './converters/index';
 
 const mockEventList: EventList = {
   events: [{
-    key: 'startEvent_1',
-    id: '',
+    id: 'startEvent_1',
     processInstanceId: '',
     data: {},
   }],
@@ -114,7 +113,7 @@ export class ConsumerApiService implements IConsumerApiService {
     };
   }
 
-  public async getProcessModelByKey(context: ConsumerContext, processModelKey: string): Promise<ProcessModel> {
+  public async getProcessModelById(context: ConsumerContext, processModelKey: string): Promise<ProcessModel> {
 
     const executionContextFacade: IExecutionContextFacade = await this._createExecutionContextFacadeFromConsumerContext(context);
     const processModel: Model.Types.Process = await this.processModelService.getProcessModelById(executionContextFacade, processModelKey);
@@ -266,7 +265,7 @@ export class ConsumerApiService implements IConsumerApiService {
     const userTasks: UserTaskList = await this.getUserTasksForProcessModelInCorrelation(context, processModelId, correlationId);
 
     const userTask: UserTask = userTasks.userTasks.find((task: UserTask) => {
-      return task.key === userTaskId;
+      return task.id === userTaskId;
     });
 
     if (userTask === undefined) {
