@@ -67,7 +67,7 @@ function convertToConsumerApiUserTask(userTask: Model.Activities.UserTask, flowN
 
   const userTaskConfig: UserTaskConfig = {
     formFields: consumerApiFormFields,
-    preferedControl: userTask.preferedControl,
+    preferredControl: userTask.preferredControl,
   };
 
   const consumerApiUserTask: UserTask = {
@@ -89,7 +89,7 @@ function convertToConsumerApiFormField(formField: Model.Types.FormField): UserTa
   userTaskFormField.type = convertToConsumerApiFormFieldType(formField.type);
   userTaskFormField.enumValues = formField.enumValues;
   userTaskFormField.defaultValue = formField.defaultValue;
-  userTaskFormField.preferedControl = formField.preferedControl;
+  userTaskFormField.preferredControl = formField.preferredControl;
 
   return userTaskFormField;
 }
