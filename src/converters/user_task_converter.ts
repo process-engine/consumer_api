@@ -67,6 +67,7 @@ function convertToConsumerApiUserTask(userTask: Model.Activities.UserTask, flowN
 
   const userTaskConfig: UserTaskConfig = {
     formFields: consumerApiFormFields,
+    preferredControl: userTask.preferredControl,
   };
 
   const consumerApiUserTask: UserTask = {
