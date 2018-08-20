@@ -4,11 +4,10 @@ import {
   IProcessModelFacade,
   IProcessModelFacadeFactory,
   IProcessModelService,
+  IProcessTokenFacadeFactory,
   Model,
   Runtime,
-  IProcessTokenFacadeFactory,
 } from '@process-engine/process_engine_contracts';
-
 
 export class UserTaskConverter {
 
@@ -37,8 +36,8 @@ export class UserTaskConverter {
   }
 
   public async convertUserTasks(executionContextFacade: IExecutionContextFacade,
-    suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance>,
-    processModelId?: string): Promise<UserTaskList> {
+                                suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance>,
+                                processModelId?: string): Promise<UserTaskList> {
 
     const suspendedUserTasks: Array<UserTask> = [];
 
@@ -62,10 +61,10 @@ export class UserTaskConverter {
     };
 
     return userTaskList;
-  };
+  }
 
   public async convertSuspendedFlowNodeToUserTask(executionContextFacade: IExecutionContextFacade,
-    flowNodeInstance: Runtime.Types.FlowNodeInstance): Promise<UserTask> {
+                                                  flowNodeInstance: Runtime.Types.FlowNodeInstance): Promise<UserTask> {
 
     const processModel: Model.Types.Process =
       await this.processModelService.getProcessModelById(executionContextFacade, flowNodeInstance.token.processModelId);
@@ -115,10 +114,8 @@ export class UserTaskConverter {
     return UserTaskFormFieldType[type];
   }
 
+  public getOldProcessTokenFormat(): any {
+    // const processTokenFacade = this.processTokenFacadeFactory.create();
 
-  public getOldProcessTokenFormat(): any{
-    const processTokenFacade = this.processTokenFacadeFactory.create();
-
-    
   }
 }
