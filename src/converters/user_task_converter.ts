@@ -86,7 +86,7 @@ export class UserTaskConverter {
     return this.convertToConsumerApiUserTask(userTask, flowNodeInstance);
   }
 
-  private async getOldTokenFormatForFlowNodeInstance(flowNodeInstance: Runtime.Types.FlowNodeInstance): Promise<any> {
+  private async _getOldTokenFormatForFlowNodeInstance(flowNodeInstance: Runtime.Types.FlowNodeInstance): Promise<any> {
 
     const processInstanceId: string = flowNodeInstance.token.processInstanceId;
     const processModelId: string = flowNodeInstance.token.processModelId;
@@ -117,7 +117,7 @@ export class UserTaskConverter {
     return await processTokenFacade.getOldTokenFormat();
   }
 
-  private evaluateExpressionWithOldToken(expression: string, oldTokenFormat: any): string {
+  private _evaluateExpressionWithOldToken(expression: string, oldTokenFormat: any): string {
 
     let result: string = '';
 
@@ -147,7 +147,7 @@ export class UserTaskConverter {
   public async convertToConsumerApiUserTask(userTask: Model.Activities.UserTask,
                                             flowNodeInstance: Runtime.Types.FlowNodeInstance): Promise<UserTask> {
 
-    const oldTokenFormat: any = await this.getOldTokenFormatForFlowNodeInstance(flowNodeInstance);
+    const oldTokenFormat: any = await this._getOldTokenFormatForFlowNodeInstance(flowNodeInstance);
 
     const consumerApiFormFields: Array<UserTaskFormField> = userTask.formFields.map((formField: Model.Types.FormField) => {
       return this.convertToConsumerApiFormField(formField, oldTokenFormat);
@@ -155,7 +155,7 @@ export class UserTaskConverter {
 
     const userTaskConfig: UserTaskConfig = {
       formFields: consumerApiFormFields,
-      preferredControl: this.evaluateExpressionWithOldToken(userTask.preferredControl, oldTokenFormat),
+      preferredControl: this._evaluateExpressionWithOldToken(userTask.preferredControl, oldTokenFormat),
     };
 
     const consumerApiUserTask: UserTask = {
@@ -173,11 +173,11 @@ export class UserTaskConverter {
 
     const userTaskFormField: UserTaskFormField = new UserTaskFormField();
     userTaskFormField.id = formField.id;
-    userTaskFormField.label = this.evaluateExpressionWithOldToken(formField.label, oldTokenFormat);
+    userTaskFormField.label = this._evaluateExpressionWithOldToken(formField.label, oldTokenFormat);
     userTaskFormField.type = this.convertToConsumerApiFormFieldType(formField.type);
     userTaskFormField.enumValues = formField.enumValues;
-    userTaskFormField.defaultValue = this.evaluateExpressionWithOldToken(formField.defaultValue, oldTokenFormat);
-    userTaskFormField.preferredControl = this.evaluateExpressionWithOldToken(formField.preferredControl, oldTokenFormat);
+    userTaskFormField.defaultValue = this._evaluateExpressionWithOldToken(formField.defaultValue, oldTokenFormat);
+    userTaskFormField.preferredControl = this._evaluateExpressionWithOldToken(formField.preferredControl, oldTokenFormat);
 
     return userTaskFormField;
   }
