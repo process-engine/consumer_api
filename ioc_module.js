@@ -16,7 +16,7 @@ function registerInContainer(container) {
 
   container
     .register('ConsumerApiUserTaskConverter', UserTaskConverter)
-    .dependencies('ProcessModelService', 'ProcessModelFacadeFactory', 'ProcessTokenFacadeFactory')
+    .dependencies('ProcessModelService', 'FlowNodeInstanceService', 'ProcessModelFacadeFactory', 'ProcessTokenFacadeFactory')
     .singleton();
 
   container
@@ -32,7 +32,9 @@ function registerInContainer(container) {
       'FlowNodeInstanceService',
       'ProcessModelExecutionAdapter',
       'ProcessModelFacadeFactory',
-      'ProcessModelService')
+      'ProcessModelService',
+      'ConsumerApiUserTaskConverter',
+      'ConsumerApiProcessModelConverter')
     .singleton();
 }
 
