@@ -26,11 +26,15 @@ export function createUserTaskConverter(processModelFacadeFactory: IProcessModel
 
     for (const suspendedFlowNode of suspendedFlowNodes) {
 
-      if (processModelId && suspendedFlowNode.token.processModelId !== processModelId) {
+      const currentProcessToken: Runtime.Types.ProcessToken = suspendedFlowNode.tokens.find((token: Runtime.Types.ProcessToken): boolean => {
+        return token.type === Runtime.Types.ProcessTokenType.onSuspend;
+      });
+
+      if (processModelId && currentProcessToken.processModelId !== processModelId) {
         continue;
       }
 
-      const userTask: UserTask = await convertSuspendedFlowNodeToUserTask(executionContextFacade, suspendedFlowNode);
+      const userTask: UserTask = await convertSuspendedFlowNodeToUserTask(executionContextFacade, suspendedFlowNode, currentProcessToken);
 
       if (userTask === undefined) {
         continue;
@@ -48,18 +52,23 @@ export function createUserTaskConverter(processModelFacadeFactory: IProcessModel
 }
 
 async function convertSuspendedFlowNodeToUserTask(executionContextFacade: IExecutionContextFacade,
-                                                  flowNodeInstance: Runtime.Types.FlowNodeInstance): Promise<UserTask> {
+                                                  flowNodeInstance: Runtime.Types.FlowNodeInstance,
+                                                  currentProcessToken: Runtime.Types.ProcessToken,
+                                                 ): Promise<UserTask> {
 
   const processModel: Model.Types.Process =
-    await _processModelService.getProcessModelById(executionContextFacade, flowNodeInstance.token.processModelId);
+    await _processModelService.getProcessModelById(executionContextFacade, currentProcessToken.processModelId);
 
   const processModelFacade: IProcessModelFacade = _processModelFacadeFactory.create(processModel);
   const userTask: Model.Activities.UserTask = processModelFacade.getFlowNodeById(flowNodeInstance.flowNodeId) as Model.Activities.UserTask;
 
-  return convertToConsumerApiUserTask(userTask, flowNodeInstance);
+  return convertToConsumerApiUserTask(userTask, flowNodeInstance, currentProcessToken);
 }
 
-function convertToConsumerApiUserTask(userTask: Model.Activities.UserTask, flowNodeInstance: Runtime.Types.FlowNodeInstance): UserTask {
+function convertToConsumerApiUserTask(userTask: Model.Activities.UserTask,
+                                      flowNodeInstance: Runtime.Types.FlowNodeInstance,
+                                      currentProcessToken: Runtime.Types.ProcessToken,
+                                     ): UserTask {
 
   const consumerApiFormFields: Array<UserTaskFormField> = userTask.formFields.map((formField: Model.Types.FormField) => {
     return convertToConsumerApiFormField(formField);
@@ -72,10 +81,10 @@ function convertToConsumerApiUserTask(userTask: Model.Activities.UserTask, flowN
 
   const consumerApiUserTask: UserTask = {
     id: flowNodeInstance.flowNodeId,
-    correlationId: flowNodeInstance.token.correlationId,
-    processModelId: flowNodeInstance.token.processModelId,
+    correlationId: currentProcessToken.correlationId,
+    processModelId: currentProcessToken.processModelId,
     data: userTaskConfig,
-    tokenPayload: flowNodeInstance.token.payload,
+    tokenPayload: currentProcessToken.payload,
   };
 
   return consumerApiUserTask;
