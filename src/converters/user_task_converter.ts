@@ -133,7 +133,8 @@ export class UserTaskConverter {
       return result;
     }
 
-    const expressionBody: string = expression.substr(expressionStartsOn.length, expression.length - expressionStartsOn.length - expressionEndsOn.length);
+    const finalExpressionLength: number = expression.length - expressionStartsOn.length - expressionEndsOn.length;
+    const expressionBody: string = expression.substr(expressionStartsOn.length, finalExpressionLength);
 
     const functionString: string = `return ${expressionBody}`;
     const scriptFunction: Function = new Function('token', functionString);
