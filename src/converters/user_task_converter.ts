@@ -88,10 +88,7 @@ export class UserTaskConverter {
 
   private async _getOldTokenFormatForFlowNodeInstance(flowNodeInstance: Runtime.Types.FlowNodeInstance): Promise<any> {
 
-    const processInstanceId: string = flowNodeInstance.token.processInstanceId;
-    const processModelId: string = flowNodeInstance.token.processModelId;
-    const correlationId: string = flowNodeInstance.token.correlationId;
-    const identity: IIdentity = flowNodeInstance.token.identity;
+    const {processInstanceId, processModelId, correlationId, identity} = flowNodeInstance.token;
 
     const processInstanceTokens: Array<Runtime.Types.ProcessToken> =
       await this.flowNodeInstanceService.queryProcessTokensByProcessInstance(processInstanceId);
@@ -117,7 +114,7 @@ export class UserTaskConverter {
     return await processTokenFacade.getOldTokenFormat();
   }
 
-  private _evaluateExpressionWithOldToken(expression: string, oldTokenFormat: any): string {
+  private _evaluateExpressionWithOldToken(expression: string, oldTokenFormat: any): string | null {
 
     let result: string = '';
 
@@ -185,10 +182,5 @@ export class UserTaskConverter {
 
   public convertToConsumerApiFormFieldType(type: string): UserTaskFormFieldType {
     return UserTaskFormFieldType[type];
-  }
-
-  public getOldProcessTokenFormat(): any {
-    // const processTokenFacade = this.processTokenFacadeFactory.create();
-
   }
 }
