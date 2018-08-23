@@ -116,7 +116,7 @@ export class UserTaskConverter {
 
   private _evaluateExpressionWithOldToken(expression: string, oldTokenFormat: any): string | null {
 
-    let result: string = '';
+    let result: string = expression;
 
     if (!expression) {
       return result;
