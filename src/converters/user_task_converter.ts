@@ -30,7 +30,8 @@ export function createUserTaskConverter(processModelFacadeFactory: IProcessModel
         return token.type === Runtime.Types.ProcessTokenType.onSuspend;
       });
 
-      if (processModelId && currentProcessToken.processModelId !== processModelId) {
+      const tokenBelongsToDifferentProcessModel: boolean = processModelId && currentProcessToken.processModelId !== processModelId;
+      if (tokenBelongsToDifferentProcessModel) {
         continue;
       }
 

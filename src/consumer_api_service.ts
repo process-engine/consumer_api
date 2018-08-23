@@ -156,7 +156,8 @@ export class ConsumerApiService implements IConsumerApiService {
     const flowNodeInstances: Array<Runtime.Types.FlowNodeInstance> =
       await this.flowNodeInstanceService.queryByCorrelation(correlationId);
 
-    if (!flowNodeInstances || flowNodeInstances.length === 0) {
+    const noResultsFound: boolean = !flowNodeInstances || flowNodeInstances.length === 0;
+    if (noResultsFound) {
       throw new EssentialProjectErrors.NotFoundError(`No process results for correlation with id '${correlationId}' found.`);
     }
 
