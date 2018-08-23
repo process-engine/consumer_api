@@ -1,11 +1,21 @@
 import {Event, ProcessModel} from '@process-engine/consumer_api_contracts';
 import {IProcessModelFacade, IProcessModelFacadeFactory, Model} from '@process-engine/process_engine_contracts';
 
-export function createProcessModelConverter(processModelFacadeFactory: IProcessModelFacadeFactory): Function {
+export class ProcessModelConverter {
 
-  return (processModel: Model.Types.Process): ProcessModel => {
+  private _processModelFacadeFactory: IProcessModelFacadeFactory;
 
-    const processModelFacade: IProcessModelFacade = processModelFacadeFactory.create(processModel);
+  constructor(processModelFacadeFactory: IProcessModelFacadeFactory) {
+    this._processModelFacadeFactory = processModelFacadeFactory;
+  }
+
+  private get processModelFacadeFactory(): IProcessModelFacadeFactory {
+    return this._processModelFacadeFactory;
+  }
+
+  public convertProcessModel(processModel: Model.Types.Process): ProcessModel {
+
+    const processModelFacade: IProcessModelFacade = this.processModelFacadeFactory.create(processModel);
 
     function consumerApiEventConverter(event: Model.Events.Event): Event {
       const consumerApiEvent: Event = new Event();
@@ -34,5 +44,6 @@ export function createProcessModelConverter(processModelFacadeFactory: IProcessM
     };
 
     return processModelResponse;
-  };
+  }
+
 }
