@@ -29,7 +29,10 @@ import {
 } from '@process-engine/process_engine_contracts';
 
 import {IProcessModelExecutionAdapter} from './adapters/index';
-import * as Converters from './converters/index';
+import {
+  ProcessModelConverter,
+  UserTaskConverter,
+} from './converters/index';
 
 const mockEventList: EventList = {
   events: [{
@@ -48,16 +51,17 @@ export class ConsumerApiService implements IConsumerApiService {
   private _processModelFacadeFactory: IProcessModelFacadeFactory;
   private _processModelService: IProcessModelService;
   private _flowNodeInstanceService: IFlowNodeInstanceService;
-
-  private convertProcessModel: Function;
-  private convertUserTasks: Function;
+  private _userTaskConverter: UserTaskConverter;
+  private _processModelConverter: ProcessModelConverter;
 
   constructor(eventAggregator: IEventAggregator,
               executionContextFacadeFactory: IExecutionContextFacadeFactory,
               flowNodeInstanceService: IFlowNodeInstanceService,
               processModelExecutionAdapter: IProcessModelExecutionAdapter,
               processModelFacadeFactory: IProcessModelFacadeFactory,
-              processModelService: IProcessModelService) {
+              processModelService: IProcessModelService,
+              userTaskConverter: UserTaskConverter,
+              processModelConverter: ProcessModelConverter) {
 
     this._eventAggregator = eventAggregator;
     this._executionContextFacadeFactory = executionContextFacadeFactory;
@@ -65,6 +69,8 @@ export class ConsumerApiService implements IConsumerApiService {
     this._processModelExecutionAdapter = processModelExecutionAdapter;
     this._processModelFacadeFactory = processModelFacadeFactory;
     this._processModelService = processModelService;
+    this._userTaskConverter = userTaskConverter;
+    this._processModelConverter = processModelConverter;
   }
 
   private get eventAggregator(): IEventAggregator {
@@ -91,12 +97,12 @@ export class ConsumerApiService implements IConsumerApiService {
     return this._processModelService;
   }
 
-  public async initialize(): Promise<void> {
+  private get userTaskConverter(): UserTaskConverter {
+    return this._userTaskConverter;
+  }
 
-    this.convertProcessModel = Converters.createProcessModelConverter(this.processModelFacadeFactory);
-    this.convertUserTasks = Converters.createUserTaskConverter(this.processModelFacadeFactory, this.processModelService);
-
-    return Promise.resolve();
+  private get processModelConverter(): ProcessModelConverter {
+    return this._processModelConverter;
   }
 
   // Process models
@@ -105,7 +111,7 @@ export class ConsumerApiService implements IConsumerApiService {
     const executionContextFacade: IExecutionContextFacade = await this._createExecutionContextFacadeFromConsumerContext(context);
     const processModels: Array<Model.Types.Process> = await this.processModelService.getProcessModels(executionContextFacade);
     const consumerApiProcessModels: Array<ProcessModel> = processModels.map((processModel: Model.Types.Process) => {
-      return this.convertProcessModel(processModel);
+      return this.processModelConverter.convertProcessModel(processModel);
     });
 
     return <ProcessModelList> {
@@ -117,7 +123,7 @@ export class ConsumerApiService implements IConsumerApiService {
 
     const executionContextFacade: IExecutionContextFacade = await this._createExecutionContextFacadeFromConsumerContext(context);
     const processModel: Model.Types.Process = await this.processModelService.getProcessModelById(executionContextFacade, processModelKey);
-    const consumerApiProcessModel: ProcessModel = this.convertProcessModel(processModel);
+    const consumerApiProcessModel: ProcessModel = this.processModelConverter.convertProcessModel(processModel);
 
     return consumerApiProcessModel;
   }
@@ -219,7 +225,7 @@ export class ConsumerApiService implements IConsumerApiService {
     const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
       await this.flowNodeInstanceService.querySuspendedByProcessModel(executionContextFacade, processModelId);
 
-    const userTaskList: UserTaskList = await this.convertUserTasks(executionContextFacade, suspendedFlowNodes);
+    const userTaskList: UserTaskList = await this.userTaskConverter.convertUserTasks(executionContextFacade, suspendedFlowNodes);
 
     return userTaskList;
   }
@@ -233,7 +239,7 @@ export class ConsumerApiService implements IConsumerApiService {
     const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
       await this.flowNodeInstanceService.querySuspendedByCorrelation(executionContextFacade, correlationId);
 
-    const userTaskList: UserTaskList = await this.convertUserTasks(executionContextFacade, suspendedFlowNodes);
+    const userTaskList: UserTaskList = await this.userTaskConverter.convertUserTasks(executionContextFacade, suspendedFlowNodes);
 
     return userTaskList;
   }
@@ -251,7 +257,7 @@ export class ConsumerApiService implements IConsumerApiService {
       await this.flowNodeInstanceService.querySuspendedByCorrelation(executionContextFacade, correlationId);
 
     const userTaskList: UserTaskList =
-      await this.convertUserTasks(executionContextFacade, suspendedFlowNodes, processModelId);
+      await this.userTaskConverter.convertUserTasks(executionContextFacade, suspendedFlowNodes, processModelId);
 
     return userTaskList;
   }
