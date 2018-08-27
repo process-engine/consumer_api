@@ -1,36 +1,69 @@
 import {UserTask, UserTaskConfig, UserTaskFormField, UserTaskFormFieldType, UserTaskList} from '@process-engine/consumer_api_contracts';
 import {
   IExecutionContextFacade,
+  IFlowNodeInstanceService,
   IProcessModelFacade,
   IProcessModelFacadeFactory,
   IProcessModelService,
+  IProcessTokenFacade,
+  IProcessTokenFacadeFactory,
+  IProcessTokenResult,
   Model,
   Runtime,
 } from '@process-engine/process_engine_contracts';
 
-let _processModelFacadeFactory: IProcessModelFacadeFactory;
-let _processModelService: IProcessModelService;
+export class UserTaskConverter {
 
-export function createUserTaskConverter(processModelFacadeFactory: IProcessModelFacadeFactory,
-                                        processModelService: IProcessModelService): Function {
+  private _processModelService: IProcessModelService;
+  private _flowNodeInstanceService: IFlowNodeInstanceService;
+  private _processModelFacadeFactory: IProcessModelFacadeFactory;
+  private _processTokenFacadeFactory: IProcessTokenFacadeFactory;
 
-  _processModelFacadeFactory = processModelFacadeFactory;
-  _processModelService = processModelService;
+  constructor(processModelService: IProcessModelService,
+              flowNodeInstanceService: IFlowNodeInstanceService,
+              processModelFacadeFactory: IProcessModelFacadeFactory,
+              processTokenFacadeFactory: IProcessTokenFacadeFactory) {
+    this._processModelService = processModelService;
+    this._flowNodeInstanceService = flowNodeInstanceService;
+    this._processModelFacadeFactory = processModelFacadeFactory;
+    this._processTokenFacadeFactory = processTokenFacadeFactory;
+  }
 
-  return async(executionContextFacade: IExecutionContextFacade,
-               suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance>,
-               processModelId?: string,
-              ): Promise<UserTaskList> => {
+  private get processModelService(): IProcessModelService {
+    return this._processModelService;
+  }
+
+  private get flowNodeInstanceService(): IFlowNodeInstanceService {
+    return this._flowNodeInstanceService;
+  }
+
+  private get processModelFacadeFactory(): IProcessModelFacadeFactory {
+    return this._processModelFacadeFactory;
+  }
+
+  private get processTokenFacadeFactory(): IProcessTokenFacadeFactory {
+    return this._processTokenFacadeFactory;
+  }
+
+  public async convertUserTasks(executionContextFacade: IExecutionContextFacade,
+                                suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance>,
+                                processModelId?: string): Promise<UserTaskList> {
 
     const suspendedUserTasks: Array<UserTask> = [];
 
     for (const suspendedFlowNode of suspendedFlowNodes) {
 
-      if (processModelId && suspendedFlowNode.token.processModelId !== processModelId) {
+      const currentProcessToken: Runtime.Types.ProcessToken = suspendedFlowNode.tokens.find((token: Runtime.Types.ProcessToken): boolean => {
+        return token.type === Runtime.Types.ProcessTokenType.onSuspend
+          || token.type === Runtime.Types.ProcessTokenType.onExit;
+      });
+
+      const tokenBelongsToDifferentProcessModel: boolean = processModelId && currentProcessToken.processModelId !== processModelId;
+      if (tokenBelongsToDifferentProcessModel) {
         continue;
       }
 
-      const userTask: UserTask = await convertSuspendedFlowNodeToUserTask(executionContextFacade, suspendedFlowNode);
+      const userTask: UserTask = await this.convertSuspendedFlowNodeToUserTask(executionContextFacade, suspendedFlowNode, currentProcessToken);
 
       if (userTask === undefined) {
         continue;
@@ -44,56 +77,121 @@ export function createUserTaskConverter(processModelFacadeFactory: IProcessModel
     };
 
     return userTaskList;
-  };
-}
+  }
 
-async function convertSuspendedFlowNodeToUserTask(executionContextFacade: IExecutionContextFacade,
-                                                  flowNodeInstance: Runtime.Types.FlowNodeInstance): Promise<UserTask> {
+  public async convertSuspendedFlowNodeToUserTask(executionContextFacade: IExecutionContextFacade,
+                                                  flowNodeInstance: Runtime.Types.FlowNodeInstance,
+                                                  currentProcessToken: Runtime.Types.ProcessToken,
+                                                 ): Promise<UserTask> {
 
-  const processModel: Model.Types.Process =
-    await _processModelService.getProcessModelById(executionContextFacade, flowNodeInstance.token.processModelId);
+    const processModel: Model.Types.Process =
+      await this.processModelService.getProcessModelById(executionContextFacade, currentProcessToken.processModelId);
 
-  const processModelFacade: IProcessModelFacade = _processModelFacadeFactory.create(processModel);
-  const userTask: Model.Activities.UserTask = processModelFacade.getFlowNodeById(flowNodeInstance.flowNodeId) as Model.Activities.UserTask;
+    const processModelFacade: IProcessModelFacade = this.processModelFacadeFactory.create(processModel);
+    const userTask: Model.Activities.UserTask = processModelFacade.getFlowNodeById(flowNodeInstance.flowNodeId) as Model.Activities.UserTask;
 
-  return convertToConsumerApiUserTask(userTask, flowNodeInstance);
-}
+    return this.convertToConsumerApiUserTask(userTask, flowNodeInstance, currentProcessToken);
+  }
 
-function convertToConsumerApiUserTask(userTask: Model.Activities.UserTask, flowNodeInstance: Runtime.Types.FlowNodeInstance): UserTask {
+  private async convertToConsumerApiUserTask(userTask: Model.Activities.UserTask,
+                                             flowNodeInstance: Runtime.Types.FlowNodeInstance,
+                                             currentProcessToken: Runtime.Types.ProcessToken,
+                                            ): Promise<UserTask> {
 
-  const consumerApiFormFields: Array<UserTaskFormField> = userTask.formFields.map((formField: Model.Types.FormField) => {
-    return convertToConsumerApiFormField(formField);
-  });
+    const oldTokenFormat: any = await this._getOldTokenFormatForFlowNodeInstance(flowNodeInstance, currentProcessToken);
 
-  const userTaskConfig: UserTaskConfig = {
-    formFields: consumerApiFormFields,
-    preferredControl: userTask.preferredControl,
-  };
+    const consumerApiFormFields: Array<UserTaskFormField> = userTask.formFields.map((formField: Model.Types.FormField) => {
+      return this.convertToConsumerApiFormField(formField, oldTokenFormat);
+    });
 
-  const consumerApiUserTask: UserTask = {
-    id: flowNodeInstance.flowNodeId,
-    correlationId: flowNodeInstance.token.correlationId,
-    processModelId: flowNodeInstance.token.processModelId,
-    data: userTaskConfig,
-    tokenPayload: flowNodeInstance.token.payload,
-  };
+    const userTaskConfig: UserTaskConfig = {
+      formFields: consumerApiFormFields,
+      preferredControl: this._evaluateExpressionWithOldToken(userTask.preferredControl, oldTokenFormat),
+    };
 
-  return consumerApiUserTask;
-}
+    const consumerApiUserTask: UserTask = {
+      id: flowNodeInstance.flowNodeId,
+      correlationId: currentProcessToken.correlationId,
+      processModelId: currentProcessToken.processModelId,
+      data: userTaskConfig,
+      tokenPayload: currentProcessToken.payload,
+    };
 
-function convertToConsumerApiFormField(formField: Model.Types.FormField): UserTaskFormField {
+    return consumerApiUserTask;
+  }
 
-  const userTaskFormField: UserTaskFormField = new UserTaskFormField();
-  userTaskFormField.id = formField.id;
-  userTaskFormField.label = formField.label;
-  userTaskFormField.type = convertToConsumerApiFormFieldType(formField.type);
-  userTaskFormField.enumValues = formField.enumValues;
-  userTaskFormField.defaultValue = formField.defaultValue;
-  userTaskFormField.preferredControl = formField.preferredControl;
+  private convertToConsumerApiFormField(formField: Model.Types.FormField, oldTokenFormat: any): UserTaskFormField {
 
-  return userTaskFormField;
-}
+    const userTaskFormField: UserTaskFormField = new UserTaskFormField();
+    userTaskFormField.id = formField.id;
+    userTaskFormField.label = this._evaluateExpressionWithOldToken(formField.label, oldTokenFormat);
+    userTaskFormField.type = this.convertToConsumerApiFormFieldType(formField.type);
+    userTaskFormField.enumValues = formField.enumValues;
+    userTaskFormField.defaultValue = this._evaluateExpressionWithOldToken(formField.defaultValue, oldTokenFormat);
+    userTaskFormField.preferredControl = this._evaluateExpressionWithOldToken(formField.preferredControl, oldTokenFormat);
 
-function convertToConsumerApiFormFieldType(type: string): UserTaskFormFieldType {
-  return UserTaskFormFieldType[type];
+    return userTaskFormField;
+  }
+
+  private convertToConsumerApiFormFieldType(type: string): UserTaskFormFieldType {
+    return UserTaskFormFieldType[type];
+  }
+
+  private _evaluateExpressionWithOldToken(expression: string, oldTokenFormat: any): string | null {
+
+    let result: string = expression;
+
+    if (!expression) {
+      return result;
+    }
+
+    const expressionStartsOn: string = '${';
+    const expressionEndsOn: string = '}';
+
+    const isExpression: boolean = expression.charAt(0) === '$';
+    if (isExpression === false) {
+      return result;
+    }
+
+    const finalExpressionLength: number = expression.length - expressionStartsOn.length - expressionEndsOn.length;
+    const expressionBody: string = expression.substr(expressionStartsOn.length, finalExpressionLength);
+
+    const functionString: string = `return ${expressionBody}`;
+    const scriptFunction: Function = new Function('token', functionString);
+
+    result = scriptFunction.call(undefined, oldTokenFormat);
+    result = result === undefined ? null : result;
+
+    return result;
+  }
+
+  private async _getOldTokenFormatForFlowNodeInstance(flowNodeInstance: Runtime.Types.FlowNodeInstance,
+                                                      currentProcessToken: Runtime.Types.ProcessToken,
+                                                     ): Promise<any> {
+
+    const {processInstanceId, processModelId, correlationId, identity} = currentProcessToken;
+
+    const processInstanceTokens: Array<Runtime.Types.ProcessToken> =
+      await this.flowNodeInstanceService.queryProcessTokensByProcessInstanceId(processInstanceId);
+
+    const processTokenFacade: IProcessTokenFacade = this.processTokenFacadeFactory.create(processInstanceId, processModelId, correlationId, identity);
+
+    const processTokenResultPromises: Array<Promise<IProcessTokenResult>> =
+      processInstanceTokens.map(async(processToken: Runtime.Types.ProcessToken) => {
+
+      const processTokenFlowNodeInstance: Runtime.Types.FlowNodeInstance =
+        await this.flowNodeInstanceService.queryByInstanceId(flowNodeInstance.id);
+
+      return {
+        flowNodeId: processTokenFlowNodeInstance.flowNodeId,
+        result: processToken.payload,
+      };
+    });
+
+    const processTokenResults: Array<IProcessTokenResult> = await Promise.all(processTokenResultPromises);
+
+    processTokenFacade.importResults(processTokenResults);
+
+    return await processTokenFacade.getOldTokenFormat();
+  }
 }

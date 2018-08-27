@@ -29,7 +29,10 @@ import {
 } from '@process-engine/process_engine_contracts';
 
 import {IProcessModelExecutionAdapter} from './adapters/index';
-import * as Converters from './converters/index';
+import {
+  ProcessModelConverter,
+  UserTaskConverter,
+} from './converters/index';
 
 const mockEventList: EventList = {
   events: [{
@@ -48,16 +51,17 @@ export class ConsumerApiService implements IConsumerApiService {
   private _processModelFacadeFactory: IProcessModelFacadeFactory;
   private _processModelService: IProcessModelService;
   private _flowNodeInstanceService: IFlowNodeInstanceService;
-
-  private convertProcessModel: Function;
-  private convertUserTasks: Function;
+  private _userTaskConverter: UserTaskConverter;
+  private _processModelConverter: ProcessModelConverter;
 
   constructor(eventAggregator: IEventAggregator,
               executionContextFacadeFactory: IExecutionContextFacadeFactory,
               flowNodeInstanceService: IFlowNodeInstanceService,
               processModelExecutionAdapter: IProcessModelExecutionAdapter,
               processModelFacadeFactory: IProcessModelFacadeFactory,
-              processModelService: IProcessModelService) {
+              processModelService: IProcessModelService,
+              userTaskConverter: UserTaskConverter,
+              processModelConverter: ProcessModelConverter) {
 
     this._eventAggregator = eventAggregator;
     this._executionContextFacadeFactory = executionContextFacadeFactory;
@@ -65,6 +69,8 @@ export class ConsumerApiService implements IConsumerApiService {
     this._processModelExecutionAdapter = processModelExecutionAdapter;
     this._processModelFacadeFactory = processModelFacadeFactory;
     this._processModelService = processModelService;
+    this._userTaskConverter = userTaskConverter;
+    this._processModelConverter = processModelConverter;
   }
 
   private get eventAggregator(): IEventAggregator {
@@ -91,12 +97,12 @@ export class ConsumerApiService implements IConsumerApiService {
     return this._processModelService;
   }
 
-  public async initialize(): Promise<void> {
+  private get userTaskConverter(): UserTaskConverter {
+    return this._userTaskConverter;
+  }
 
-    this.convertProcessModel = Converters.createProcessModelConverter(this.processModelFacadeFactory);
-    this.convertUserTasks = Converters.createUserTaskConverter(this.processModelFacadeFactory, this.processModelService);
-
-    return Promise.resolve();
+  private get processModelConverter(): ProcessModelConverter {
+    return this._processModelConverter;
   }
 
   // Process models
@@ -105,7 +111,7 @@ export class ConsumerApiService implements IConsumerApiService {
     const executionContextFacade: IExecutionContextFacade = await this._createExecutionContextFacadeFromConsumerContext(context);
     const processModels: Array<Model.Types.Process> = await this.processModelService.getProcessModels(executionContextFacade);
     const consumerApiProcessModels: Array<ProcessModel> = processModels.map((processModel: Model.Types.Process) => {
-      return this.convertProcessModel(processModel);
+      return this.processModelConverter.convertProcessModel(processModel);
     });
 
     return <ProcessModelList> {
@@ -117,7 +123,7 @@ export class ConsumerApiService implements IConsumerApiService {
 
     const executionContextFacade: IExecutionContextFacade = await this._createExecutionContextFacadeFromConsumerContext(context);
     const processModel: Model.Types.Process = await this.processModelService.getProcessModelById(executionContextFacade, processModelKey);
-    const consumerApiProcessModel: ProcessModel = this.convertProcessModel(processModel);
+    const consumerApiProcessModel: ProcessModel = this.processModelConverter.convertProcessModel(processModel);
 
     return consumerApiProcessModel;
   }
@@ -154,9 +160,10 @@ export class ConsumerApiService implements IConsumerApiService {
     const endEvents: Array<Model.Events.EndEvent> = processModelFacade.getEndEvents();
 
     const flowNodeInstances: Array<Runtime.Types.FlowNodeInstance> =
-      await this.flowNodeInstanceService.queryByCorrelation(executionContextFacade, correlationId);
+      await this.flowNodeInstanceService.queryByCorrelation(correlationId);
 
-    if (!flowNodeInstances || flowNodeInstances.length === 0) {
+    const noResultsFound: boolean = !flowNodeInstances || flowNodeInstances.length === 0;
+    if (noResultsFound) {
       throw new EssentialProjectErrors.NotFoundError(`No process results for correlation with id '${correlationId}' found.`);
     }
 
@@ -167,23 +174,16 @@ export class ConsumerApiService implements IConsumerApiService {
           return endEvent.id === flowNodeInstance.flowNodeId;
         });
 
+        const exitToken: Runtime.Types.ProcessToken = flowNodeInstance.tokens.find((token: Runtime.Types.ProcessToken): boolean => {
+          return token.type === Runtime.Types.ProcessTokenType.onExit;
+        });
+
         return isEndEvent
-          && !flowNodeInstance.token.caller // only from the process who started the correlation
-          && flowNodeInstance.token.processModelId === processModelId;
+          && !exitToken.caller // only from the process who started the correlation
+          && exitToken.processModelId === processModelId;
     });
 
-    const results: Array<CorrelationResult> = [];
-
-    // merge results
-    for (const endEventInstance of endEventInstances) {
-      const correlationResult: CorrelationResult = {
-        correlationId: endEventInstance.token.correlationId,
-        endEventId: endEventInstance.flowNodeId,
-        tokenPayload: endEventInstance.token.payload,
-      };
-
-      results.push(correlationResult);
-    }
+    const results: Array<CorrelationResult> = endEventInstances.map(this._createCorrelationResultFromEndEventInstance);
 
     return results;
   }
@@ -214,12 +214,12 @@ export class ConsumerApiService implements IConsumerApiService {
 
     const executionContextFacade: IExecutionContextFacade = await this._createExecutionContextFacadeFromConsumerContext(context);
 
-    await this._checkIfProcessModelInstanceExists(executionContextFacade, processModelId);
+    await this._checkIfProcessModelInstanceExists(processModelId);
 
     const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
-      await this.flowNodeInstanceService.querySuspendedByProcessModel(executionContextFacade, processModelId);
+      await this.flowNodeInstanceService.querySuspendedByProcessModel(processModelId);
 
-    const userTaskList: UserTaskList = await this.convertUserTasks(executionContextFacade, suspendedFlowNodes);
+    const userTaskList: UserTaskList = await this.userTaskConverter.convertUserTasks(executionContextFacade, suspendedFlowNodes);
 
     return userTaskList;
   }
@@ -228,12 +228,12 @@ export class ConsumerApiService implements IConsumerApiService {
 
     const executionContextFacade: IExecutionContextFacade = await this._createExecutionContextFacadeFromConsumerContext(context);
 
-    await this._checkIfCorrelationExists(executionContextFacade, correlationId);
+    await this._checkIfCorrelationExists(correlationId);
 
     const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
-      await this.flowNodeInstanceService.querySuspendedByCorrelation(executionContextFacade, correlationId);
+      await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
-    const userTaskList: UserTaskList = await this.convertUserTasks(executionContextFacade, suspendedFlowNodes);
+    const userTaskList: UserTaskList = await this.userTaskConverter.convertUserTasks(executionContextFacade, suspendedFlowNodes);
 
     return userTaskList;
   }
@@ -244,14 +244,14 @@ export class ConsumerApiService implements IConsumerApiService {
 
     const executionContextFacade: IExecutionContextFacade = await this._createExecutionContextFacadeFromConsumerContext(context);
 
-    await this._checkIfCorrelationExists(executionContextFacade, correlationId);
-    await this._checkIfProcessModelInstanceExists(executionContextFacade, processModelId);
+    await this._checkIfCorrelationExists(correlationId);
+    await this._checkIfProcessModelInstanceExists(processModelId);
 
     const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
-      await this.flowNodeInstanceService.querySuspendedByCorrelation(executionContextFacade, correlationId);
+      await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
     const userTaskList: UserTaskList =
-      await this.convertUserTasks(executionContextFacade, suspendedFlowNodes, processModelId);
+      await this.userTaskConverter.convertUserTasks(executionContextFacade, suspendedFlowNodes, processModelId);
 
     return userTaskList;
   }
@@ -335,22 +335,37 @@ export class ConsumerApiService implements IConsumerApiService {
     }
   }
 
-  private async _checkIfCorrelationExists(executionContextFacade: IExecutionContextFacade, correlationId: string): Promise<void> {
+  private async _checkIfCorrelationExists(correlationId: string): Promise<void> {
     const flowNodeInstances: Array<Runtime.Types.FlowNodeInstance> =
-      await this.flowNodeInstanceService.queryByCorrelation(executionContextFacade, correlationId);
+      await this.flowNodeInstanceService.queryByCorrelation(correlationId);
 
     if (!flowNodeInstances || flowNodeInstances.length === 0) {
       throw new EssentialProjectErrors.NotFoundError(`No Correlation with id '${correlationId}' found.`);
     }
   }
 
-  private async _checkIfProcessModelInstanceExists(executionContextFacade: IExecutionContextFacade, processInstanceId: string): Promise<void> {
+  private async _checkIfProcessModelInstanceExists(processInstanceId: string): Promise<void> {
     const flowNodeInstances: Array<Runtime.Types.FlowNodeInstance> =
-      await this.flowNodeInstanceService.queryByProcessModel(executionContextFacade, processInstanceId);
+      await this.flowNodeInstanceService.queryByProcessModel(processInstanceId);
 
     if (!flowNodeInstances || flowNodeInstances.length === 0) {
       throw new EssentialProjectErrors.NotFoundError(`No process instance with id '${processInstanceId}' found.`);
     }
+  }
+
+  private _createCorrelationResultFromEndEventInstance(endEventInstance: Runtime.Types.FlowNodeInstance): CorrelationResult {
+
+    const exitToken: Runtime.Types.ProcessToken = endEventInstance.tokens.find((token: Runtime.Types.ProcessToken): boolean => {
+      return token.type === Runtime.Types.ProcessTokenType.onExit;
+    });
+
+    const correlationResult: CorrelationResult = {
+      correlationId: exitToken.correlationId,
+      endEventId: endEventInstance.flowNodeId,
+      tokenPayload: exitToken.payload,
+    };
+
+    return correlationResult;
   }
 
   private _getUserTaskResultFromUserTaskConfig(finishedTask: UserTaskResult): any {

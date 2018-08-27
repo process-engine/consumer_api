@@ -107,7 +107,7 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
                                                                                               endEventId,
                                                                                               payload.inputValues);
 
-      response.endEventId = endEventReachedMessage.endEventId;
+      response.endEventId = endEventReachedMessage.eventId;
       response.tokenPayload = endEventReachedMessage.tokenPayload;
 
       return response;
@@ -120,7 +120,7 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
                                                                                     correlationId,
                                                                                     payload.inputValues);
 
-    response.endEventId = endEventReachedMessage.endEventId;
+    response.endEventId = endEventReachedMessage.eventId;
     response.tokenPayload = endEventReachedMessage.tokenPayload;
 
     return response;

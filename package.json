@@ -1,6 +1,6 @@
 {
   "name": "@process-engine/consumer_api_core",
-  "version": "0.19.1",
+  "version": "0.21.0",
   "description": "the api-package for process-engine-consumer",
   "main": "dist/commonjs/index.js",
   "typings": "dist/index.d.ts",
@@ -23,7 +23,7 @@
     "@essential-projects/event_aggregator_contracts": "^3.0.0",
     "@essential-projects/iam_contracts": "^3.0.0",
     "@process-engine/consumer_api_contracts": "^0.15.0",
-    "@process-engine/process_engine_contracts": "^20.0.0",
+    "@process-engine/process_engine_contracts": "^24.0.0",
     "addict-ioc": "^2.3.7",
     "async-middleware": "^1.2.1",
     "bluebird": "^3.5.1",
