@@ -160,9 +160,10 @@ export class ConsumerApiService implements IConsumerApiService {
     const endEvents: Array<Model.Events.EndEvent> = processModelFacade.getEndEvents();
 
     const flowNodeInstances: Array<Runtime.Types.FlowNodeInstance> =
-      await this.flowNodeInstanceService.queryByCorrelation(executionContextFacade, correlationId);
+      await this.flowNodeInstanceService.queryByCorrelation(correlationId);
 
-    if (!flowNodeInstances || flowNodeInstances.length === 0) {
+    const noResultsFound: boolean = !flowNodeInstances || flowNodeInstances.length === 0;
+    if (noResultsFound) {
       throw new EssentialProjectErrors.NotFoundError(`No process results for correlation with id '${correlationId}' found.`);
     }
 
@@ -173,23 +174,16 @@ export class ConsumerApiService implements IConsumerApiService {
           return endEvent.id === flowNodeInstance.flowNodeId;
         });
 
+        const exitToken: Runtime.Types.ProcessToken = flowNodeInstance.tokens.find((token: Runtime.Types.ProcessToken): boolean => {
+          return token.type === Runtime.Types.ProcessTokenType.onExit;
+        });
+
         return isEndEvent
-          && !flowNodeInstance.token.caller // only from the process who started the correlation
-          && flowNodeInstance.token.processModelId === processModelId;
+          && !exitToken.caller // only from the process who started the correlation
+          && exitToken.processModelId === processModelId;
     });
 
-    const results: Array<CorrelationResult> = [];
-
-    // merge results
-    for (const endEventInstance of endEventInstances) {
-      const correlationResult: CorrelationResult = {
-        correlationId: endEventInstance.token.correlationId,
-        endEventId: endEventInstance.flowNodeId,
-        tokenPayload: endEventInstance.token.payload,
-      };
-
-      results.push(correlationResult);
-    }
+    const results: Array<CorrelationResult> = endEventInstances.map(this._createCorrelationResultFromEndEventInstance);
 
     return results;
   }
@@ -220,10 +214,10 @@ export class ConsumerApiService implements IConsumerApiService {
 
     const executionContextFacade: IExecutionContextFacade = await this._createExecutionContextFacadeFromConsumerContext(context);
 
-    await this._checkIfProcessModelInstanceExists(executionContextFacade, processModelId);
+    await this._checkIfProcessModelInstanceExists(processModelId);
 
     const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
-      await this.flowNodeInstanceService.querySuspendedByProcessModel(executionContextFacade, processModelId);
+      await this.flowNodeInstanceService.querySuspendedByProcessModel(processModelId);
 
     const userTaskList: UserTaskList = await this.userTaskConverter.convertUserTasks(executionContextFacade, suspendedFlowNodes);
 
@@ -234,10 +228,10 @@ export class ConsumerApiService implements IConsumerApiService {
 
     const executionContextFacade: IExecutionContextFacade = await this._createExecutionContextFacadeFromConsumerContext(context);
 
-    await this._checkIfCorrelationExists(executionContextFacade, correlationId);
+    await this._checkIfCorrelationExists(correlationId);
 
     const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
-      await this.flowNodeInstanceService.querySuspendedByCorrelation(executionContextFacade, correlationId);
+      await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
     const userTaskList: UserTaskList = await this.userTaskConverter.convertUserTasks(executionContextFacade, suspendedFlowNodes);
 
@@ -250,11 +244,11 @@ export class ConsumerApiService implements IConsumerApiService {
 
     const executionContextFacade: IExecutionContextFacade = await this._createExecutionContextFacadeFromConsumerContext(context);
 
-    await this._checkIfCorrelationExists(executionContextFacade, correlationId);
-    await this._checkIfProcessModelInstanceExists(executionContextFacade, processModelId);
+    await this._checkIfCorrelationExists(correlationId);
+    await this._checkIfProcessModelInstanceExists(processModelId);
 
     const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
-      await this.flowNodeInstanceService.querySuspendedByCorrelation(executionContextFacade, correlationId);
+      await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
     const userTaskList: UserTaskList =
       await this.userTaskConverter.convertUserTasks(executionContextFacade, suspendedFlowNodes, processModelId);
@@ -341,22 +335,37 @@ export class ConsumerApiService implements IConsumerApiService {
     }
   }
 
-  private async _checkIfCorrelationExists(executionContextFacade: IExecutionContextFacade, correlationId: string): Promise<void> {
+  private async _checkIfCorrelationExists(correlationId: string): Promise<void> {
     const flowNodeInstances: Array<Runtime.Types.FlowNodeInstance> =
-      await this.flowNodeInstanceService.queryByCorrelation(executionContextFacade, correlationId);
+      await this.flowNodeInstanceService.queryByCorrelation(correlationId);
 
     if (!flowNodeInstances || flowNodeInstances.length === 0) {
       throw new EssentialProjectErrors.NotFoundError(`No Correlation with id '${correlationId}' found.`);
     }
   }
 
-  private async _checkIfProcessModelInstanceExists(executionContextFacade: IExecutionContextFacade, processInstanceId: string): Promise<void> {
+  private async _checkIfProcessModelInstanceExists(processInstanceId: string): Promise<void> {
     const flowNodeInstances: Array<Runtime.Types.FlowNodeInstance> =
-      await this.flowNodeInstanceService.queryByProcessModel(executionContextFacade, processInstanceId);
+      await this.flowNodeInstanceService.queryByProcessModel(processInstanceId);
 
     if (!flowNodeInstances || flowNodeInstances.length === 0) {
       throw new EssentialProjectErrors.NotFoundError(`No process instance with id '${processInstanceId}' found.`);
     }
+  }
+
+  private _createCorrelationResultFromEndEventInstance(endEventInstance: Runtime.Types.FlowNodeInstance): CorrelationResult {
+
+    const exitToken: Runtime.Types.ProcessToken = endEventInstance.tokens.find((token: Runtime.Types.ProcessToken): boolean => {
+      return token.type === Runtime.Types.ProcessTokenType.onExit;
+    });
+
+    const correlationResult: CorrelationResult = {
+      correlationId: exitToken.correlationId,
+      endEventId: endEventInstance.flowNodeId,
+      tokenPayload: exitToken.payload,
+    };
+
+    return correlationResult;
   }
 
   private _getUserTaskResultFromUserTaskConfig(finishedTask: UserTaskResult): any {
