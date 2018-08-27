@@ -174,13 +174,17 @@ export class UserTaskConverter {
     const processInstanceTokens: Array<Runtime.Types.ProcessToken> =
       await this.flowNodeInstanceService.queryProcessTokensByProcessInstanceId(processInstanceId);
 
+    const filteredInstanceTokens: Array<Runtime.Types.ProcessToken> = processInstanceTokens.filter((token: Runtime.Types.ProcessToken) => {
+      return token.type === Runtime.Types.ProcessTokenType.onExit;
+    });
+
     const processTokenFacade: IProcessTokenFacade = this.processTokenFacadeFactory.create(processInstanceId, processModelId, correlationId, identity);
 
     const processTokenResultPromises: Array<Promise<IProcessTokenResult>> =
-      processInstanceTokens.map(async(processToken: Runtime.Types.ProcessToken) => {
+      filteredInstanceTokens.map(async(processToken: Runtime.Types.ProcessToken) => {
 
       const processTokenFlowNodeInstance: Runtime.Types.FlowNodeInstance =
-        await this.flowNodeInstanceService.queryByInstanceId(flowNodeInstance.id);
+        await this.flowNodeInstanceService.queryByInstanceId(processToken.flowNodeInstanceId);
 
       return {
         flowNodeId: processTokenFlowNodeInstance.flowNodeId,
