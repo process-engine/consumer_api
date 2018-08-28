@@ -273,12 +273,7 @@ export class ConsumerApiService implements IConsumerApiService {
       throw new EssentialProjectErrors.NotFoundError(errorMessage);
     }
 
-    let resultForProcessEngine: any = {};
-
-    const userTaskResultProvided: boolean = UserTaskResult !== undefined;
-    if (userTaskResultProvided) {
-      resultForProcessEngine = this._getUserTaskResultFromUserTaskConfig(userTaskResult);
-    }
+    const resultForProcessEngine: any = this._getUserTaskResultFromUserTaskConfig(userTaskResult);
 
     return new Promise<void>((resolve: Function, reject: Function): void => {
       this.eventAggregator.subscribeOnce(`/processengine/node/${userTask.id}/finished`, (event: any) => {
@@ -374,16 +369,22 @@ export class ConsumerApiService implements IConsumerApiService {
   }
 
   private _getUserTaskResultFromUserTaskConfig(finishedTask: UserTaskResult): any {
-    const userTaskIsNotAnObject: boolean = !finishedTask.formFields
-                                        || typeof finishedTask.formFields !== 'object'
-                                        || Array.isArray(finishedTask.formFields);
 
-    if (userTaskIsNotAnObject) {
+    const noResultsProvided: boolean = !finishedTask || !finishedTask.formFields;
+
+    if (noResultsProvided) {
+      return {};
+    }
+
+    const formFieldResultIsAnObject: boolean = finishedTask.formFields && typeof finishedTask.formFields === 'object';
+
+    if (!formFieldResultIsAnObject) {
       throw new EssentialProjectErrors.BadRequestError('The UserTasks formFields is not an object.');
     }
 
-    const noFormfieldsSubmitted: boolean = Object.keys(finishedTask.formFields).length === 0;
-    if (noFormfieldsSubmitted) {
+    const formFieldHasValues: boolean = formFieldResultIsAnObject && Object.keys(finishedTask.formFields).length > 0;
+
+    if (!formFieldHasValues) {
       return {};
     }
 
