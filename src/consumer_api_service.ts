@@ -260,7 +260,7 @@ export class ConsumerApiService implements IConsumerApiService {
                               processModelId: string,
                               correlationId: string,
                               userTaskId: string,
-                              userTaskResult: UserTaskResult): Promise<void> {
+                              userTaskResult?: UserTaskResult): Promise<void> {
 
     const userTasks: UserTaskList = await this.getUserTasksForProcessModelInCorrelation(context, processModelId, correlationId);
 
@@ -369,18 +369,23 @@ export class ConsumerApiService implements IConsumerApiService {
   }
 
   private _getUserTaskResultFromUserTaskConfig(finishedTask: UserTaskResult): any {
-    const userTaskIsNotAnObject: boolean = finishedTask === undefined
-                                        || finishedTask.formFields === undefined
-                                        || typeof finishedTask.formFields !== 'object'
-                                        || Array.isArray(finishedTask.formFields);
 
-    if (userTaskIsNotAnObject) {
-      throw new EssentialProjectErrors.BadRequestError('The UserTasks formFields is not an object.');
+    const noResultsProvided: boolean = !finishedTask || !finishedTask.formFields;
+
+    if (noResultsProvided) {
+      return {};
     }
 
-    const noFormfieldsSubmitted: boolean = Object.keys(finishedTask.formFields).length === 0;
-    if (noFormfieldsSubmitted) {
-      throw new EssentialProjectErrors.BadRequestError('The UserTasks formFields are empty.');
+    const formFieldResultIsNotAnObject: boolean = !(finishedTask.formFields && typeof finishedTask.formFields === 'object');
+
+    if (formFieldResultIsNotAnObject) {
+      throw new EssentialProjectErrors.BadRequestError('The UserTasks Form Fields is not contain an object.');
+    }
+
+    const formFieldHasNoValues: boolean = !(formFieldResultIsNotAnObject && Object.keys(finishedTask.formFields).length > 0);
+
+    if (formFieldHasNoValues) {
+      return {};
     }
 
     return finishedTask.formFields;
