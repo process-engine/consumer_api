@@ -262,10 +262,24 @@ export class ConsumerApiService implements IConsumerApiService {
                               userTaskId: string,
                               userTaskResult?: UserTaskResult): Promise<void> {
 
-    const userTasks: UserTaskList = await this.getUserTasksForProcessModelInCorrelation(context, processModelId, correlationId);
+    await this._checkIfCorrelationExists(correlationId);
+    await this._checkIfProcessModelInstanceExists(processModelId);
 
-    const userTask: UserTask = userTasks.userTasks.find((task: UserTask) => {
-      return task.id === userTaskId;
+    const userTasks: Array<Runtime.Types.FlowNodeInstance> =
+      await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
+
+    const userTask: Runtime.Types.FlowNodeInstance = userTasks.find((task: Runtime.Types.FlowNodeInstance) => {
+
+      const currentToken: Runtime.Types.ProcessToken =
+        task.tokens.find((token: Runtime.Types.ProcessToken): boolean => {
+          return token.type === Runtime.Types.ProcessTokenType.onSuspend;
+        });
+
+      const isInSameCorrelation: boolean = currentToken.correlationId === correlationId;
+      const belongsToProcessModel: boolean = currentToken.processModelId === processModelId;
+      const hasMatchingId: boolean = task.id === userTaskId;
+
+      return isInSameCorrelation && belongsToProcessModel && hasMatchingId;
     });
 
     if (userTask === undefined) {
@@ -276,11 +290,18 @@ export class ConsumerApiService implements IConsumerApiService {
     const resultForProcessEngine: any = this._getUserTaskResultFromUserTaskConfig(userTaskResult);
 
     return new Promise<void>((resolve: Function, reject: Function): void => {
-      this.eventAggregator.subscribeOnce(`/processengine/node/${userTask.id}/finished`, (event: any) => {
+
+      // Note: The processInstanceId is the same for every token.
+      const processInstanceId: string = userTask.tokens[0].processInstanceId;
+
+      const finishEvent: string =
+      `/processengine/correlation/${correlationId}/processinstance/${processInstanceId}/node/${userTaskId}`;
+
+      this.eventAggregator.subscribeOnce(`${finishEvent}/finished`, (event: any) => {
         resolve();
       });
 
-      this.eventAggregator.publish(`/processengine/node/${userTask.id}/finish`, {
+      this.eventAggregator.publish(`${finishEvent}/finish`, {
         data: {
           token: resultForProcessEngine,
         },
