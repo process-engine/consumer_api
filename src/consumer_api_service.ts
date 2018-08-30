@@ -1,5 +1,5 @@
 import * as EssentialProjectErrors from '@essential-projects/errors_ts';
-import {IEventAggregator} from '@essential-projects/event_aggregator_contracts';
+import {IEventAggregator, ISubscription} from '@essential-projects/event_aggregator_contracts';
 import {IIdentity} from '@essential-projects/iam_contracts';
 import {
   ConsumerContext,
@@ -277,7 +277,7 @@ export class ConsumerApiService implements IConsumerApiService {
 
       const isInSameCorrelation: boolean = currentToken.correlationId === correlationId;
       const belongsToProcessModel: boolean = currentToken.processModelId === processModelId;
-      const hasMatchingId: boolean = task.id === userTaskId;
+      const hasMatchingId: boolean = task.flowNodeId === userTaskId;
 
       return isInSameCorrelation && belongsToProcessModel && hasMatchingId;
     });
@@ -297,9 +297,13 @@ export class ConsumerApiService implements IConsumerApiService {
       const finishEvent: string =
       `/processengine/correlation/${correlationId}/processinstance/${processInstanceId}/node/${userTaskId}`;
 
-      this.eventAggregator.subscribeOnce(`${finishEvent}/finished`, (event: any) => {
-        resolve();
-      });
+      const subscription: ISubscription =
+        this.eventAggregator.subscribeOnce(`${finishEvent}/finished`, (event: any) => {
+          if (subscription) {
+            subscription.dispose();
+          }
+          resolve();
+        });
 
       this.eventAggregator.publish(`${finishEvent}/finish`, {
         data: {
