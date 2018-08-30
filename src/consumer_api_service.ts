@@ -262,24 +262,10 @@ export class ConsumerApiService implements IConsumerApiService {
                               userTaskId: string,
                               userTaskResult?: UserTaskResult): Promise<void> {
 
-    await this._checkIfCorrelationExists(correlationId);
-    await this._checkIfProcessModelInstanceExists(processModelId);
+    const userTasks: UserTaskList = await this.getUserTasksForProcessModelInCorrelation(context, processModelId, correlationId);
 
-    const userTasks: Array<Runtime.Types.FlowNodeInstance> =
-      await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
-
-    const userTask: Runtime.Types.FlowNodeInstance = userTasks.find((task: Runtime.Types.FlowNodeInstance) => {
-
-      const currentToken: Runtime.Types.ProcessToken =
-        task.tokens.find((token: Runtime.Types.ProcessToken): boolean => {
-          return token.type === Runtime.Types.ProcessTokenType.onSuspend;
-        });
-
-      const isInSameCorrelation: boolean = currentToken.correlationId === correlationId;
-      const belongsToProcessModel: boolean = currentToken.processModelId === processModelId;
-      const hasMatchingId: boolean = task.flowNodeId === userTaskId;
-
-      return isInSameCorrelation && belongsToProcessModel && hasMatchingId;
+    const userTask: UserTask = userTasks.userTasks.find((task: UserTask) => {
+      return task.id === userTaskId;
     });
 
     if (userTask === undefined) {
@@ -291,11 +277,8 @@ export class ConsumerApiService implements IConsumerApiService {
 
     return new Promise<void>((resolve: Function, reject: Function): void => {
 
-      // Note: The processInstanceId is the same for every token.
-      const processInstanceId: string = userTask.tokens[0].processInstanceId;
-
       const finishEvent: string =
-      `/processengine/correlation/${correlationId}/processinstance/${processInstanceId}/node/${userTaskId}`;
+        `/processengine/correlation/${correlationId}/processinstance/${userTask.processInstanceId}/node/${userTask.id}`;
 
       const subscription: ISubscription =
         this.eventAggregator.subscribeOnce(`${finishEvent}/finished`, (event: any) => {
