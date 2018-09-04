@@ -1,5 +1,5 @@
 import * as EssentialProjectErrors from '@essential-projects/errors_ts';
-import {IEventAggregator} from '@essential-projects/event_aggregator_contracts';
+import {IEventAggregator, ISubscription} from '@essential-projects/event_aggregator_contracts';
 import {IIdentity} from '@essential-projects/iam_contracts';
 import {
   ConsumerContext,
@@ -260,7 +260,7 @@ export class ConsumerApiService implements IConsumerApiService {
                               processModelId: string,
                               correlationId: string,
                               userTaskId: string,
-                              userTaskResult: UserTaskResult): Promise<void> {
+                              userTaskResult?: UserTaskResult): Promise<void> {
 
     const userTasks: UserTaskList = await this.getUserTasksForProcessModelInCorrelation(context, processModelId, correlationId);
 
@@ -276,11 +276,19 @@ export class ConsumerApiService implements IConsumerApiService {
     const resultForProcessEngine: any = this._getUserTaskResultFromUserTaskConfig(userTaskResult);
 
     return new Promise<void>((resolve: Function, reject: Function): void => {
-      this.eventAggregator.subscribeOnce(`/processengine/node/${userTask.id}/finished`, (event: any) => {
-        resolve();
-      });
 
-      this.eventAggregator.publish(`/processengine/node/${userTask.id}/finish`, {
+      const finishEvent: string =
+        `/processengine/correlation/${correlationId}/processinstance/${userTask.processInstanceId}/node/${userTask.id}`;
+
+      const subscription: ISubscription =
+        this.eventAggregator.subscribeOnce(`${finishEvent}/finished`, (event: any) => {
+          if (subscription) {
+            subscription.dispose();
+          }
+          resolve();
+        });
+
+      this.eventAggregator.publish(`${finishEvent}/finish`, {
         data: {
           token: resultForProcessEngine,
         },
@@ -369,18 +377,19 @@ export class ConsumerApiService implements IConsumerApiService {
   }
 
   private _getUserTaskResultFromUserTaskConfig(finishedTask: UserTaskResult): any {
-    const userTaskIsNotAnObject: boolean = finishedTask === undefined
-                                        || finishedTask.formFields === undefined
-                                        || typeof finishedTask.formFields !== 'object'
-                                        || Array.isArray(finishedTask.formFields);
 
-    if (userTaskIsNotAnObject) {
-      throw new EssentialProjectErrors.BadRequestError('The UserTasks formFields is not an object.');
+    const noResultsProvided: boolean = !finishedTask || !finishedTask.formFields;
+
+    if (noResultsProvided) {
+      return {};
     }
 
-    const noFormfieldsSubmitted: boolean = Object.keys(finishedTask.formFields).length === 0;
-    if (noFormfieldsSubmitted) {
-      throw new EssentialProjectErrors.BadRequestError('The UserTasks formFields are empty.');
+    const formFieldResultIsNotAnObject: boolean = typeof finishedTask !== 'object'
+      || typeof finishedTask.formFields !== 'object'
+      || Array.isArray(finishedTask.formFields);
+
+    if (formFieldResultIsNotAnObject) {
+      throw new EssentialProjectErrors.BadRequestError(`The UserTask's FormFields are not an object.`);
     }
 
     return finishedTask.formFields;

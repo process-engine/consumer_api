@@ -113,6 +113,7 @@ export class UserTaskConverter {
       id: flowNodeInstance.flowNodeId,
       correlationId: currentProcessToken.correlationId,
       processModelId: currentProcessToken.processModelId,
+      processInstanceId: currentProcessToken.processInstanceId,
       data: userTaskConfig,
       tokenPayload: currentProcessToken.payload,
     };
