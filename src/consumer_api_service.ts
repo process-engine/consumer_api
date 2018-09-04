@@ -381,7 +381,7 @@ export class ConsumerApiService implements IConsumerApiService {
       || Array.isArray(finishedTask.formFields);
 
     if (formFieldResultIsNotAnObject) {
-      throw new EssentialProjectErrors.BadRequestError(`The UserTask's FormFields are not as an object.`);
+      throw new EssentialProjectErrors.BadRequestError(`The UserTask's FormFields are not an object.`);
     }
 
     return finishedTask.formFields;
