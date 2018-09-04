@@ -379,7 +379,7 @@ export class ConsumerApiService implements IConsumerApiService {
     const formFieldResultIsNotAnObject: boolean = !finishedTask.formFields || typeof finishedTask.formFields !== 'object';
 
     if (formFieldResultIsNotAnObject) {
-      throw new EssentialProjectErrors.BadRequestError('The UserTasks Form Fields is not contain an object.');
+      throw new EssentialProjectErrors.BadRequestError(`The UserTask's FormFields are not as an object.`);
     }
 
     return finishedTask.formFields;
