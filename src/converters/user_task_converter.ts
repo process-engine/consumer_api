@@ -79,18 +79,26 @@ export class UserTaskConverter {
     return userTaskList;
   }
 
-  public async convertSuspendedFlowNodeToUserTask(executionContextFacade: IExecutionContextFacade,
-                                                  flowNodeInstance: Runtime.Types.FlowNodeInstance,
-                                                  currentProcessToken: Runtime.Types.ProcessToken,
-                                                 ): Promise<UserTask> {
+  private async convertSuspendedFlowNodeToUserTask(executionContextFacade: IExecutionContextFacade,
+                                                   flowNodeInstance: Runtime.Types.FlowNodeInstance,
+                                                   currentProcessToken: Runtime.Types.ProcessToken,
+                                                  ): Promise<UserTask> {
 
     const processModel: Model.Types.Process =
       await this.processModelService.getProcessModelById(executionContextFacade, currentProcessToken.processModelId);
 
     const processModelFacade: IProcessModelFacade = this.processModelFacadeFactory.create(processModel);
-    const userTask: Model.Activities.UserTask = processModelFacade.getFlowNodeById(flowNodeInstance.flowNodeId) as Model.Activities.UserTask;
+    const flowNodeModel: Model.Base.FlowNode = processModelFacade.getFlowNodeById(flowNodeInstance.flowNodeId);
 
-    return this.convertToConsumerApiUserTask(userTask, flowNodeInstance, currentProcessToken);
+    // Note that UserTasks are not the only types of FlowNodes that can be suspended.
+    // So we must make sure that what we have here is actually a UserTask and not, for example, a TimerEvent.
+    const flowNodeIsNotAUserTask: boolean = flowNodeModel instanceof Model.Activities.UserTask;
+
+    if (!flowNodeIsNotAUserTask) {
+      return undefined;
+    }
+
+    return this.convertToConsumerApiUserTask(flowNodeModel as Model.Activities.UserTask, flowNodeInstance, currentProcessToken);
   }
 
   private async convertToConsumerApiUserTask(userTask: Model.Activities.UserTask,
