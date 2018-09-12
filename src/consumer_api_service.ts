@@ -16,14 +16,17 @@ import {
   UserTaskResult,
 } from '@process-engine/consumer_api_contracts';
 import {
+  eventAggregatorSettings,
   IFlowNodeInstanceService,
   IProcessModelFacade,
   IProcessModelFacadeFactory,
   IProcessModelService,
   Model,
+  ProcessEndedMessage,
   Runtime,
+  UserTaskFinishedMessage,
+  UserTaskWaitingMessage,
 } from '@process-engine/process_engine_contracts';
-
 import {IProcessModelExecutionAdapter} from './adapters/index';
 import {
   ProcessModelConverter,
@@ -367,5 +370,29 @@ export class ConsumerApiService implements IConsumerApi {
     }
 
     return finishedTask.formFields;
+  }
+
+  public onUserTaskWaiting(callback: (userTaskWaiting: UserTaskWaitingMessage) => void|Promise<void>): void {
+    this.eventAggregator.subscribe(eventAggregatorSettings.paths.userTaskWaiting, (userTaskWaiting: UserTaskWaitingMessage) => {
+      callback(userTaskWaiting);
+    });
+  }
+
+  public onUserTaskFinished(callback: (userTaskFinished: UserTaskFinishedMessage) => void|Promise<void>): void {
+    this.eventAggregator.subscribe(eventAggregatorSettings.paths.userTaskFinished, (userTaskFinished: UserTaskFinishedMessage) => {
+      callback(userTaskFinished);
+    });
+  }
+
+  public onProcessTerminated(callback: (processTerminated: ProcessEndedMessage) => void|Promise<void>): void {
+    this.eventAggregator.subscribe(eventAggregatorSettings.paths.processTerminated, (processTerminated: ProcessEndedMessage) => {
+      callback(processTerminated);
+    });
+  }
+
+  public onProcessEnded(callback: (processEnded: ProcessEndedMessage) => void|Promise<void>): void {
+    this.eventAggregator.subscribe(eventAggregatorSettings.paths.processEnded, (processEnded: ProcessEndedMessage) => {
+      callback(processEnded);
+    });
   }
 }
