@@ -383,25 +383,25 @@ export class ConsumerApiService implements IConsumerApi {
   }
 
   public onUserTaskWaiting(callback: (userTaskWaiting: UserTaskWaitingMessage) => void|Promise<void>): void {
-    this.eventAggregator.subscribe(eventAggregatorSettings.paths.userTaskWaiting, (userTaskWaiting: UserTaskWaitingMessage) => {
+    this.eventAggregator.subscribe(eventAggregatorSettings.messagePaths.userTaskWaiting, (userTaskWaiting: UserTaskWaitingMessage) => {
       callback(userTaskWaiting);
     });
   }
 
   public onUserTaskFinished(callback: (userTaskFinished: UserTaskFinishedMessage) => void|Promise<void>): void {
-    this.eventAggregator.subscribe(eventAggregatorSettings.paths.userTaskFinished, (userTaskFinished: UserTaskFinishedMessage) => {
+    this.eventAggregator.subscribe(eventAggregatorSettings.messagePaths.userTaskFinished, (userTaskFinished: UserTaskFinishedMessage) => {
       callback(userTaskFinished);
     });
   }
 
   public onProcessTerminated(callback: (processTerminated: ProcessEndedMessage) => void|Promise<void>): void {
-    this.eventAggregator.subscribe(eventAggregatorSettings.paths.processTerminated, (processTerminated: ProcessEndedMessage) => {
+    this.eventAggregator.subscribe(eventAggregatorSettings.messagePaths.processTerminated, (processTerminated: ProcessEndedMessage) => {
       callback(processTerminated);
     });
   }
 
   public onProcessEnded(callback: (processEnded: ProcessEndedMessage) => void|Promise<void>): void {
-    this.eventAggregator.subscribe(eventAggregatorSettings.paths.processEnded, (processEnded: ProcessEndedMessage) => {
+    this.eventAggregator.subscribe(eventAggregatorSettings.messagePaths.processEnded, (processEnded: ProcessEndedMessage) => {
       callback(processEnded);
     });
   }
