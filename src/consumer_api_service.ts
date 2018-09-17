@@ -266,12 +266,12 @@ export class ConsumerApiService implements IConsumerApi {
 
       const finishEvent: string = eventAggregatorSettings.routePaths.finishUserTask
         .replace(eventAggregatorSettings.routeParams.correlationId, correlationId)
-        .replace(eventAggregatorSettings.routeParams.processInstanceId, userTask.processInstanceId);
+        .replace(eventAggregatorSettings.routeParams.processInstanceId, userTask.processInstanceId)
         .replace(eventAggregatorSettings.routeParams.userTaskId, userTask.id);
 
       const finishedEvent: string = eventAggregatorSettings.routePaths.userTaskFinished
         .replace(eventAggregatorSettings.routeParams.correlationId, correlationId)
-        .replace(eventAggregatorSettings.routeParams.processInstanceId, userTask.processInstanceId);
+        .replace(eventAggregatorSettings.routeParams.processInstanceId, userTask.processInstanceId)
         .replace(eventAggregatorSettings.routeParams.userTaskId, userTask.id);
 
       const subscription: ISubscription =
