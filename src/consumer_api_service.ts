@@ -24,6 +24,7 @@ import {
   Model,
   ProcessEndedMessage,
   Runtime,
+  FinishUserTaskMessage,
   UserTaskFinishedMessage,
   UserTaskWaitingMessage,
 } from '@process-engine/process_engine_contracts';
@@ -263,22 +264,31 @@ export class ConsumerApiService implements IConsumerApi {
 
     return new Promise<void>((resolve: Function, reject: Function): void => {
 
-      const finishEvent: string =
-        `/processengine/correlation/${correlationId}/processinstance/${userTask.processInstanceId}/node/${userTask.id}`;
+      const finishEvent: string = eventAggregatorSettings.routePaths.finishUserTask
+        .replace(eventAggregatorSettings.routeParams.correlationId, correlationId)
+        .replace(eventAggregatorSettings.routeParams.processInstanceId, userTask.processInstanceId);
+        .replace(eventAggregatorSettings.routeParams.userTaskId, userTask.id);
+
+      const finishedEvent: string = eventAggregatorSettings.routePaths.userTaskFinished
+        .replace(eventAggregatorSettings.routeParams.correlationId, correlationId)
+        .replace(eventAggregatorSettings.routeParams.processInstanceId, userTask.processInstanceId);
+        .replace(eventAggregatorSettings.routeParams.userTaskId, userTask.id);
 
       const subscription: ISubscription =
-        this.eventAggregator.subscribeOnce(`${finishEvent}/finished`, (event: any) => {
+        this.eventAggregator.subscribeOnce(finishedEvent, (message: UserTaskFinishedMessage) => {
           if (subscription) {
             subscription.dispose();
           }
           resolve();
         });
 
-      this.eventAggregator.publish(`${finishEvent}/finish`, {
-        data: {
-          token: resultForProcessEngine,
-        },
-      });
+      const finishUserTaskMessage: FinishUserTaskMessage = new FinishUserTaskMessage();
+      finishUserTaskMessage.correlationId = correlationId;
+      finishUserTaskMessage.processInstanceId = userTask.processInstanceId;
+      finishUserTaskMessage.userTaskId = userTask.id;
+      finishUserTaskMessage.result = resultForProcessEngine;
+
+      this.eventAggregator.publish(finishEvent, finishUserTaskMessage);
     });
   }
 
