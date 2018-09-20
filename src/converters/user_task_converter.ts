@@ -12,6 +12,12 @@ import {
   Runtime,
 } from '@process-engine/process_engine_contracts';
 
+/**
+ * Used to cache process models during UserTask conversion.
+ * This helps to avoid repeated queries against the database for the same ProcessModel.
+ */
+type ProcessModelCache = {[processModelId: string]: Model.Types.Process};
+
 export class UserTaskConverter {
 
   private _processModelService: IProcessModelService;
@@ -46,24 +52,37 @@ export class UserTaskConverter {
   }
 
   public async convertUserTasks(executionContextFacade: IExecutionContextFacade,
-                                suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance>,
-                                processModelId?: string): Promise<UserTaskList> {
+                                suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance>): Promise<UserTaskList> {
 
     const suspendedUserTasks: Array<UserTask> = [];
+
+    const processModelCache: ProcessModelCache = {};
 
     for (const suspendedFlowNode of suspendedFlowNodes) {
 
       const currentProcessToken: Runtime.Types.ProcessToken = suspendedFlowNode.tokens.find((token: Runtime.Types.ProcessToken): boolean => {
-        return token.type === Runtime.Types.ProcessTokenType.onSuspend
-          || token.type === Runtime.Types.ProcessTokenType.onExit;
+        return token.type === Runtime.Types.ProcessTokenType.onSuspend;
       });
 
-      const tokenBelongsToDifferentProcessModel: boolean = processModelId && currentProcessToken.processModelId !== processModelId;
-      if (tokenBelongsToDifferentProcessModel) {
-        continue;
+      let processModel: Model.Types.Process;
+
+      // To avoid repeated Queries against the database for the same process model,
+      // the retrieved process models will be cached.
+      // So when we want to get a ProcessModel for a UserTask, we first check the cache and
+      // get the ProcessModel from there.
+      // We only query the database, if the ProcessModel was not yet retrieved.
+      // This avoids timeouts and request-lags when converting large numbers of user tasks.
+      const cacheHasMatchingEntry: boolean = processModelCache[currentProcessToken.processModelId] !== undefined;
+
+      if (cacheHasMatchingEntry) {
+        processModel = processModelCache[currentProcessToken.processModelId];
+      } else {
+        processModel = await this.processModelService.getProcessModelById(executionContextFacade, currentProcessToken.processModelId);
+        processModelCache[currentProcessToken.processModelId] = processModel;
       }
 
-      const userTask: UserTask = await this.convertSuspendedFlowNodeToUserTask(executionContextFacade, suspendedFlowNode, currentProcessToken);
+      const userTask: UserTask =
+        await this.convertSuspendedFlowNodeToUserTask(executionContextFacade, suspendedFlowNode, currentProcessToken, processModel);
 
       if (userTask === undefined) {
         continue;
@@ -82,10 +101,8 @@ export class UserTaskConverter {
   private async convertSuspendedFlowNodeToUserTask(executionContextFacade: IExecutionContextFacade,
                                                    flowNodeInstance: Runtime.Types.FlowNodeInstance,
                                                    currentProcessToken: Runtime.Types.ProcessToken,
+                                                   processModel: Model.Types.Process,
                                                   ): Promise<UserTask> {
-
-    const processModel: Model.Types.Process =
-      await this.processModelService.getProcessModelById(executionContextFacade, currentProcessToken.processModelId);
 
     const processModelFacade: IProcessModelFacade = this.processModelFacadeFactory.create(processModel);
     const flowNodeModel: Model.Base.FlowNode = processModelFacade.getFlowNodeById(flowNodeInstance.flowNodeId);
