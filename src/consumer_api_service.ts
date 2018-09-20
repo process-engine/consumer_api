@@ -250,8 +250,13 @@ export class ConsumerApiService implements IConsumerApiService {
     const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
       await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
+    const suspendedProcessModelFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
+      suspendedFlowNodes.filter((flowNodeInstance: Runtime.Types.FlowNodeInstance) => {
+        return flowNodeInstance.tokens[0].processModelId === processModelId;
+      });
+
     const userTaskList: UserTaskList =
-      await this.userTaskConverter.convertUserTasks(executionContextFacade, suspendedFlowNodes, processModelId);
+      await this.userTaskConverter.convertUserTasks(executionContextFacade, suspendedProcessModelFlowNodes);
 
     return userTaskList;
   }
