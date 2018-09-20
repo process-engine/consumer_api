@@ -61,8 +61,7 @@ export class UserTaskConverter {
     for (const suspendedFlowNode of suspendedFlowNodes) {
 
       const currentProcessToken: Runtime.Types.ProcessToken = suspendedFlowNode.tokens.find((token: Runtime.Types.ProcessToken): boolean => {
-        return token.type === Runtime.Types.ProcessTokenType.onExit ||
-               token.type === Runtime.Types.ProcessTokenType.onSuspend;
+        return token.type === Runtime.Types.ProcessTokenType.onSuspend;
       });
 
       let processModel: Model.Types.Process;
