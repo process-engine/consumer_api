@@ -28,7 +28,6 @@ function registerInContainer(container) {
     .register('ConsumerApiService', ConsumerApiService)
     .dependencies(
       'EventAggregator',
-      'ExecutionContextFacadeFactory',
       'FlowNodeInstanceService',
       'ProcessModelExecutionAdapter',
       'ProcessModelFacadeFactory',

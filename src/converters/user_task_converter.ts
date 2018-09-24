@@ -1,6 +1,7 @@
+import {IIdentity} from '@essential-projects/iam_contracts';
+
 import {UserTask, UserTaskConfig, UserTaskFormField, UserTaskFormFieldType, UserTaskList} from '@process-engine/consumer_api_contracts';
 import {
-  IExecutionContextFacade,
   IFlowNodeInstanceService,
   IProcessModelFacade,
   IProcessModelFacadeFactory,
@@ -11,7 +12,6 @@ import {
   Model,
   Runtime,
 } from '@process-engine/process_engine_contracts';
-
 /**
  * Used to cache process models during UserTask conversion.
  * This helps to avoid repeated queries against the database for the same ProcessModel.
@@ -51,8 +51,7 @@ export class UserTaskConverter {
     return this._processTokenFacadeFactory;
   }
 
-  public async convertUserTasks(executionContextFacade: IExecutionContextFacade,
-                                suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance>): Promise<UserTaskList> {
+  public async convertUserTasks(identity: IIdentity, suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance>): Promise<UserTaskList> {
 
     const suspendedUserTasks: Array<UserTask> = [];
 
@@ -77,12 +76,12 @@ export class UserTaskConverter {
       if (cacheHasMatchingEntry) {
         processModel = processModelCache[currentProcessToken.processModelId];
       } else {
-        processModel = await this.processModelService.getProcessModelById(executionContextFacade, currentProcessToken.processModelId);
+        processModel = await this.processModelService.getProcessModelById(identity, currentProcessToken.processModelId);
         processModelCache[currentProcessToken.processModelId] = processModel;
       }
 
       const userTask: UserTask =
-        await this.convertSuspendedFlowNodeToUserTask(executionContextFacade, suspendedFlowNode, currentProcessToken, processModel);
+        await this.convertSuspendedFlowNodeToUserTask(suspendedFlowNode, currentProcessToken, processModel);
 
       if (userTask === undefined) {
         continue;
@@ -98,8 +97,7 @@ export class UserTaskConverter {
     return userTaskList;
   }
 
-  private async convertSuspendedFlowNodeToUserTask(executionContextFacade: IExecutionContextFacade,
-                                                   flowNodeInstance: Runtime.Types.FlowNodeInstance,
+  private async convertSuspendedFlowNodeToUserTask(flowNodeInstance: Runtime.Types.FlowNodeInstance,
                                                    currentProcessToken: Runtime.Types.ProcessToken,
                                                    processModel: Model.Types.Process,
                                                   ): Promise<UserTask> {
