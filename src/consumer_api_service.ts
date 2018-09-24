@@ -2,11 +2,10 @@ import * as EssentialProjectErrors from '@essential-projects/errors_ts';
 import {IEventAggregator, ISubscription} from '@essential-projects/event_aggregator_contracts';
 import {IIdentity} from '@essential-projects/iam_contracts';
 import {
-  ConsumerContext,
   CorrelationResult,
   EventList,
   EventTriggerPayload,
-  IConsumerApiService,
+  IConsumerApi,
   ProcessModel,
   ProcessModelList,
   ProcessStartRequestPayload,
@@ -42,7 +41,7 @@ const mockEventList: EventList = {
   }],
 };
 
-export class ConsumerApiService implements IConsumerApiService {
+export class ConsumerApiService implements IConsumerApi {
   public config: any = undefined;
 
   private _eventAggregator: IEventAggregator;
@@ -106,9 +105,9 @@ export class ConsumerApiService implements IConsumerApiService {
   }
 
   // Process models
-  public async getProcessModels(context: ConsumerContext): Promise<ProcessModelList> {
+  public async getProcessModels(identity: IIdentity): Promise<ProcessModelList> {
 
-    const executionContextFacade: IExecutionContextFacade = await this._createExecutionContextFacadeFromConsumerContext(context);
+    const executionContextFacade: IExecutionContextFacade = await this._createExecutionContextFacadeFromIdentity(identity);
     const processModels: Array<Model.Types.Process> = await this.processModelService.getProcessModels(executionContextFacade);
     const consumerApiProcessModels: Array<ProcessModel> = processModels.map((processModel: Model.Types.Process) => {
       return this.processModelConverter.convertProcessModel(processModel);
@@ -119,16 +118,16 @@ export class ConsumerApiService implements IConsumerApiService {
     };
   }
 
-  public async getProcessModelById(context: ConsumerContext, processModelKey: string): Promise<ProcessModel> {
+  public async getProcessModelById(identity: IIdentity, processModelKey: string): Promise<ProcessModel> {
 
-    const executionContextFacade: IExecutionContextFacade = await this._createExecutionContextFacadeFromConsumerContext(context);
+    const executionContextFacade: IExecutionContextFacade = await this._createExecutionContextFacadeFromIdentity(identity);
     const processModel: Model.Types.Process = await this.processModelService.getProcessModelById(executionContextFacade, processModelKey);
     const consumerApiProcessModel: ProcessModel = this.processModelConverter.convertProcessModel(processModel);
 
     return consumerApiProcessModel;
   }
 
-  public async startProcessInstance(context: ConsumerContext,
+  public async startProcessInstance(identity: IIdentity,
                                     processModelId: string,
                                     startEventId: string,
                                     payload: ProcessStartRequestPayload,
@@ -136,7 +135,7 @@ export class ConsumerApiService implements IConsumerApiService {
                                     endEventId?: string,
                                   ): Promise<ProcessStartResponsePayload> {
 
-    const executionContextFacade: IExecutionContextFacade = await this._createExecutionContextFacadeFromConsumerContext(context);
+    const executionContextFacade: IExecutionContextFacade = await this._createExecutionContextFacadeFromIdentity(identity);
 
     // Uses the standard IAM facade with the processModelService => The process model gets filtered.
     const processModel: Model.Types.Process = await this.processModelService.getProcessModelById(executionContextFacade, processModelId);
@@ -147,11 +146,11 @@ export class ConsumerApiService implements IConsumerApiService {
       .startProcessInstance(executionContextFacade, processModelId, startEventId, payload, startCallbackType, endEventId);
   }
 
-  public async getProcessResultForCorrelation(context: ConsumerContext,
+  public async getProcessResultForCorrelation(identity: IIdentity,
                                               correlationId: string,
                                               processModelId: string): Promise<Array<CorrelationResult>> {
 
-    const executionContextFacade: IExecutionContextFacade = await this._createExecutionContextFacadeFromConsumerContext(context);
+    const executionContextFacade: IExecutionContextFacade = await this._createExecutionContextFacadeFromIdentity(identity);
 
     const processModel: Model.Types.Process =
       await this.processModelService.getProcessModelById(executionContextFacade, processModelId);
@@ -189,19 +188,19 @@ export class ConsumerApiService implements IConsumerApiService {
   }
 
   // Events
-  public async getEventsForProcessModel(context: ConsumerContext, processModelKey: string): Promise<EventList> {
+  public async getEventsForProcessModel(identity: IIdentity, processModelKey: string): Promise<EventList> {
     return Promise.resolve(mockEventList);
   }
 
-  public async getEventsForCorrelation(context: ConsumerContext, correlationId: string): Promise<EventList> {
+  public async getEventsForCorrelation(identity: IIdentity, correlationId: string): Promise<EventList> {
     return Promise.resolve(mockEventList);
   }
 
-  public async getEventsForProcessModelInCorrelation(context: ConsumerContext, processModelKey: string, correlationId: string): Promise<EventList> {
+  public async getEventsForProcessModelInCorrelation(identity: IIdentity, processModelKey: string, correlationId: string): Promise<EventList> {
     return Promise.resolve(mockEventList);
   }
 
-  public async triggerEvent(context: ConsumerContext,
+  public async triggerEvent(identity: IIdentity,
                             processModelKey: string,
                             correlationId: string,
                             eventId: string,
@@ -210,9 +209,9 @@ export class ConsumerApiService implements IConsumerApiService {
   }
 
   // UserTasks
-  public async getUserTasksForProcessModel(context: ConsumerContext, processModelId: string): Promise<UserTaskList> {
+  public async getUserTasksForProcessModel(identity: IIdentity, processModelId: string): Promise<UserTaskList> {
 
-    const executionContextFacade: IExecutionContextFacade = await this._createExecutionContextFacadeFromConsumerContext(context);
+    const executionContextFacade: IExecutionContextFacade = await this._createExecutionContextFacadeFromIdentity(identity);
 
     await this._checkIfProcessModelInstanceExists(processModelId);
 
@@ -224,9 +223,9 @@ export class ConsumerApiService implements IConsumerApiService {
     return userTaskList;
   }
 
-  public async getUserTasksForCorrelation(context: ConsumerContext, correlationId: string): Promise<UserTaskList> {
+  public async getUserTasksForCorrelation(identity: IIdentity, correlationId: string): Promise<UserTaskList> {
 
-    const executionContextFacade: IExecutionContextFacade = await this._createExecutionContextFacadeFromConsumerContext(context);
+    const executionContextFacade: IExecutionContextFacade = await this._createExecutionContextFacadeFromIdentity(identity);
 
     await this._checkIfCorrelationExists(correlationId);
 
@@ -238,11 +237,11 @@ export class ConsumerApiService implements IConsumerApiService {
     return userTaskList;
   }
 
-  public async getUserTasksForProcessModelInCorrelation(context: ConsumerContext,
+  public async getUserTasksForProcessModelInCorrelation(identity: IIdentity,
                                                         processModelId: string,
                                                         correlationId: string): Promise<UserTaskList> {
 
-    const executionContextFacade: IExecutionContextFacade = await this._createExecutionContextFacadeFromConsumerContext(context);
+    const executionContextFacade: IExecutionContextFacade = await this._createExecutionContextFacadeFromIdentity(identity);
 
     await this._checkIfCorrelationExists(correlationId);
     await this._checkIfProcessModelInstanceExists(processModelId);
@@ -261,13 +260,13 @@ export class ConsumerApiService implements IConsumerApiService {
     return userTaskList;
   }
 
-  public async finishUserTask(context: ConsumerContext,
+  public async finishUserTask(identity: IIdentity,
                               processModelId: string,
                               correlationId: string,
                               userTaskId: string,
                               userTaskResult?: UserTaskResult): Promise<void> {
 
-    const userTasks: UserTaskList = await this.getUserTasksForProcessModelInCorrelation(context, processModelId, correlationId);
+    const userTasks: UserTaskList = await this.getUserTasksForProcessModelInCorrelation(identity, processModelId, correlationId);
 
     const userTask: UserTask = userTasks.userTasks.find((task: UserTask) => {
       return task.id === userTaskId;
@@ -301,10 +300,7 @@ export class ConsumerApiService implements IConsumerApiService {
     });
   }
 
-  private async _createExecutionContextFacadeFromConsumerContext(consumerContext: ConsumerContext): Promise<IExecutionContextFacade> {
-    const identity: IIdentity = {
-      token: consumerContext.identity,
-    };
+  private async _createExecutionContextFacadeFromIdentity(identity: IIdentity): Promise<IExecutionContextFacade> {
     const executionContext: ExecutionContext = new ExecutionContext(identity);
 
     return this.executionContextFacadeFactory.create(executionContext);
