@@ -6,6 +6,7 @@ import {
   EventList,
   EventTriggerPayload,
   IConsumerApi,
+  Messages,
   ProcessModel,
   ProcessModelList,
   ProcessStartRequestPayload,
@@ -16,17 +17,12 @@ import {
   UserTaskResult,
 } from '@process-engine/consumer_api_contracts';
 import {
-  eventAggregatorSettings,
   IFlowNodeInstanceService,
   IProcessModelFacade,
   IProcessModelFacadeFactory,
   IProcessModelService,
   Model,
-  ProcessEndedMessage,
   Runtime,
-  FinishUserTaskMessage,
-  UserTaskFinishedMessage,
-  UserTaskWaitingMessage,
 } from '@process-engine/process_engine_contracts';
 import {IProcessModelExecutionAdapter} from './adapters/index';
 import {
@@ -264,25 +260,33 @@ export class ConsumerApiService implements IConsumerApi {
 
     return new Promise<void>((resolve: Function, reject: Function): void => {
 
-      const finishEvent: string = eventAggregatorSettings.routePaths.finishUserTask
-        .replace(eventAggregatorSettings.routeParams.correlationId, correlationId)
-        .replace(eventAggregatorSettings.routeParams.processInstanceId, userTask.processInstanceId)
-        .replace(eventAggregatorSettings.routeParams.userTaskId, userTask.id);
+      const finishEvent: string = Messages.EventAggregatorSettings.routePaths.finishUserTask
+        .replace(Messages.EventAggregatorSettings.routeParams.correlationId, correlationId)
+        .replace(Messages.EventAggregatorSettings.routeParams.processInstanceId, userTask.processInstanceId)
+        .replace(Messages.EventAggregatorSettings.routeParams.userTaskId, userTask.id);
 
-      const finishedEvent: string = eventAggregatorSettings.routePaths.userTaskFinished
-        .replace(eventAggregatorSettings.routeParams.correlationId, correlationId)
-        .replace(eventAggregatorSettings.routeParams.processInstanceId, userTask.processInstanceId)
-        .replace(eventAggregatorSettings.routeParams.userTaskId, userTask.id);
+      const finishedEvent: string = Messages.EventAggregatorSettings.routePaths.userTaskFinished
+        .replace(Messages.EventAggregatorSettings.routeParams.correlationId, correlationId)
+        .replace(Messages.EventAggregatorSettings.routeParams.processInstanceId, userTask.processInstanceId)
+        .replace(Messages.EventAggregatorSettings.routeParams.userTaskId, userTask.id);
 
       const subscription: ISubscription =
-        this.eventAggregator.subscribeOnce(finishedEvent, (message: UserTaskFinishedMessage) => {
+        this.eventAggregator.subscribeOnce(finishedEvent, (message: Messages.SystemEvents.UserTaskFinishedMessage) => {
           if (subscription) {
             subscription.dispose();
           }
           resolve();
         });
 
-      const finishUserTaskMessage: FinishUserTaskMessage = new FinishUserTaskMessage();
+      const finishUserTaskMessage: Messages.SystemEvents.FinishUserTaskMessage = new Messages.SystemEvents.FinishUserTaskMessage(
+        resultForProcessEngine,
+        correlationId,
+        processModelId,
+        userTask.processInstanceId,
+        userTaskId,
+        '', // TODO: Add FlowNodeInstanceId to UserTask type
+        userTask.tokenPayload,
+      );
       finishUserTaskMessage.correlationId = correlationId;
       finishUserTaskMessage.processInstanceId = userTask.processInstanceId;
       finishUserTaskMessage.userTaskId = userTask.id;
@@ -382,27 +386,19 @@ export class ConsumerApiService implements IConsumerApi {
     return finishedTask.formFields;
   }
 
-  public onUserTaskWaiting(callback: (userTaskWaiting: UserTaskWaitingMessage) => void|Promise<void>): void {
-    this.eventAggregator.subscribe(eventAggregatorSettings.messagePaths.userTaskWaiting, (userTaskWaiting: UserTaskWaitingMessage) => {
-      callback(userTaskWaiting);
-    });
+  public onUserTaskWaiting(callback: Messages.CallbackTypes.OnUserTaskWaitingCallback): void {
+    this.eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.userTaskReached, callback);
   }
 
-  public onUserTaskFinished(callback: (userTaskFinished: UserTaskFinishedMessage) => void|Promise<void>): void {
-    this.eventAggregator.subscribe(eventAggregatorSettings.messagePaths.userTaskFinished, (userTaskFinished: UserTaskFinishedMessage) => {
-      callback(userTaskFinished);
-    });
+  public onUserTaskFinished(callback: Messages.CallbackTypes.OnUserTaskFinishedCallback): void {
+    this.eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.userTaskFinished, callback);
   }
 
-  public onProcessTerminated(callback: (processTerminated: ProcessEndedMessage) => void|Promise<void>): void {
-    this.eventAggregator.subscribe(eventAggregatorSettings.messagePaths.processTerminated, (processTerminated: ProcessEndedMessage) => {
-      callback(processTerminated);
-    });
+  public onProcessTerminated(callback: Messages.CallbackTypes.OnProcessTerminatedCallback): void {
+    this.eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.processTerminated, callback);
   }
 
-  public onProcessEnded(callback: (processEnded: ProcessEndedMessage) => void|Promise<void>): void {
-    this.eventAggregator.subscribe(eventAggregatorSettings.messagePaths.processEnded, (processEnded: ProcessEndedMessage) => {
-      callback(processEnded);
-    });
+  public onProcessEnded(callback: Messages.CallbackTypes.OnProcessEndedCallback): void {
+    this.eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.processEnded, callback);
   }
 }

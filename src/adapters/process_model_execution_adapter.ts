@@ -107,7 +107,7 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
         .startAndAwaitSpecificEndEvent(identity, processModel, startEventId, correlationId, endEventId, payload.inputValues);
 
       response.endEventId = processEndedMessage.flowNodeId;
-      response.tokenPayload = processEndedMessage.tokenPayload;
+      response.tokenPayload = processEndedMessage.currentToken;
 
       return response;
     }
@@ -118,7 +118,7 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
       .startAndAwaitEndEvent(identity, processModel, startEventId, correlationId, payload.inputValues);
 
     response.endEventId = processEndedMessage.flowNodeId;
-    response.tokenPayload = processEndedMessage.tokenPayload;
+    response.tokenPayload = processEndedMessage.currentToken;
 
     return response;
   }
