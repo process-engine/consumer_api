@@ -1,10 +1,10 @@
 import {IIdentity} from '@essential-projects/iam_contracts';
 
 import {
-  EndEventReachedMessage,
   IExecuteProcessService,
   IProcessModelService,
   Model,
+  ProcessEndedMessage,
 } from '@process-engine/process_engine_contracts';
 
 import {ProcessStartRequestPayload, ProcessStartResponsePayload, StartCallbackType} from '@process-engine/consumer_api_contracts';
@@ -96,29 +96,29 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
       return response;
     }
 
-    let endEventReachedMessage: EndEventReachedMessage;
+    let processEndedMessage: ProcessEndedMessage;
 
     // Start the process instance and wait for a specific end event result
     const resolveAfterReachingSpecificEndEvent: boolean = startCallbackType === StartCallbackType.CallbackOnEndEventReached;
     if (resolveAfterReachingSpecificEndEvent) {
 
-      endEventReachedMessage = await this
+      processEndedMessage = await this
         .executeProcessService
         .startAndAwaitSpecificEndEvent(identity, processModel, startEventId, correlationId, endEventId, payload.inputValues);
 
-      response.endEventId = endEventReachedMessage.eventId;
-      response.tokenPayload = endEventReachedMessage.tokenPayload;
+      response.endEventId = processEndedMessage.flowNodeId;
+      response.tokenPayload = processEndedMessage.currentToken;
 
       return response;
     }
 
     // Start the process instance and wait for the first end event result
-    endEventReachedMessage = await this
+    processEndedMessage = await this
       .executeProcessService
       .startAndAwaitEndEvent(identity, processModel, startEventId, correlationId, payload.inputValues);
 
-    response.endEventId = endEventReachedMessage.eventId;
-    response.tokenPayload = endEventReachedMessage.tokenPayload;
+    response.endEventId = processEndedMessage.flowNodeId;
+    response.tokenPayload = processEndedMessage.currentToken;
 
     return response;
   }
