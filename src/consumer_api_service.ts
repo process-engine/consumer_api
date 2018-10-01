@@ -262,12 +262,12 @@ export class ConsumerApiService implements IConsumerApi {
 
       const finishEvent: string = Messages.EventAggregatorSettings.routePaths.finishUserTask
         .replace(Messages.EventAggregatorSettings.routeParams.correlationId, correlationId)
-        .replace(Messages.EventAggregatorSettings.routeParams.processInstanceId, userTask.processInstanceId)
+        .replace(Messages.EventAggregatorSettings.routeParams.processModelId, userTask.processModelId)
         .replace(Messages.EventAggregatorSettings.routeParams.userTaskId, userTask.id);
 
       const finishedEvent: string = Messages.EventAggregatorSettings.routePaths.userTaskFinished
         .replace(Messages.EventAggregatorSettings.routeParams.correlationId, correlationId)
-        .replace(Messages.EventAggregatorSettings.routeParams.processInstanceId, userTask.processInstanceId)
+        .replace(Messages.EventAggregatorSettings.routeParams.processModelId, userTask.processModelId)
         .replace(Messages.EventAggregatorSettings.routeParams.userTaskId, userTask.id);
 
       const subscription: ISubscription =
@@ -287,10 +287,6 @@ export class ConsumerApiService implements IConsumerApi {
         '', // TODO: Add FlowNodeInstanceId to UserTask type
         userTask.tokenPayload,
       );
-      finishUserTaskMessage.correlationId = correlationId;
-      finishUserTaskMessage.processInstanceId = userTask.processInstanceId;
-      finishUserTaskMessage.userTaskId = userTask.id;
-      finishUserTaskMessage.result = resultForProcessEngine;
 
       this.eventAggregator.publish(finishEvent, finishUserTaskMessage);
     });
