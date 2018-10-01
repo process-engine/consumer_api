@@ -260,18 +260,13 @@ export class ConsumerApiService implements IConsumerApi {
 
     return new Promise<void>((resolve: Function, reject: Function): void => {
 
-      const finishEvent: string = Messages.EventAggregatorSettings.routePaths.finishUserTask
-        .replace(Messages.EventAggregatorSettings.routeParams.correlationId, correlationId)
-        .replace(Messages.EventAggregatorSettings.routeParams.processModelId, userTask.processModelId)
-        .replace(Messages.EventAggregatorSettings.routeParams.userTaskId, userTask.id);
-
-      const finishedEvent: string = Messages.EventAggregatorSettings.routePaths.userTaskFinished
+      const userTaskFinishedEvent: string = Messages.EventAggregatorSettings.routePaths.userTaskFinished
         .replace(Messages.EventAggregatorSettings.routeParams.correlationId, correlationId)
         .replace(Messages.EventAggregatorSettings.routeParams.processModelId, userTask.processModelId)
         .replace(Messages.EventAggregatorSettings.routeParams.userTaskId, userTask.id);
 
       const subscription: ISubscription =
-        this.eventAggregator.subscribeOnce(finishedEvent, (message: Messages.SystemEvents.UserTaskFinishedMessage) => {
+        this.eventAggregator.subscribeOnce(userTaskFinishedEvent, (message: Messages.SystemEvents.UserTaskFinishedMessage) => {
           if (subscription) {
             subscription.dispose();
           }
@@ -288,7 +283,12 @@ export class ConsumerApiService implements IConsumerApi {
         userTask.tokenPayload,
       );
 
-      this.eventAggregator.publish(finishEvent, finishUserTaskMessage);
+      const finishUserTaskEvent: string = Messages.EventAggregatorSettings.routePaths.finishUserTask
+        .replace(Messages.EventAggregatorSettings.routeParams.correlationId, correlationId)
+        .replace(Messages.EventAggregatorSettings.routeParams.processModelId, userTask.processModelId)
+        .replace(Messages.EventAggregatorSettings.routeParams.userTaskId, userTask.id);
+
+      this.eventAggregator.publish(finishUserTaskEvent, finishUserTaskMessage);
     });
   }
 
