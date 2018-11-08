@@ -196,10 +196,15 @@ export class ConsumerApiService implements IConsumerApi {
   // UserTasks
   public async getUserTasksForProcessModel(identity: IIdentity, processModelId: string): Promise<UserTaskList> {
 
-    await this._checkIfProcessModelInstanceExists(processModelId);
-
     const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
       await this.flowNodeInstanceService.querySuspendedByProcessModel(processModelId);
+
+    const noSuspendedFlowNodesFound: boolean = !suspendedFlowNodes || suspendedFlowNodes.length === 0;
+    if (noSuspendedFlowNodesFound) {
+      return <UserTaskList> {
+        userTasks: [],
+      };
+    }
 
     const userTaskList: UserTaskList = await this.userTaskConverter.convertUserTasks(identity, suspendedFlowNodes);
 
@@ -208,10 +213,15 @@ export class ConsumerApiService implements IConsumerApi {
 
   public async getUserTasksForCorrelation(identity: IIdentity, correlationId: string): Promise<UserTaskList> {
 
-    await this._checkIfCorrelationExists(correlationId);
-
     const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
       await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
+
+    const noSuspendedFlowNodesFound: boolean = !suspendedFlowNodes || suspendedFlowNodes.length === 0;
+    if (noSuspendedFlowNodesFound) {
+      return <UserTaskList> {
+        userTasks: [],
+      };
+    }
 
     const userTaskList: UserTaskList = await this.userTaskConverter.convertUserTasks(identity, suspendedFlowNodes);
 
@@ -222,9 +232,6 @@ export class ConsumerApiService implements IConsumerApi {
                                                         processModelId: string,
                                                         correlationId: string): Promise<UserTaskList> {
 
-    await this._checkIfCorrelationExists(correlationId);
-    await this._checkIfProcessModelInstanceExists(processModelId);
-
     const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
       await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
@@ -232,6 +239,13 @@ export class ConsumerApiService implements IConsumerApi {
       suspendedFlowNodes.filter((flowNodeInstance: Runtime.Types.FlowNodeInstance) => {
         return flowNodeInstance.tokens[0].processModelId === processModelId;
       });
+
+    const noSuspendedFlowNodesFound: boolean = !suspendedFlowNodes || suspendedFlowNodes.length === 0;
+    if (noSuspendedFlowNodesFound) {
+      return <UserTaskList> {
+        userTasks: [],
+      };
+    }
 
     const userTaskList: UserTaskList =
       await this.userTaskConverter.convertUserTasks(identity, suspendedProcessModelFlowNodes);
@@ -327,24 +341,6 @@ export class ConsumerApiService implements IConsumerApi {
       if (!hasMatchingEndEvent) {
         throw new EssentialProjectErrors.NotFoundError(`EndEvent with ID '${startEventId}' not found!`);
       }
-    }
-  }
-
-  private async _checkIfCorrelationExists(correlationId: string): Promise<void> {
-    const flowNodeInstances: Array<Runtime.Types.FlowNodeInstance> =
-      await this.flowNodeInstanceService.queryByCorrelation(correlationId);
-
-    if (!flowNodeInstances || flowNodeInstances.length === 0) {
-      throw new EssentialProjectErrors.NotFoundError(`No Correlation with id '${correlationId}' found.`);
-    }
-  }
-
-  private async _checkIfProcessModelInstanceExists(processInstanceId: string): Promise<void> {
-    const flowNodeInstances: Array<Runtime.Types.FlowNodeInstance> =
-      await this.flowNodeInstanceService.queryByProcessModel(processInstanceId);
-
-    if (!flowNodeInstances || flowNodeInstances.length === 0) {
-      throw new EssentialProjectErrors.NotFoundError(`No process instance with id '${processInstanceId}' found.`);
     }
   }
 
