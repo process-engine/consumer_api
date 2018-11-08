@@ -134,6 +134,7 @@ export class UserTaskConverter {
 
     const consumerApiUserTask: UserTask = {
       id: flowNodeInstance.flowNodeId,
+      flowNodeInstanceId: flowNodeInstance.id,
       name: userTask.name,
       correlationId: currentProcessToken.correlationId,
       processModelId: currentProcessToken.processModelId,
