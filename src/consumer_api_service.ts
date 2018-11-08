@@ -14,6 +14,7 @@ import {
   StartCallbackType,
   UserTaskList,
   UserTaskResult,
+  UserTask,
 } from '@process-engine/consumer_api_contracts';
 import {
   IFlowNodeInstanceService,
@@ -278,7 +279,7 @@ export class ConsumerApiService implements IConsumerApi {
     // Do this first in order to avoid unnecessary database requests, in case the provided result is invalid.
     const resultForProcessEngine: any = this._createUserTaskResultForProcessEngine(userTaskResult);
 
-    const matchingFlowNodeInstance: Runtime.Types.FlowNodeInstance =
+    const matchingFlowNodeInstance: UserTask =
       await this._getSuspendedUserTask(identity, correlationId, processInstanceId, userTaskInstanceId);
 
     return new Promise<void>(async(resolve: Function, reject: Function): Promise<void> => {
@@ -358,44 +359,28 @@ export class ConsumerApiService implements IConsumerApi {
     correlationId: string,
     processInstanceId: string,
     userTaskInstanceId: string,
-  ): Promise<Runtime.Types.FlowNodeInstance> {
+  ): Promise<UserTask> {
 
     const suspendedFlowNodeInstances: Array<Runtime.Types.FlowNodeInstance> =
       await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
-    const matchingFlowNodeInstance: Runtime.Types.FlowNodeInstance =
-      suspendedFlowNodeInstances.find((flowNodeInstance: Runtime.Types.FlowNodeInstance): boolean => {
-        return flowNodeInstance.id === userTaskInstanceId
-          && flowNodeInstance.processInstanceId === processInstanceId;
+    const userTaskList: UserTaskList =
+      await this.userTaskConverter.convertUserTasks(identity, suspendedFlowNodeInstances);
+
+    const matchingUserTask: UserTask =
+      userTaskList.userTasks.find((userTask: UserTask): boolean => {
+        return userTask.flowNodeInstanceId === userTaskInstanceId
+          && userTask.processInstanceId === processInstanceId;
       });
 
-    const noMatchingFlowNodeInstanceFound: boolean = matchingFlowNodeInstance === undefined;
-    if (noMatchingFlowNodeInstanceFound) {
+    const noMatchingUserTaskFound: boolean = matchingUserTask === undefined;
+    if (noMatchingUserTaskFound) {
       const errorMessage: string =
         `ProcessInstance '${processInstanceId}' in Correlation '${correlationId}' does not have a UserTask '${userTaskInstanceId}'`;
       throw new EssentialProjectErrors.NotFoundError(errorMessage);
     }
 
-    const flowNodeInstanceIsNoUserTask: boolean = await !this._checkIfFlowNodeInstanceIsAUserTask(identity, matchingFlowNodeInstance);
-    if (flowNodeInstanceIsNoUserTask) {
-      const errorMessage: string = `FlowNodeInstance with ID '${userTaskInstanceId}' is not a UserTask!`;
-      throw new EssentialProjectErrors.BadRequestError(errorMessage);
-    }
-
-    return matchingFlowNodeInstance;
-  }
-
-  private async _checkIfFlowNodeInstanceIsAUserTask(identity: IIdentity, flowNodeInstance: Runtime.Types.FlowNodeInstance): Promise<boolean> {
-
-    const processModel: Model.Types.Process = await this.processModelService.getProcessModelById(identity, flowNodeInstance.processModelId);
-
-    const flowNodeModel: Model.Base.FlowNode = processModel.flowNodes.find((flowNode: Model.Base.FlowNode): boolean => {
-      return flowNode.id === flowNodeInstance.flowNodeId;
-    });
-
-    const flowNodeIsUserTask: boolean = flowNodeModel !== undefined && flowNodeModel.constructor.name === 'UserTask';
-
-    return flowNodeIsUserTask;
+    return matchingUserTask;
   }
 
   private _createUserTaskResultForProcessEngine(finishedTask: UserTaskResult): any {
@@ -417,27 +402,22 @@ export class ConsumerApiService implements IConsumerApi {
     return finishedTask.formFields;
   }
 
-  private async _sendUserTaskResultToProcessEngine(userTaskInstance: Runtime.Types.FlowNodeInstance, userTaskResult: any): Promise<void> {
-
-    const currentFlowNodeInstanceToken: Runtime.Types.ProcessToken =
-      userTaskInstance.tokens.find((token: Runtime.Types.ProcessToken): boolean => {
-        return token.type === Runtime.Types.ProcessTokenType.onSuspend;
-      });
+  private async _sendUserTaskResultToProcessEngine(userTaskInstance: UserTask, userTaskResult: any): Promise<void> {
 
     const finishUserTaskMessage: Messages.SystemEvents.FinishUserTaskMessage = new Messages.SystemEvents.FinishUserTaskMessage(
       userTaskResult,
       userTaskInstance.correlationId,
       userTaskInstance.processModelId,
       userTaskInstance.processInstanceId,
-      userTaskInstance.flowNodeId,
+      userTaskInstance.tokenPayload,
       userTaskInstance.processInstanceId,
-      currentFlowNodeInstanceToken,
+      userTaskInstance.tokenPayload,
     );
 
     const finishUserTaskEvent: string = Messages.EventAggregatorSettings.routePaths.finishUserTask
       .replace(Messages.EventAggregatorSettings.routeParams.correlationId, userTaskInstance.correlationId)
       .replace(Messages.EventAggregatorSettings.routeParams.processInstanceId, userTaskInstance.processInstanceId)
-      .replace(Messages.EventAggregatorSettings.routeParams.flowNodeInstanceId, userTaskInstance.id);
+      .replace(Messages.EventAggregatorSettings.routeParams.flowNodeInstanceId, userTaskInstance.flowNodeInstanceId);
 
     this.eventAggregator.publish(finishUserTaskEvent, finishUserTaskMessage);
   }
