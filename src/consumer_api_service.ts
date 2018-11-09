@@ -376,7 +376,7 @@ export class ConsumerApiService implements IConsumerApi {
     const noMatchingUserTaskFound: boolean = matchingUserTask === undefined;
     if (noMatchingUserTaskFound) {
       const errorMessage: string =
-        `ProcessInstance '${processInstanceId}' in Correlation '${correlationId}' does not have a UserTask '${userTaskInstanceId}'`;
+        `ProcessInstance '${processInstanceId}' in Correlation '${correlationId}' does not have a UserTask with id '${userTaskInstanceId}'`;
       throw new EssentialProjectErrors.NotFoundError(errorMessage);
     }
 
