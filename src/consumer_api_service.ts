@@ -7,6 +7,8 @@ import {
   EventList,
   EventTriggerPayload,
   IConsumerApi,
+  ManualTask,
+  ManualTaskList,
   Messages,
   ProcessModel,
   ProcessModelList,
@@ -30,6 +32,7 @@ import * as bluebird from 'bluebird';
 import {IProcessModelExecutionAdapter} from './adapters/index';
 import {
   EventConverter,
+  ManualTaskConverter,
   ProcessModelConverter,
   UserTaskConverter,
 } from './converters/index';
@@ -44,8 +47,9 @@ export class ConsumerApiService implements IConsumerApi {
   private _processModelExecutionAdapter: IProcessModelExecutionAdapter;
   private _processModelFacadeFactory: IProcessModelFacadeFactory;
   private _processModelService: IProcessModelService;
-  private _processModelConverter: ProcessModelConverter;
   private _userTaskConverter: UserTaskConverter;
+  private _manualTaskConverter: ManualTaskConverter;
+  private _processModelConverter: ProcessModelConverter;
 
   private readonly _canTriggerMessagesClaim: string = 'can_trigger_messages';
   private readonly _canTriggerSignalsClaim: string = 'can_trigger_signals';
@@ -59,7 +63,10 @@ export class ConsumerApiService implements IConsumerApi {
               iamService: IIAMService,
               processModelExecutionAdapter: IProcessModelExecutionAdapter,
               processModelFacadeFactory: IProcessModelFacadeFactory,
-              processModelService: IProcessModelService) {
+              processModelService: IProcessModelService,
+              userTaskConverter: UserTaskConverter,
+              manualTaskConverter: ManualTaskConverter,
+              processModelConverter: ProcessModelConverter) {
 
     this._eventConverter = consumerApiEventConverter;
     this._userTaskConverter = consumerApiUserTaskConverter;
@@ -70,29 +77,71 @@ export class ConsumerApiService implements IConsumerApi {
     this._processModelExecutionAdapter = processModelExecutionAdapter;
     this._processModelFacadeFactory = processModelFacadeFactory;
     this._processModelService = processModelService;
+    this._userTaskConverter = userTaskConverter;
+    this._manualTaskConverter = manualTaskConverter;
+    this._processModelConverter = processModelConverter;
   }
 
+  private get eventAggregator(): IEventAggregator {
+    return this._eventAggregator;
+  }
+
+  private get flowNodeInstanceService(): IFlowNodeInstanceService {
+    return this._flowNodeInstanceService;
+  }
+
+  private get processModelExecutionAdapter(): IProcessModelExecutionAdapter {
+    return this._processModelExecutionAdapter;
+  }
+
+  private get processModelFacadeFactory(): IProcessModelFacadeFactory {
+    return this._processModelFacadeFactory;
+  }
+
+  private get processModelService(): IProcessModelService {
+    return this._processModelService;
+  }
+
+  private get userTaskConverter(): UserTaskConverter {
+    return this._userTaskConverter;
+  }
+
+  private get manualTaskConverter(): ManualTaskConverter {
+    return this._manualTaskConverter;
+  }
+
+  private get processModelConverter(): ProcessModelConverter {
+    return this._processModelConverter;
+  }
+
+  // Notifications
   public async onUserTaskWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskWaitingCallback): Promise<void> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
-
     this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.userTaskReached, callback);
   }
 
   public async onUserTaskFinished(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskFinishedCallback): Promise<void> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
-
     this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.userTaskFinished, callback);
+  }
+
+  public async onManualTaskWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnManualTaskWaitingCallback): Promise<void> {
+    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
+    this.eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.manualTaskReached, callback);
+  }
+
+  public async onManualTaskFinished(identity: IIdentity, callback: Messages.CallbackTypes.OnManualTaskFinishedCallback): Promise<void> {
+    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
+    this.eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.manualTaskFinished, callback);
   }
 
   public async onProcessTerminated(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessTerminatedCallback): Promise<void> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
-
     this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.processTerminated, callback);
   }
 
   public async onProcessEnded(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessEndedCallback): Promise<void> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
-
     this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.processEnded, callback);
   }
 
@@ -324,6 +373,102 @@ export class ConsumerApiService implements IConsumerApi {
         });
 
       await this._sendUserTaskResultToProcessEngine(matchingFlowNodeInstance, resultForProcessEngine);
+    });
+  }
+
+  // ManualTasks
+  public async getManualTasksForProcessModel(identity: IIdentity, processModelId: string): Promise<ManualTaskList> {
+
+    await this._checkIfProcessModelInstanceExists(processModelId);
+
+    const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
+      await this.flowNodeInstanceService.querySuspendedByProcessModel(processModelId);
+
+    const manualTaskList: ManualTaskList = await this.manualTaskConverter.convertManualTasks(identity, suspendedFlowNodes);
+
+    return manualTaskList;
+  }
+
+  public async getManualTasksForCorrelation(identity: IIdentity, correlationId: string): Promise<ManualTaskList> {
+
+    await this._checkIfCorrelationExists(correlationId);
+
+    const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
+      await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
+
+    const manualTaskList: ManualTaskList = await this.manualTaskConverter.convertManualTasks(identity, suspendedFlowNodes);
+
+    return manualTaskList;
+  }
+
+  public async getManualTasksForProcessModelInCorrelation(identity: IIdentity,
+                                                          processModelId: string,
+                                                          correlationId: string): Promise<ManualTaskList> {
+
+    await this._checkIfCorrelationExists(correlationId);
+    await this._checkIfProcessModelInstanceExists(processModelId);
+
+    const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
+      await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
+
+    const suspendedProcessModelFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
+      suspendedFlowNodes.filter((flowNodeInstance: Runtime.Types.FlowNodeInstance) => {
+        return flowNodeInstance.tokens[0].processModelId === processModelId;
+      });
+
+    const manualTaskList: ManualTaskList =
+      await this.manualTaskConverter.convertManualTasks(identity, suspendedProcessModelFlowNodes);
+
+    return manualTaskList;
+  }
+
+  public async finishManualTask(identity: IIdentity,
+                                processModelId: string,
+                                correlationId: string,
+                                manualTaskId: string): Promise<void> {
+
+    const manualTasks: ManualTaskList = await this.getManualTasksForProcessModelInCorrelation(identity, processModelId, correlationId);
+
+    const manualTask: ManualTask = manualTasks.manualTasks.find((task: ManualTask) => {
+      return task.id === manualTaskId;
+    });
+
+    if (manualTask === undefined) {
+      const errorMessage: string = `Process model '${processModelId}' in correlation '${correlationId}'
+       does not have a manual task '${manualTaskId}'`;
+      throw new EssentialProjectErrors.NotFoundError(errorMessage);
+    }
+
+    return new Promise<void>((resolve: Function, reject: Function): void => {
+
+      const manualTaskFinishedEvent: string = Messages.EventAggregatorSettings.routePaths.manualTaskFinished
+        .replace(Messages.EventAggregatorSettings.routeParams.correlationId, correlationId)
+        .replace(Messages.EventAggregatorSettings.routeParams.processModelId, manualTask.processModelId)
+        .replace(Messages.EventAggregatorSettings.routeParams.manualTaskId, manualTask.id);
+
+      const subscription: ISubscription =
+        this.eventAggregator.subscribeOnce(manualTaskFinishedEvent, (message: Messages.SystemEvents.ManualTaskFinishedMessage) => {
+          if (subscription) {
+            subscription.dispose();
+          }
+          resolve();
+        });
+
+      const finishManualTaskMessage: Messages.SystemEvents.FinishManualTaskMessage = new Messages.SystemEvents.FinishManualTaskMessage(
+        correlationId,
+        processModelId,
+        manualTask.processInstanceId,
+        manualTaskId,
+        '', // TODO: Add FlowNodeInstanceId to ManualTask type
+        manualTask.tokenPayload,
+      );
+
+      const finishManualTaskEvent: string = Messages.EventAggregatorSettings.routePaths.finishManualTask
+        .replace(Messages.EventAggregatorSettings.routeParams.correlationId, correlationId)
+        .replace(Messages.EventAggregatorSettings.routeParams.processModelId, manualTask.processModelId)
+        .replace(Messages.EventAggregatorSettings.routeParams.manualTaskId, manualTask.id);
+
+      this.eventAggregator.publish(finishManualTaskEvent, finishManualTaskMessage);
     });
   }
 
