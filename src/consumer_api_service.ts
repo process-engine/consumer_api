@@ -20,7 +20,6 @@ import {
 import {
   eventAggregatorSettings,
   EventType,
-  ICorrelationService,
   IFlowNodeInstanceService,
   IProcessModelFacade,
   IProcessModelFacadeFactory,
@@ -37,7 +36,6 @@ import {
 export class ConsumerApiService implements IConsumerApi {
   public config: any = undefined;
 
-  private _correlationService: ICorrelationService;
   private _eventAggregator: IEventAggregator;
   private _flowNodeInstanceService: IFlowNodeInstanceService;
   private _processModelExecutionAdapter: IProcessModelExecutionAdapter;
@@ -46,8 +44,7 @@ export class ConsumerApiService implements IConsumerApi {
   private _processModelConverter: ProcessModelConverter;
   private _userTaskConverter: UserTaskConverter;
 
-  constructor(correlationService: ICorrelationService,
-              eventAggregator: IEventAggregator,
+  constructor(eventAggregator: IEventAggregator,
               flowNodeInstanceService: IFlowNodeInstanceService,
               processModelExecutionAdapter: IProcessModelExecutionAdapter,
               processModelFacadeFactory: IProcessModelFacadeFactory,
@@ -55,7 +52,6 @@ export class ConsumerApiService implements IConsumerApi {
               userTaskConverter: UserTaskConverter,
               processModelConverter: ProcessModelConverter) {
 
-    this._correlationService = correlationService;
     this._eventAggregator = eventAggregator;
     this._flowNodeInstanceService = flowNodeInstanceService;
     this._processModelExecutionAdapter = processModelExecutionAdapter;
