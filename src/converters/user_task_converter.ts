@@ -12,8 +12,9 @@ import {
   Model,
   Runtime,
 } from '@process-engine/process_engine_contracts';
+
 /**
- * Used to cache process models during UserTask conversion.
+ * Used to cache ProcessModels during UserTask conversion.
  * This helps to avoid repeated queries against the database for the same ProcessModel.
  */
 type ProcessModelCache = {[processModelId: string]: Model.Types.Process};
@@ -59,33 +60,20 @@ export class UserTaskConverter {
 
     for (const suspendedFlowNode of suspendedFlowNodes) {
 
-      const currentProcessToken: Runtime.Types.ProcessToken = suspendedFlowNode.tokens.find((token: Runtime.Types.ProcessToken): boolean => {
-        return token.type === Runtime.Types.ProcessTokenType.onSuspend;
-      });
+      const processModelFacade: IProcessModelFacade =
+        await this.getProcessModelForFlowNodeInstance(identity, suspendedFlowNode.processModelId, processModelCache);
 
-      let processModel: Model.Types.Process;
+      const flowNodeModel: Model.Base.FlowNode = processModelFacade.getFlowNodeById(suspendedFlowNode.flowNodeId);
 
-      // To avoid repeated Queries against the database for the same process model,
-      // the retrieved process models will be cached.
-      // So when we want to get a ProcessModel for a UserTask, we first check the cache and
-      // get the ProcessModel from there.
-      // We only query the database, if the ProcessModel was not yet retrieved.
-      // This avoids timeouts and request-lags when converting large numbers of user tasks.
-      const cacheHasMatchingEntry: boolean = processModelCache[currentProcessToken.processModelId] !== undefined;
+      // Note that UserTasks are not the only types of FlowNodes that can be suspended.
+      // So we must make sure that what we have here is actually a UserTask and not, for example, a TimerEvent.
+      const flowNodeIsNotAUserTask: boolean = flowNodeModel.constructor.name !== 'UserTask'
 
-      if (cacheHasMatchingEntry) {
-        processModel = processModelCache[currentProcessToken.processModelId];
-      } else {
-        processModel = await this.processModelService.getProcessModelById(identity, currentProcessToken.processModelId);
-        processModelCache[currentProcessToken.processModelId] = processModel;
-      }
-
-      const userTask: UserTask =
-        await this.convertSuspendedFlowNodeToUserTask(suspendedFlowNode, currentProcessToken, processModel);
-
-      if (userTask === undefined) {
+      if (flowNodeIsNotAUserTask) {
         continue;
       }
+
+      const userTask: UserTask = await this.convertToConsumerApiUserTask(flowNodeModel as Model.Activities.UserTask, suspendedFlowNode);
 
       suspendedUserTasks.push(userTask);
     }
@@ -97,49 +85,63 @@ export class UserTaskConverter {
     return userTaskList;
   }
 
-  private async convertSuspendedFlowNodeToUserTask(flowNodeInstance: Runtime.Types.FlowNodeInstance,
-                                                   currentProcessToken: Runtime.Types.ProcessToken,
-                                                   processModel: Model.Types.Process,
-                                                  ): Promise<UserTask> {
+  private async getProcessModelForFlowNodeInstance(
+    identity: IIdentity,
+    processModelId: string,
+    processModelCache: ProcessModelCache,
+  ): Promise<IProcessModelFacade> {
 
-    const processModelFacade: IProcessModelFacade = this.processModelFacadeFactory.create(processModel);
-    const flowNodeModel: Model.Base.FlowNode = processModelFacade.getFlowNodeById(flowNodeInstance.flowNodeId);
+    let processModel: Model.Types.Process;
 
-    // Note that UserTasks are not the only types of FlowNodes that can be suspended.
-    // So we must make sure that what we have here is actually a UserTask and not, for example, a TimerEvent.
-    const flowNodeIsAUserTask: boolean = flowNodeModel.constructor.name === 'UserTask';
+    // To avoid repeated Queries against the database for the same ProcessModel,
+    // the retrieved ProcessModels will be cached.
+    // So when we want to get a ProcessModel for a UserTask, we first check the cache and
+    // get the ProcessModel from there.
+    // We only query the database, if the ProcessModel was not yet retrieved.
+    // This avoids timeouts and request-lags when converting large numbers of user tasks.
+    const cacheHasMatchingEntry: boolean = processModelCache[processModelId] !== undefined;
 
-    if (!flowNodeIsAUserTask) {
-      return undefined;
+    if (cacheHasMatchingEntry) {
+      processModel = processModelCache[processModelId];
+    } else {
+      processModel = await this.processModelService.getProcessModelById(identity, processModelId);
+      processModelCache[processModelId] = processModel;
     }
 
-    return this.convertToConsumerApiUserTask(flowNodeModel as Model.Activities.UserTask, flowNodeInstance, currentProcessToken);
+    const processModelFacade: IProcessModelFacade = this.processModelFacadeFactory.create(processModel);
+
+    return processModelFacade;
   }
 
-  private async convertToConsumerApiUserTask(userTask: Model.Activities.UserTask,
-                                             flowNodeInstance: Runtime.Types.FlowNodeInstance,
-                                             currentProcessToken: Runtime.Types.ProcessToken,
+  private async convertToConsumerApiUserTask(userTaskModel: Model.Activities.UserTask,
+                                             userTaskInstance: Runtime.Types.FlowNodeInstance,
                                             ): Promise<UserTask> {
 
-    const oldTokenFormat: any = await this._getOldTokenFormatForFlowNodeInstance(flowNodeInstance, currentProcessToken);
+    const currentUserTaskToken: Runtime.Types.ProcessToken =
+      userTaskInstance.tokens.find((token: Runtime.Types.ProcessToken): boolean => {
+        return token.type === Runtime.Types.ProcessTokenType.onSuspend;
+      });
 
-    const consumerApiFormFields: Array<UserTaskFormField> = userTask.formFields.map((formField: Model.Types.FormField) => {
-      return this.convertToConsumerApiFormField(formField, oldTokenFormat);
+    const userTaskTokenOldFormat: any = await this._getUserTaskTokenInOldFormat(currentUserTaskToken);
+
+    const userTaskFormFields: Array<UserTaskFormField> = userTaskModel.formFields.map((formField: Model.Types.FormField) => {
+      return this.convertToConsumerApiFormField(formField, userTaskTokenOldFormat);
     });
 
     const userTaskConfig: UserTaskConfig = {
-      formFields: consumerApiFormFields,
-      preferredControl: this._evaluateExpressionWithOldToken(userTask.preferredControl, oldTokenFormat),
+      formFields: userTaskFormFields,
+      preferredControl: this._evaluateExpressionWithOldToken(userTaskModel.preferredControl, userTaskTokenOldFormat),
     };
 
     const consumerApiUserTask: UserTask = {
-      id: flowNodeInstance.flowNodeId,
-      name: userTask.name,
-      correlationId: currentProcessToken.correlationId,
-      processModelId: currentProcessToken.processModelId,
-      processInstanceId: currentProcessToken.processInstanceId,
+      id: userTaskInstance.flowNodeId,
+      flowNodeInstanceId: userTaskInstance.id,
+      name: userTaskModel.name,
+      correlationId: userTaskInstance.correlationId,
+      processModelId: userTaskInstance.processModelId,
+      processInstanceId: userTaskInstance.processInstanceId,
       data: userTaskConfig,
-      tokenPayload: currentProcessToken.payload,
+      tokenPayload: currentUserTaskToken.payload,
     };
 
     return consumerApiUserTask;
@@ -150,16 +152,12 @@ export class UserTaskConverter {
     const userTaskFormField: UserTaskFormField = new UserTaskFormField();
     userTaskFormField.id = formField.id;
     userTaskFormField.label = this._evaluateExpressionWithOldToken(formField.label, oldTokenFormat);
-    userTaskFormField.type = this.convertToConsumerApiFormFieldType(formField.type);
+    userTaskFormField.type = UserTaskFormFieldType[formField.type];
     userTaskFormField.enumValues = formField.enumValues;
     userTaskFormField.defaultValue = this._evaluateExpressionWithOldToken(formField.defaultValue, oldTokenFormat);
     userTaskFormField.preferredControl = this._evaluateExpressionWithOldToken(formField.preferredControl, oldTokenFormat);
 
     return userTaskFormField;
-  }
-
-  private convertToConsumerApiFormFieldType(type: string): UserTaskFormFieldType {
-    return UserTaskFormFieldType[type];
   }
 
   private _evaluateExpressionWithOldToken(expression: string, oldTokenFormat: any): string | null {
@@ -190,9 +188,7 @@ export class UserTaskConverter {
     return result;
   }
 
-  private async _getOldTokenFormatForFlowNodeInstance(flowNodeInstance: Runtime.Types.FlowNodeInstance,
-                                                      currentProcessToken: Runtime.Types.ProcessToken,
-                                                     ): Promise<any> {
+  private async _getUserTaskTokenInOldFormat(currentProcessToken: Runtime.Types.ProcessToken): Promise<any> {
 
     const {processInstanceId, processModelId, correlationId, identity} = currentProcessToken;
 
