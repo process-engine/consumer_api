@@ -67,9 +67,9 @@ export class UserTaskConverter {
 
       // Note that UserTasks are not the only types of FlowNodes that can be suspended.
       // So we must make sure that what we have here is actually a UserTask and not, for example, a TimerEvent.
-      const flowNodeIsAUserTask: boolean = flowNodeModel.constructor.name === 'UserTask';
+      const flowNodeIsNotAUserTask: boolean = flowNodeModel.constructor.name !== 'UserTask'
 
-      if (!flowNodeIsAUserTask) {
+      if (flowNodeIsNotAUserTask) {
         continue;
       }
 
