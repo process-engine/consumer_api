@@ -1,9 +1,9 @@
 import * as EssentialProjectErrors from '@essential-projects/errors_ts';
-import { BadRequestError, NotFoundError } from '@essential-projects/errors_ts';
 import {IEventAggregator, ISubscription} from '@essential-projects/event_aggregator_contracts';
 import {IIdentity} from '@essential-projects/iam_contracts';
 import {
   CorrelationResult,
+  Event,
   EventList,
   EventTriggerPayload,
   IConsumerApi,
@@ -144,16 +144,62 @@ export class ConsumerApiService implements IConsumerApi {
   }
 
   // Events
-  public async getEventsForProcessModel(identity: IIdentity, processModelKey: string): Promise<EventList> {
-    return Promise.resolve(mockEventList);
+  public async getEventsForProcessModel(identity: IIdentity, processModelId: string): Promise<EventList> {
+    const suspendedFlowNodesForProcessModel: Array<Runtime.Types.FlowNodeInstance> =
+      await this._flowNodeInstanceService.querySuspendedByProcessModel(processModelId);
+
+    const eventFlowNodesForProcessModel: Array<Runtime.Types.FlowNodeInstance> =
+      suspendedFlowNodesForProcessModel.filter((flowNode: Runtime.Types.FlowNodeInstance) => {
+        const flowNodeIsEvent: boolean = flowNode.eventType !== undefined &&
+                                         flowNode.eventType !== null;
+
+        return flowNodeIsEvent;
+      });
+
+    const eventListForProcessModel: EventList = this._getEventListForFlowNodeInstances(eventFlowNodesForProcessModel);
+
+    return eventListForProcessModel;
   }
 
   public async getEventsForCorrelation(identity: IIdentity, correlationId: string): Promise<EventList> {
-    return Promise.resolve(mockEventList);
+    const suspendedFlowNodesForCorrelation: Array<Runtime.Types.FlowNodeInstance> =
+      await this._flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
+
+    const eventFlowNodesForCorrelation: Array<Runtime.Types.FlowNodeInstance> =
+      suspendedFlowNodesForCorrelation.filter((flowNode: Runtime.Types.FlowNodeInstance) => {
+        const flowNodeIsEvent: boolean = flowNode.eventType !== undefined &&
+                                        flowNode.eventType !== null;
+
+        return flowNodeIsEvent;
+      });
+
+    const eventListForCorrelation: EventList = this._getEventListForFlowNodeInstances(eventFlowNodesForCorrelation);
+
+    return eventListForCorrelation;
   }
 
-  public async getEventsForProcessModelInCorrelation(identity: IIdentity, processModelKey: string, correlationId: string): Promise<EventList> {
-    return Promise.resolve(mockEventList);
+  public async getEventsForProcessModelInCorrelation(identity: IIdentity, processModelId: string, correlationId: string): Promise<EventList> {
+    const suspendedFlowNodesForProcessModel: Array<Runtime.Types.FlowNodeInstance> =
+      await this._flowNodeInstanceService.querySuspendedByProcessModel(processModelId);
+
+    const suspendedFlowNodesForProcessModelInCorrelation: Array<Runtime.Types.FlowNodeInstance> =
+      suspendedFlowNodesForProcessModel.filter((flowNode: Runtime.Types.FlowNodeInstance) => {
+        const flowNodeBelongstoCorrelation: boolean = flowNode.correlationId === correlationId;
+
+        return flowNodeBelongstoCorrelation;
+      });
+
+    const eventFlowNodesForProcessModelInCorrelation: Array<Runtime.Types.FlowNodeInstance> =
+      suspendedFlowNodesForProcessModelInCorrelation.filter((flowNode: Runtime.Types.FlowNodeInstance) => {
+        const flowNodeIsEvent: boolean = flowNode.eventType !== undefined &&
+                                         flowNode.eventType !== null;
+
+        return flowNodeIsEvent;
+      });
+
+    const eventListForProcessModelInCorrelation: EventList = this._getEventListForFlowNodeInstances(eventFlowNodesForProcessModelInCorrelation);
+
+    return eventListForProcessModelInCorrelation;
   }
 
   public async triggerMessageEvent(identity: IIdentity,
@@ -169,14 +215,14 @@ export class ConsumerApiService implements IConsumerApi {
     });
 
     if (eventFlowNode === undefined) {
-      throw new NotFoundError(`FlowNode with id: ${eventId} was not found!`);
+      throw new EssentialProjectErrors.NotFoundError(`FlowNode with id: ${eventId} was not found!`);
     }
 
     // TODO: Rework Event Typings.
     const eventIsNoMessageEvent: boolean = (eventFlowNode as any).eventType !== EventType.messageEvent;
 
     if (eventIsNoMessageEvent) {
-      throw new BadRequestError(`Event with id: ${eventId} is no MessageEvent!`);
+      throw new EssentialProjectErrors.BadRequestError(`Event with id: ${eventId} is no MessageEvent!`);
     }
 
     const messageEventName: string = eventAggregatorSettings.routePaths.messageEventReached
@@ -198,14 +244,14 @@ export class ConsumerApiService implements IConsumerApi {
       });
 
       if (eventFlowNode === undefined) {
-        throw new NotFoundError(`FlowNode with id: ${eventId} was not found!`);
+        throw new EssentialProjectErrors.NotFoundError(`FlowNode with id: ${eventId} was not found!`);
       }
 
       // TODO: Rework Event Typings.
       const eventIsNoMessageEvent: boolean = (eventFlowNode as any).eventType !== EventType.signalEvent;
 
       if (eventIsNoMessageEvent) {
-        throw new BadRequestError(`Event with id: ${eventId} is no SignalEvent!`);
+        throw new EssentialProjectErrors.BadRequestError(`Event with id: ${eventId} is no SignalEvent!`);
       }
 
       const messageEventName: string = eventAggregatorSettings.routePaths.messageEventReached
@@ -304,6 +350,22 @@ export class ConsumerApiService implements IConsumerApi {
 
       this._eventAggregator.publish(finishUserTaskEvent, finishUserTaskMessage);
     });
+  }
+
+  public onUserTaskWaiting(callback: Messages.CallbackTypes.OnUserTaskWaitingCallback): void {
+    this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.userTaskReached, callback);
+  }
+
+  public onUserTaskFinished(callback: Messages.CallbackTypes.OnUserTaskFinishedCallback): void {
+    this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.userTaskFinished, callback);
+  }
+
+  public onProcessTerminated(callback: Messages.CallbackTypes.OnProcessTerminatedCallback): void {
+    this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.processTerminated, callback);
+  }
+
+  public onProcessEnded(callback: Messages.CallbackTypes.OnProcessEndedCallback): void {
+    this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.processEnded, callback);
   }
 
   private _validateStartRequest(processModel: Model.Types.Process,
@@ -425,19 +487,23 @@ export class ConsumerApiService implements IConsumerApi {
     return finishedTask.formFields;
   }
 
-  public onUserTaskWaiting(callback: Messages.CallbackTypes.OnUserTaskWaitingCallback): void {
-    this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.userTaskReached, callback);
-  }
+  private _getEventListForFlowNodeInstances(flowNodeInstaces: Array<Runtime.Types.FlowNodeInstance>): EventList {
+    const eventList: EventList = {
+      events: [],
+    };
 
-  public onUserTaskFinished(callback: Messages.CallbackTypes.OnUserTaskFinishedCallback): void {
-    this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.userTaskFinished, callback);
-  }
+    for (const eventFlowNode of flowNodeInstaces) {
+      const evenListObj: Event = {
+        id: eventFlowNode.flowNodeId,
+        flowNodeInstanceId: eventFlowNode.id,
+        correlationId: eventFlowNode.correlationId,
+        processModelId: eventFlowNode.processModelId,
+        processInstanceId: eventFlowNode.processInstanceId,
+        eventType: eventFlowNode.eventType,
+        bpmnType: eventFlowNode.flowNodeType,
+      };
+    }
 
-  public onProcessTerminated(callback: Messages.CallbackTypes.OnProcessTerminatedCallback): void {
-    this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.processTerminated, callback);
-  }
-
-  public onProcessEnded(callback: Messages.CallbackTypes.OnProcessEndedCallback): void {
-    this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.processEnded, callback);
+    return eventList;
   }
 }
