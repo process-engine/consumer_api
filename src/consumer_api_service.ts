@@ -179,12 +179,12 @@ export class ConsumerApiService implements IConsumerApi {
   }
 
   public async getEventsForProcessModelInCorrelation(identity: IIdentity, processModelId: string, correlationId: string): Promise<EventList> {
-    const suspendedFlowNodesForProcessModel: Array<Runtime.Types.FlowNodeInstance> =
-      await this._flowNodeInstanceService.querySuspendedByProcessModel(processModelId);
+    const suspendedFlowNodesForCorrelation: Array<Runtime.Types.FlowNodeInstance> =
+      await this._flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
     const suspendedFlowNodesForProcessModelInCorrelation: Array<Runtime.Types.FlowNodeInstance> =
-      suspendedFlowNodesForProcessModel.filter((flowNode: Runtime.Types.FlowNodeInstance) => {
-        const flowNodeBelongstoCorrelation: boolean = flowNode.correlationId === correlationId;
+      suspendedFlowNodesForCorrelation.filter((flowNode: Runtime.Types.FlowNodeInstance) => {
+        const flowNodeBelongstoCorrelation: boolean = flowNode.processModelId === processModelId;
 
         return flowNodeBelongstoCorrelation;
       });
