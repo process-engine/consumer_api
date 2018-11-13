@@ -248,16 +248,16 @@ export class ConsumerApiService implements IConsumerApi {
       }
 
       // TODO: Rework Event Typings.
-      const eventIsNoMessageEvent: boolean = (eventFlowNode as any).eventType !== EventType.signalEvent;
+      const eventIsNoSignalEvent: boolean = (eventFlowNode as any).eventType !== EventType.signalEvent;
 
-      if (eventIsNoMessageEvent) {
+      if (eventIsNoSignalEvent) {
         throw new EssentialProjectErrors.BadRequestError(`Event with id: ${eventId} is no SignalEvent!`);
       }
 
-      const messageEventName: string = eventAggregatorSettings.routePaths.messageEventReached
-        .replace(eventAggregatorSettings.routeParams.messageReference, (eventFlowNode as any).signalEventDefinition.name);
+      const signalEventName: string = eventAggregatorSettings.routePaths.signalEventReached
+        .replace(eventAggregatorSettings.routeParams.signalReference, (eventFlowNode as any).signalEventDefinition.name);
 
-      this._eventAggregator.publish(messageEventName);
+      this._eventAggregator.publish(signalEventName);
   }
 
   // UserTasks
