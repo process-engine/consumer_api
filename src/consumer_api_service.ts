@@ -378,9 +378,6 @@ export class ConsumerApiService implements IConsumerApi {
 
   // ManualTasks
   public async getManualTasksForProcessModel(identity: IIdentity, processModelId: string): Promise<ManualTaskList> {
-
-    await this._checkIfProcessModelInstanceExists(processModelId);
-
     const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
       await this.flowNodeInstanceService.querySuspendedByProcessModel(processModelId);
 
@@ -390,9 +387,6 @@ export class ConsumerApiService implements IConsumerApi {
   }
 
   public async getManualTasksForCorrelation(identity: IIdentity, correlationId: string): Promise<ManualTaskList> {
-
-    await this._checkIfCorrelationExists(correlationId);
-
     const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
       await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
@@ -404,9 +398,6 @@ export class ConsumerApiService implements IConsumerApi {
   public async getManualTasksForProcessModelInCorrelation(identity: IIdentity,
                                                           processModelId: string,
                                                           correlationId: string): Promise<ManualTaskList> {
-
-    await this._checkIfCorrelationExists(correlationId);
-    await this._checkIfProcessModelInstanceExists(processModelId);
 
     const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
       await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
