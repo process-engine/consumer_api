@@ -483,13 +483,13 @@ export class ConsumerApiService implements IConsumerApi {
     return finishedTask.formFields;
   }
 
-  private _getEventListForFlowNodeInstances(flowNodeInstaces: Array<Runtime.Types.FlowNodeInstance>): EventList {
+  private _getEventListForFlowNodeInstances(flowNodeInstances: Array<Runtime.Types.FlowNodeInstance>): EventList {
     const eventList: EventList = {
       events: [],
     };
 
-    for (const eventFlowNode of flowNodeInstaces) {
-      const evenListObj: Event = {
+    eventList.events = flowNodeInstances.map((eventFlowNode: Runtime.Types.FlowNodeInstance) => {
+      const eventListObj: Event = {
         id: eventFlowNode.flowNodeId,
         flowNodeInstanceId: eventFlowNode.id,
         correlationId: eventFlowNode.correlationId,
@@ -498,7 +498,9 @@ export class ConsumerApiService implements IConsumerApi {
         eventType: eventFlowNode.eventType,
         bpmnType: eventFlowNode.flowNodeType,
       };
-    }
+
+      return eventListObj;
+    });
 
     return eventList;
   }
