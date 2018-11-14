@@ -27,6 +27,7 @@ import {
   Model,
   Runtime,
 } from '@process-engine/process_engine_contracts';
+import * as bluebird from 'bluebird';
 import {IProcessModelExecutionAdapter} from './adapters/index';
 import {
   ProcessModelConverter,
@@ -141,6 +142,10 @@ export class ConsumerApiService implements IConsumerApi {
 
   // Events
   public async getEventsForProcessModel(identity: IIdentity, processModelId: string): Promise<EventList> {
+
+    // Check if User is able to access ProcessModel
+    await this._processModelService.getProcessModelById(identity, processModelId);
+
     const suspendedFlowNodesForProcessModel: Array<Runtime.Types.FlowNodeInstance> =
       await this._flowNodeInstanceService.querySuspendedByProcessModel(processModelId);
 
@@ -158,23 +163,40 @@ export class ConsumerApiService implements IConsumerApi {
   }
 
   public async getEventsForCorrelation(identity: IIdentity, correlationId: string): Promise<EventList> {
+
     const suspendedFlowNodesForCorrelation: Array<Runtime.Types.FlowNodeInstance> =
       await this._flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
     const eventFlowNodesForCorrelation: Array<Runtime.Types.FlowNodeInstance> =
       suspendedFlowNodesForCorrelation.filter((flowNode: Runtime.Types.FlowNodeInstance) => {
         const flowNodeIsEvent: boolean = flowNode.eventType !== undefined &&
-                                        flowNode.eventType !== null;
+                                         flowNode.eventType !== null;
 
         return flowNodeIsEvent;
       });
 
-    const eventListForCorrelation: EventList = this._getEventListForFlowNodeInstances(eventFlowNodesForCorrelation);
+    const accessibleEvents: Array<Runtime.Types.FlowNodeInstance> =
+      await bluebird.filter(eventFlowNodesForCorrelation, async(flowNode: Runtime.Types.FlowNodeInstance) => {
+        try {
+          await this._processModelService.getProcessModelById(identity, flowNode.processModelId);
+
+          return true;
+        } catch (error) {
+
+          return false;
+        }
+      });
+
+    const eventListForCorrelation: EventList = this._getEventListForFlowNodeInstances(accessibleEvents);
 
     return eventListForCorrelation;
   }
 
   public async getEventsForProcessModelInCorrelation(identity: IIdentity, processModelId: string, correlationId: string): Promise<EventList> {
+
+    // Check if User is able to access ProcessModel
+    await this._processModelService.getProcessModelById(identity, processModelId);
+
     const suspendedFlowNodesForCorrelation: Array<Runtime.Types.FlowNodeInstance> =
       await this._flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
