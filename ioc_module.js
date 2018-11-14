@@ -6,6 +6,7 @@ const {
   ProcessModelExecutionAdapter,
   UserTaskConverter,
   ProcessModelConverter,
+  ManualTaskConverter,
 } = require('./dist/commonjs/index');
 
 function registerInContainer(container) {
@@ -24,6 +25,11 @@ function registerInContainer(container) {
     .register('ConsumerApiUserTaskConverter', UserTaskConverter)
     .dependencies('ProcessModelService', 'FlowNodeInstanceService', 'ProcessModelFacadeFactory', 'ProcessTokenFacadeFactory')
     .singleton();
+  
+  container
+    .register('ConsumerApiManualTaskConverter', ManualTaskConverter)
+    .dependencies('ProcessModelService', 'ProcessModelFacadeFactory')
+    .singleton();
 
   container
     .register('ConsumerApiProcessModelConverter', ProcessModelConverter)
@@ -41,7 +47,10 @@ function registerInContainer(container) {
       'IamService',
       'ProcessModelExecutionAdapter',
       'ProcessModelFacadeFactory',
-      'ProcessModelService')
+      'ProcessModelService',
+      'ConsumerApiUserTaskConverter',
+      'ConsumerApiManualTaskConverter',
+      'ConsumerApiProcessModelConverter')
     .singleton();
 }
 
