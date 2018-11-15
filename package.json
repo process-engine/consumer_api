@@ -24,7 +24,7 @@
     "@essential-projects/iam_contracts": "3.2.0",
     "@process-engine/consumer_api_contracts": "feature~implement_event_api",
     "@process-engine/process_engine_contracts": "~31.2.0",
-    "bluebird": "3.5.3",
+    "bluebird": "3.5.2",
     "loggerhythm": "3.0.3",
     "uuid": "3.3.2"
   },

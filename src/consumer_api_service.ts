@@ -13,9 +13,9 @@ import {
   ProcessStartRequestPayload,
   ProcessStartResponsePayload,
   StartCallbackType,
+  UserTask,
   UserTaskList,
   UserTaskResult,
-  UserTask,
 } from '@process-engine/consumer_api_contracts';
 import {
   eventAggregatorSettings,
@@ -60,6 +60,22 @@ export class ConsumerApiService implements IConsumerApi {
     this._processModelService = processModelService;
     this._userTaskConverter = userTaskConverter;
     this._processModelConverter = processModelConverter;
+  }
+
+  public onUserTaskWaiting(callback: Messages.CallbackTypes.OnUserTaskWaitingCallback): void {
+    this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.userTaskReached, callback);
+  }
+
+  public onUserTaskFinished(callback: Messages.CallbackTypes.OnUserTaskFinishedCallback): void {
+    this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.userTaskFinished, callback);
+  }
+
+  public onProcessTerminated(callback: Messages.CallbackTypes.OnProcessTerminatedCallback): void {
+    this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.processTerminated, callback);
+  }
+
+  public onProcessEnded(callback: Messages.CallbackTypes.OnProcessEndedCallback): void {
+    this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.processEnded, callback);
   }
 
   // Process models
@@ -351,39 +367,8 @@ export class ConsumerApiService implements IConsumerApi {
           resolve();
         });
 
-      const finishUserTaskMessage: Messages.SystemEvents.FinishUserTaskMessage = new Messages.SystemEvents.FinishUserTaskMessage(
-        resultForProcessEngine,
-        correlationId,
-        processModelId,
-        userTask.processInstanceId,
-        userTaskId,
-        '', // TODO: Add FlowNodeInstanceId to UserTask type
-        userTask.tokenPayload,
-      );
-
-      const finishUserTaskEvent: string = Messages.EventAggregatorSettings.routePaths.finishUserTask
-        .replace(Messages.EventAggregatorSettings.routeParams.correlationId, correlationId)
-        .replace(Messages.EventAggregatorSettings.routeParams.processModelId, userTask.processModelId)
-        .replace(Messages.EventAggregatorSettings.routeParams.userTaskId, userTask.id);
-
-      this._eventAggregator.publish(finishUserTaskEvent, finishUserTaskMessage);
+      await this._sendUserTaskResultToProcessEngine(matchingFlowNodeInstance, resultForProcessEngine);
     });
-  }
-
-  public onUserTaskWaiting(callback: Messages.CallbackTypes.OnUserTaskWaitingCallback): void {
-    this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.userTaskReached, callback);
-  }
-
-  public onUserTaskFinished(callback: Messages.CallbackTypes.OnUserTaskFinishedCallback): void {
-    this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.userTaskFinished, callback);
-  }
-
-  public onProcessTerminated(callback: Messages.CallbackTypes.OnProcessTerminatedCallback): void {
-    this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.processTerminated, callback);
-  }
-
-  public onProcessEnded(callback: Messages.CallbackTypes.OnProcessEndedCallback): void {
-    this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.processEnded, callback);
   }
 
   private _validateStartRequest(processModel: Model.Types.Process,
@@ -424,24 +409,6 @@ export class ConsumerApiService implements IConsumerApi {
     }
   }
 
-  private async _checkIfCorrelationExists(correlationId: string): Promise<void> {
-    const flowNodeInstances: Array<Runtime.Types.FlowNodeInstance> =
-      await this._flowNodeInstanceService.queryByCorrelation(correlationId);
-
-    if (!flowNodeInstances || flowNodeInstances.length === 0) {
-      throw new EssentialProjectErrors.NotFoundError(`No Correlation with id '${correlationId}' found.`);
-    }
-  }
-
-  private async _checkIfProcessModelInstanceExists(processInstanceId: string): Promise<void> {
-    const flowNodeInstances: Array<Runtime.Types.FlowNodeInstance> =
-      await this._flowNodeInstanceService.queryByProcessModel(processInstanceId);
-
-    if (!flowNodeInstances || flowNodeInstances.length === 0) {
-      throw new EssentialProjectErrors.NotFoundError(`No process instance with id '${processInstanceId}' found.`);
-    }
-  }
-
   private _createCorrelationResultFromEndEventInstance(endEventInstance: Runtime.Types.FlowNodeInstance): CorrelationResult {
 
     const exitToken: Runtime.Types.ProcessToken = endEventInstance.tokens.find((token: Runtime.Types.ProcessToken): boolean => {
@@ -465,10 +432,10 @@ export class ConsumerApiService implements IConsumerApi {
   ): Promise<UserTask> {
 
     const suspendedFlowNodeInstances: Array<Runtime.Types.FlowNodeInstance> =
-      await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
+      await this._flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
     const userTaskList: UserTaskList =
-      await this.userTaskConverter.convertUserTasks(identity, suspendedFlowNodeInstances);
+      await this._userTaskConverter.convertUserTasks(identity, suspendedFlowNodeInstances);
 
     const matchingUserTask: UserTask =
       userTaskList.userTasks.find((userTask: UserTask): boolean => {
@@ -484,7 +451,7 @@ export class ConsumerApiService implements IConsumerApi {
     }
 
     return matchingUserTask;
-  }
+}
 
   private _createUserTaskResultForProcessEngine(finishedTask: UserTaskResult): any {
 
@@ -504,6 +471,26 @@ export class ConsumerApiService implements IConsumerApi {
 
     return finishedTask.formFields;
   }
+
+  private async _sendUserTaskResultToProcessEngine(userTaskInstance: UserTask, userTaskResult: any): Promise<void> {
+
+    const finishUserTaskMessage: Messages.SystemEvents.FinishUserTaskMessage = new Messages.SystemEvents.FinishUserTaskMessage(
+      userTaskResult,
+      userTaskInstance.correlationId,
+      userTaskInstance.processModelId,
+      userTaskInstance.processInstanceId,
+      userTaskInstance.tokenPayload,
+      userTaskInstance.processInstanceId,
+      userTaskInstance.tokenPayload,
+    );
+
+    const finishUserTaskEvent: string = Messages.EventAggregatorSettings.routePaths.finishUserTask
+      .replace(Messages.EventAggregatorSettings.routeParams.correlationId, userTaskInstance.correlationId)
+      .replace(Messages.EventAggregatorSettings.routeParams.processInstanceId, userTaskInstance.processInstanceId)
+      .replace(Messages.EventAggregatorSettings.routeParams.flowNodeInstanceId, userTaskInstance.flowNodeInstanceId);
+
+    this._eventAggregator.publish(finishUserTaskEvent, finishUserTaskMessage);
+}
 
   private _getEventListForFlowNodeInstances(flowNodeInstances: Array<Runtime.Types.FlowNodeInstance>): EventList {
     const eventList: EventList = {
