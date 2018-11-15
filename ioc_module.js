@@ -2,6 +2,7 @@
 
 const {
   ConsumerApiService,
+  EventConverter,
   ProcessModelExecutionAdapter,
   UserTaskConverter,
   ProcessModelConverter,
@@ -12,6 +13,11 @@ function registerInContainer(container) {
   container
     .register('ProcessModelExecutionAdapter', ProcessModelExecutionAdapter)
     .dependencies('ExecuteProcessService', 'ProcessModelService')
+    .singleton();
+
+  container
+    .register('ConsumerApiEventConverter', EventConverter)
+    .dependencies('ProcessModelService', 'ProcessModelFacadeFactory')
     .singleton();
 
   container
@@ -27,13 +33,15 @@ function registerInContainer(container) {
   container
     .register('ConsumerApiService', ConsumerApiService)
     .dependencies(
+      'ConsumerApiEventConverter',
+      'ConsumerApiUserTaskConverter',
+      'ConsumerApiProcessModelConverter',
       'EventAggregator',
       'FlowNodeInstanceService',
+      'IamService',
       'ProcessModelExecutionAdapter',
       'ProcessModelFacadeFactory',
-      'ProcessModelService',
-      'ConsumerApiUserTaskConverter',
-      'ConsumerApiProcessModelConverter')
+      'ProcessModelService')
     .singleton();
 }
 

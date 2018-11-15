@@ -1,6 +1,6 @@
 import * as EssentialProjectErrors from '@essential-projects/errors_ts';
 import {IEventAggregator, ISubscription} from '@essential-projects/event_aggregator_contracts';
-import {IIdentity} from '@essential-projects/iam_contracts';
+import {IIAMService, IIdentity} from '@essential-projects/iam_contracts';
 import {
   CorrelationResult,
   Event,
@@ -19,7 +19,6 @@ import {
 } from '@process-engine/consumer_api_contracts';
 import {
   eventAggregatorSettings,
-  EventType,
   IFlowNodeInstanceService,
   IProcessModelFacade,
   IProcessModelFacadeFactory,
@@ -30,6 +29,7 @@ import {
 import * as bluebird from 'bluebird';
 import {IProcessModelExecutionAdapter} from './adapters/index';
 import {
+  EventConverter,
   ProcessModelConverter,
   UserTaskConverter,
 } from './converters/index';
@@ -38,28 +38,37 @@ export class ConsumerApiService implements IConsumerApi {
   public config: any = undefined;
 
   private _eventAggregator: IEventAggregator;
+  private _eventConverter: EventConverter;
   private _flowNodeInstanceService: IFlowNodeInstanceService;
+  private _iamService: IIAMService;
   private _processModelExecutionAdapter: IProcessModelExecutionAdapter;
   private _processModelFacadeFactory: IProcessModelFacadeFactory;
   private _processModelService: IProcessModelService;
   private _processModelConverter: ProcessModelConverter;
   private _userTaskConverter: UserTaskConverter;
 
-  constructor(eventAggregator: IEventAggregator,
+  private readonly _canTriggerMessagesClaim: string = 'can_trigger_messages';
+  private readonly _canTriggerSignalsClaim: string = 'can_trigger_signals';
+
+  constructor(consumerApiEventConverter: EventConverter,
+              consumerApiUserTaskConverter: UserTaskConverter,
+              consumerApiProcessModelConverter: ProcessModelConverter,
+              eventAggregator: IEventAggregator,
               flowNodeInstanceService: IFlowNodeInstanceService,
+              iamService: IIAMService,
               processModelExecutionAdapter: IProcessModelExecutionAdapter,
               processModelFacadeFactory: IProcessModelFacadeFactory,
-              processModelService: IProcessModelService,
-              userTaskConverter: UserTaskConverter,
-              processModelConverter: ProcessModelConverter) {
+              processModelService: IProcessModelService) {
 
+    this._eventConverter = consumerApiEventConverter;
+    this._userTaskConverter = consumerApiUserTaskConverter;
+    this._processModelConverter = consumerApiProcessModelConverter;
     this._eventAggregator = eventAggregator;
     this._flowNodeInstanceService = flowNodeInstanceService;
+    this._iamService = iamService;
     this._processModelExecutionAdapter = processModelExecutionAdapter;
     this._processModelFacadeFactory = processModelFacadeFactory;
     this._processModelService = processModelService;
-    this._userTaskConverter = userTaskConverter;
-    this._processModelConverter = processModelConverter;
   }
 
   public onUserTaskWaiting(callback: Messages.CallbackTypes.OnUserTaskWaitingCallback): void {
@@ -91,9 +100,9 @@ export class ConsumerApiService implements IConsumerApi {
     };
   }
 
-  public async getProcessModelById(identity: IIdentity, processModelKey: string): Promise<ProcessModel> {
+  public async getProcessModelById(identity: IIdentity, processModelId: string): Promise<ProcessModel> {
 
-    const processModel: Model.Types.Process = await this._processModelService.getProcessModelById(identity, processModelKey);
+    const processModel: Model.Types.Process = await this._processModelService.getProcessModelById(identity, processModelId);
     const consumerApiProcessModel: ProcessModel = this._processModelConverter.convertProcessModel(processModel);
 
     return consumerApiProcessModel;
@@ -159,9 +168,6 @@ export class ConsumerApiService implements IConsumerApi {
   // Events
   public async getEventsForProcessModel(identity: IIdentity, processModelId: string): Promise<EventList> {
 
-    // Check if User is able to access ProcessModel
-    await this._processModelService.getProcessModelById(identity, processModelId);
-
     const suspendedFlowNodesForProcessModel: Array<Runtime.Types.FlowNodeInstance> =
       await this._flowNodeInstanceService.querySuspendedByProcessModel(processModelId);
 
@@ -173,9 +179,9 @@ export class ConsumerApiService implements IConsumerApi {
         return flowNodeIsEvent;
       });
 
-    const eventListForProcessModel: EventList = this._getEventListForFlowNodeInstances(eventFlowNodesForProcessModel);
+    const eventList: EventList = await this._eventConverter.convertEvents(identity, eventFlowNodesForProcessModel);
 
-    return eventListForProcessModel;
+    return eventList;
   }
 
   public async getEventsForCorrelation(identity: IIdentity, correlationId: string): Promise<EventList> {
@@ -203,95 +209,49 @@ export class ConsumerApiService implements IConsumerApi {
         }
       });
 
-    const eventListForCorrelation: EventList = this._getEventListForFlowNodeInstances(accessibleEvents);
+    const eventList: EventList = await this._eventConverter.convertEvents(identity, accessibleEvents);
 
-    return eventListForCorrelation;
+    return eventList;
   }
 
   public async getEventsForProcessModelInCorrelation(identity: IIdentity, processModelId: string, correlationId: string): Promise<EventList> {
 
-    // Check if User is able to access ProcessModel
-    await this._processModelService.getProcessModelById(identity, processModelId);
-
     const suspendedFlowNodesForCorrelation: Array<Runtime.Types.FlowNodeInstance> =
       await this._flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
-    const suspendedFlowNodesForProcessModelInCorrelation: Array<Runtime.Types.FlowNodeInstance> =
+    const suspendedEvents: Array<Runtime.Types.FlowNodeInstance> =
       suspendedFlowNodesForCorrelation.filter((flowNode: Runtime.Types.FlowNodeInstance) => {
-        const flowNodeBelongstoCorrelation: boolean = flowNode.processModelId === processModelId;
 
-        return flowNodeBelongstoCorrelation;
-      });
-
-    const eventFlowNodesForProcessModelInCorrelation: Array<Runtime.Types.FlowNodeInstance> =
-      suspendedFlowNodesForProcessModelInCorrelation.filter((flowNode: Runtime.Types.FlowNodeInstance) => {
         const flowNodeIsEvent: boolean = flowNode.eventType !== undefined &&
                                          flowNode.eventType !== null;
+        const flowNodeBelongstoCorrelation: boolean = flowNode.processModelId === processModelId;
 
-        return flowNodeIsEvent;
+        return flowNodeIsEvent && flowNodeBelongstoCorrelation;
       });
 
-    const eventListForProcessModelInCorrelation: EventList = this._getEventListForFlowNodeInstances(eventFlowNodesForProcessModelInCorrelation);
+    const triggerableEvents: EventList = await this._eventConverter.convertEvents(identity, suspendedEvents);
 
-    return eventListForProcessModelInCorrelation;
+    return triggerableEvents;
   }
 
-  public async triggerMessageEvent(identity: IIdentity,
-                                   processModelId: string,
-                                   correlationId: string,
-                                   eventId: string,
-                                   eventTriggerPayload?: EventTriggerPayload): Promise<void> {
+  public async triggerMessageEvent(identity: IIdentity, messageName: string, payload?: EventTriggerPayload): Promise<void> {
 
-    const processModel: Model.Types.Process = await this._processModelService.getProcessModelById(identity, processModelId);
-
-    const eventFlowNode: Model.Events.Event = processModel.flowNodes.find((flowNode: Model.Base.FlowNode): boolean => {
-      return flowNode.id === eventId;
-    });
-
-    if (eventFlowNode === undefined) {
-      throw new EssentialProjectErrors.NotFoundError(`FlowNode with id: ${eventId} was not found!`);
-    }
-
-    // TODO: Rework Event Typings.
-    const eventIsNoMessageEvent: boolean = (eventFlowNode as any).eventType !== EventType.messageEvent;
-
-    if (eventIsNoMessageEvent) {
-      throw new EssentialProjectErrors.BadRequestError(`Event with id: ${eventId} is no MessageEvent!`);
-    }
+    await this._iamService.ensureHasClaim(identity, this._canTriggerMessagesClaim);
 
     const messageEventName: string = eventAggregatorSettings.routePaths.messageEventReached
-      .replace(eventAggregatorSettings.routeParams.messageReference, (eventFlowNode as any).messageEventDefinition.name);
+      .replace(eventAggregatorSettings.routeParams.messageReference, messageName);
 
-    this._eventAggregator.publish(messageEventName);
+    this._eventAggregator.publish(messageEventName, payload);
   }
 
-  public async triggerSignalEvent(identity: IIdentity,
-                                  processModelId: string,
-                                  correlationId: string,
-                                  eventId: string,
-                                  eventTriggerPayload?: EventTriggerPayload): Promise<void> {
+  public async triggerSignalEvent(identity: IIdentity, signalName: string, payload?: EventTriggerPayload): Promise<void> {
 
-      const processModel: Model.Types.Process = await this._processModelService.getProcessModelById(identity, processModelId);
+    await this._iamService.ensureHasClaim(identity, this._canTriggerSignalsClaim);
 
-      const eventFlowNode: Model.Events.Event = processModel.flowNodes.find((flowNode: Model.Base.FlowNode): boolean => {
-        return flowNode.id === eventId;
-      });
+    const signalEventName: string = eventAggregatorSettings.routePaths.signalEventReached
+      .replace(eventAggregatorSettings.routeParams.signalReference, signalName);
 
-      if (eventFlowNode === undefined) {
-        throw new EssentialProjectErrors.NotFoundError(`FlowNode with id: ${eventId} was not found!`);
-      }
-
-      // TODO: Rework Event Typings.
-      const eventIsNoSignalEvent: boolean = (eventFlowNode as any).eventType !== EventType.signalEvent;
-
-      if (eventIsNoSignalEvent) {
-        throw new EssentialProjectErrors.BadRequestError(`Event with id: ${eventId} is no SignalEvent!`);
-      }
-
-      const signalEventName: string = eventAggregatorSettings.routePaths.signalEventReached
-        .replace(eventAggregatorSettings.routeParams.signalReference, (eventFlowNode as any).signalEventDefinition.name);
-
-      this._eventAggregator.publish(signalEventName);
+    this._eventAggregator.publish(signalEventName, payload);
   }
 
   // UserTasks
@@ -490,27 +450,5 @@ export class ConsumerApiService implements IConsumerApi {
       .replace(Messages.EventAggregatorSettings.routeParams.flowNodeInstanceId, userTaskInstance.flowNodeInstanceId);
 
     this._eventAggregator.publish(finishUserTaskEvent, finishUserTaskMessage);
-}
-
-  private _getEventListForFlowNodeInstances(flowNodeInstances: Array<Runtime.Types.FlowNodeInstance>): EventList {
-    const eventList: EventList = {
-      events: [],
-    };
-
-    eventList.events = flowNodeInstances.map((eventFlowNode: Runtime.Types.FlowNodeInstance) => {
-      const eventListObj: Event = {
-        id: eventFlowNode.flowNodeId,
-        flowNodeInstanceId: eventFlowNode.id,
-        correlationId: eventFlowNode.correlationId,
-        processModelId: eventFlowNode.processModelId,
-        processInstanceId: eventFlowNode.processInstanceId,
-        eventType: eventFlowNode.eventType,
-        bpmnType: eventFlowNode.flowNodeType,
-      };
-
-      return eventListObj;
-    });
-
-    return eventList;
   }
 }
