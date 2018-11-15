@@ -168,37 +168,25 @@ export class ConsumerApiService implements IConsumerApi {
   // Events
   public async getEventsForProcessModel(identity: IIdentity, processModelId: string): Promise<EventList> {
 
-    const suspendedFlowNodesForProcessModel: Array<Runtime.Types.FlowNodeInstance> =
+    const suspendedFlowNodeInstances: Array<Runtime.Types.FlowNodeInstance> =
       await this._flowNodeInstanceService.querySuspendedByProcessModel(processModelId);
 
-    const eventFlowNodesForProcessModel: Array<Runtime.Types.FlowNodeInstance> =
-      suspendedFlowNodesForProcessModel.filter((flowNode: Runtime.Types.FlowNodeInstance) => {
-        const flowNodeIsEvent: boolean = flowNode.eventType !== undefined &&
-                                         flowNode.eventType !== null;
+    const suspendedEvents: Array<Runtime.Types.FlowNodeInstance> = suspendedFlowNodeInstances.filter(this._isFlowNodeAnEvent);
 
-        return flowNodeIsEvent;
-      });
-
-    const eventList: EventList = await this._eventConverter.convertEvents(identity, eventFlowNodesForProcessModel);
+    const eventList: EventList = await this._eventConverter.convertEvents(identity, suspendedEvents);
 
     return eventList;
   }
 
   public async getEventsForCorrelation(identity: IIdentity, correlationId: string): Promise<EventList> {
 
-    const suspendedFlowNodesForCorrelation: Array<Runtime.Types.FlowNodeInstance> =
+    const suspendedFlowNodeInstances: Array<Runtime.Types.FlowNodeInstance> =
       await this._flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
-    const eventFlowNodesForCorrelation: Array<Runtime.Types.FlowNodeInstance> =
-      suspendedFlowNodesForCorrelation.filter((flowNode: Runtime.Types.FlowNodeInstance) => {
-        const flowNodeIsEvent: boolean = flowNode.eventType !== undefined &&
-                                         flowNode.eventType !== null;
-
-        return flowNodeIsEvent;
-      });
+    const suspendedEvents: Array<Runtime.Types.FlowNodeInstance> = suspendedFlowNodeInstances.filter(this._isFlowNodeAnEvent);
 
     const accessibleEvents: Array<Runtime.Types.FlowNodeInstance> =
-      await bluebird.filter(eventFlowNodesForCorrelation, async(flowNode: Runtime.Types.FlowNodeInstance) => {
+      await bluebird.filter(suspendedEvents, async(flowNode: Runtime.Types.FlowNodeInstance) => {
         try {
           await this._processModelService.getProcessModelById(identity, flowNode.processModelId);
 
@@ -216,14 +204,13 @@ export class ConsumerApiService implements IConsumerApi {
 
   public async getEventsForProcessModelInCorrelation(identity: IIdentity, processModelId: string, correlationId: string): Promise<EventList> {
 
-    const suspendedFlowNodesForCorrelation: Array<Runtime.Types.FlowNodeInstance> =
+    const suspendedFlowNodeInstances: Array<Runtime.Types.FlowNodeInstance> =
       await this._flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
     const suspendedEvents: Array<Runtime.Types.FlowNodeInstance> =
-      suspendedFlowNodesForCorrelation.filter((flowNode: Runtime.Types.FlowNodeInstance) => {
+      suspendedFlowNodeInstances.filter((flowNode: Runtime.Types.FlowNodeInstance) => {
 
-        const flowNodeIsEvent: boolean = flowNode.eventType !== undefined &&
-                                         flowNode.eventType !== null;
+        const flowNodeIsEvent: boolean = this._isFlowNodeAnEvent(flowNode);
         const flowNodeBelongstoCorrelation: boolean = flowNode.processModelId === processModelId;
 
         return flowNodeIsEvent && flowNodeBelongstoCorrelation;
@@ -382,6 +369,13 @@ export class ConsumerApiService implements IConsumerApi {
     };
 
     return correlationResult;
+  }
+
+  private _isFlowNodeAnEvent(flowNodeInstance: Runtime.Types.FlowNodeInstance): boolean {
+    const flowNodeIsEvent: boolean = flowNodeInstance.eventType !== undefined &&
+                                     flowNodeInstance.eventType !== null;
+
+    return flowNodeIsEvent;
   }
 
   private async _getSuspendedUserTask(
