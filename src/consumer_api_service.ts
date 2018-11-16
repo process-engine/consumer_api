@@ -413,21 +413,14 @@ export class ConsumerApiService implements IConsumerApi {
   }
 
   public async finishManualTask(identity: IIdentity,
-                                processModelId: string,
+                                processInstanceId: string,
                                 correlationId: string,
-                                manualTaskId: string): Promise<void> {
+                                manualTaskInstanceId: string): Promise<void> {
 
-    const manualTasks: ManualTaskList = await this.getManualTasksForProcessModelInCorrelation(identity, processModelId, correlationId);
+    const matchingFlowNodeInstance: ManualTask =
+      await this._getSuspendedManualTask(identity, correlationId, processInstanceId, manualTaskInstanceId);
 
-    const manualTask: ManualTask = manualTasks.manualTasks.find((task: ManualTask) => {
-      return task.id === manualTaskId;
-    });
 
-    const processModelHasNoManualTask: boolean = manualTask === undefined;
-    if (processModelHasNoManualTask) {
-      const errorMessage: string = `Process model '${processModelId}' in correlation '${correlationId}' does not have a ManualTask '${manualTaskId}'`;
-      throw new EssentialProjectErrors.NotFoundError(errorMessage);
-    }
 
     return new Promise<void>((resolve: Function, reject: Function): void => {
       const routePrameter: {[name: string]: string} = Messages.EventAggregatorSettings.routeParams;
@@ -435,8 +428,8 @@ export class ConsumerApiService implements IConsumerApi {
       const manualTaskFinishedEvent: string = Messages.EventAggregatorSettings
           .routePaths.manualTaskFinished
           .replace(routePrameter.correlationId, correlationId)
-          .replace(routePrameter.processModelId, manualTask.processModelId)
-          .replace(routePrameter.manualTaskId, manualTask.id);
+          .replace(routePrameter.processInstanceId, processInstanceId)
+          .replace(routePrameter.flowNodeInstanceId, manualTaskInstanceId);
 
       const subscription: ISubscription =
         this.eventAggregator.subscribeOnce(manualTaskFinishedEvent, (message: Messages.SystemEvents.ManualTaskFinishedMessage) => {
@@ -447,19 +440,19 @@ export class ConsumerApiService implements IConsumerApi {
         });
 
       const finishManualTaskMessage: Messages.SystemEvents.FinishManualTaskMessage = new Messages.SystemEvents.FinishManualTaskMessage(
-        correlationId,
-        processModelId,
-        manualTask.processInstanceId,
-        manualTaskId,
-        '', // TODO: Add FlowNodeInstanceId to ManualTask type
-        manualTask.tokenPayload,
+        matchingFlowNodeInstance.correlationId,
+        matchingFlowNodeInstance.processModelId,
+        matchingFlowNodeInstance.processInstanceId,
+        matchingFlowNodeInstance.id,
+        matchingFlowNodeInstance.flowNodeInstanceId,
+        matchingFlowNodeInstance.tokenPayload,
       );
 
       const finishManualTaskEvent: string = Messages.EventAggregatorSettings
-            .routePaths.finishManualTask
-        .replace(routePrameter.correlationId, correlationId)
-        .replace(routePrameter.processModelId, manualTask.processModelId)
-        .replace(routePrameter.manualTaskId, manualTask.id);
+          .routePaths.finishManualTask
+          .replace(routePrameter.correlationId, correlationId)
+          .replace(routePrameter.processInstanceId, processInstanceId)
+          .replace(routePrameter.flowNodeInstanceId, manualTaskInstanceId);
 
       this.eventAggregator.publish(finishManualTaskEvent, finishManualTaskMessage);
     });
@@ -552,6 +545,38 @@ export class ConsumerApiService implements IConsumerApi {
     }
 
     return matchingUserTask;
+}
+
+private async _getSuspendedManualTask(
+  identity: IIdentity,
+  correlationId: string,
+  processInstanceId: string,
+  manualTaskInstanceId: string,
+): Promise<ManualTask> {
+
+  const suspendedFlowNodeInstances: Array<Runtime.Types.FlowNodeInstance> =
+    await this._flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
+
+
+  const manualTaskList: ManualTaskList =
+    await this._manualTaskConverter.convert(identity, suspendedFlowNodeInstances);
+
+
+  const matchingManualTask: ManualTask =
+  manualTaskList.manualTasks.find((manualTask: ManualTask): boolean => {
+      return manualTask.flowNodeInstanceId === manualTaskInstanceId
+        && manualTask.processInstanceId === processInstanceId;
+    });
+
+
+  const noMatchingManualTaskFound: boolean = matchingManualTask === undefined;
+  if (noMatchingManualTaskFound) {
+    const errorMessage: string =
+      `ProcessInstance '${processInstanceId}' in Correlation '${correlationId}' does not have a ManualTask with id '${manualTaskInstanceId}'`;
+    throw new EssentialProjectErrors.NotFoundError(errorMessage);
+  }
+
+  return matchingManualTask;
 }
 
   private _createUserTaskResultForProcessEngine(finishedTask: UserTaskResult): any {

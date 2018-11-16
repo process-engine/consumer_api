@@ -106,10 +106,11 @@ export class ManualTaskConverter {
 
     const consumerApiManualTask: ManualTask = {
       id: flowNodeInstance.flowNodeId,
+      flowNodeInstanceId: flowNodeInstance.id,
       name: manualTask.name,
-      correlationId: currentProcessToken.correlationId,
-      processModelId: currentProcessToken.processModelId,
-      processInstanceId: currentProcessToken.processInstanceId,
+      correlationId: flowNodeInstance.correlationId,
+      processModelId: flowNodeInstance.processModelId,
+      processInstanceId: flowNodeInstance.processInstanceId,
       tokenPayload: currentProcessToken.payload,
     };
 
