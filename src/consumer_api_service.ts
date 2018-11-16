@@ -424,7 +424,8 @@ export class ConsumerApiService implements IConsumerApi {
       return task.id === manualTaskId;
     });
 
-    if (manualTask === undefined) {
+    const processModelHasNoManualTask: boolean = manualTask === undefined;
+    if (processModelHasNoManualTask) {
       const errorMessage: string = `Process model '${processModelId}' in correlation '${correlationId}'
        does not have a manual task '${manualTaskId}'`;
       throw new EssentialProjectErrors.NotFoundError(errorMessage);

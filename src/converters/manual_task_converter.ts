@@ -65,7 +65,8 @@ export class ManualTaskConverter {
       const manualTask: ManualTask =
         await this._convertSuspendedFlowNodeToManualTask(suspendedFlowNode, currentProcessToken, processModel);
 
-      if (manualTask === undefined) {
+      const taskIsNotAManualTask: boolean = manualTask === undefined;
+      if (taskIsNotAManualTask) {
         continue;
       }
 
@@ -89,9 +90,9 @@ export class ManualTaskConverter {
 
     // Note that ManualTasks are not the only types of FlowNodes that can be suspended.
     // So we must make sure that what we have here is actually a ManualTask and not, for example, a TimerEvent.
-    const flowNodeIsAManualTask: boolean = flowNodeModel.constructor.name === 'ManualTask';
+    const flowNodeIsNotAManualTask: boolean = flowNodeModel.constructor.name !== 'ManualTask';
 
-    if (!flowNodeIsAManualTask) {
+    if (flowNodeIsNotAManualTask) {
       return undefined;
     }
 
