@@ -33,7 +33,7 @@ export class ManualTaskConverter {
     return this._processModelFacadeFactory;
   }
 
-  public async convertManualTasks(identity: IIdentity, suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance>): Promise<ManualTaskList> {
+  public async convert(identity: IIdentity, suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance>): Promise<ManualTaskList> {
 
     const suspendedManualTasks: Array<ManualTask> = [];
 
@@ -53,9 +53,9 @@ export class ManualTaskConverter {
       // get the ProcessModel from there.
       // We only query the database, if the ProcessModel was not yet retrieved.
       // This avoids timeouts and request-lags when converting large numbers of manual tasks.
-      const cacheHasMatchingEntry: boolean = processModelCache[currentProcessToken.processModelId] !== undefined;
+      const modelInCache: boolean = processModelCache[currentProcessToken.processModelId] !== undefined;
 
-      if (cacheHasMatchingEntry) {
+      if (modelInCache) {
         processModel = processModelCache[currentProcessToken.processModelId];
       } else {
         processModel = await this.processModelService.getProcessModelById(identity, currentProcessToken.processModelId);

@@ -381,7 +381,7 @@ export class ConsumerApiService implements IConsumerApi {
     const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
       await this.flowNodeInstanceService.querySuspendedByProcessModel(processModelId);
 
-    const manualTaskList: ManualTaskList = await this.manualTaskConverter.convertManualTasks(identity, suspendedFlowNodes);
+    const manualTaskList: ManualTaskList = await this.manualTaskConverter.convert(identity, suspendedFlowNodes);
 
     return manualTaskList;
   }
@@ -390,7 +390,7 @@ export class ConsumerApiService implements IConsumerApi {
     const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
       await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
-    const manualTaskList: ManualTaskList = await this.manualTaskConverter.convertManualTasks(identity, suspendedFlowNodes);
+    const manualTaskList: ManualTaskList = await this.manualTaskConverter.convert(identity, suspendedFlowNodes);
 
     return manualTaskList;
   }
@@ -408,7 +408,7 @@ export class ConsumerApiService implements IConsumerApi {
       });
 
     const manualTaskList: ManualTaskList =
-      await this.manualTaskConverter.convertManualTasks(identity, suspendedProcessModelFlowNodes);
+      await this.manualTaskConverter.convert(identity, suspendedProcessModelFlowNodes);
 
     return manualTaskList;
   }
