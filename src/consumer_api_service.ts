@@ -425,18 +425,18 @@ export class ConsumerApiService implements IConsumerApi {
 
     const processModelHasNoManualTask: boolean = manualTask === undefined;
     if (processModelHasNoManualTask) {
-      const errorMessage: string = `Process model '${processModelId}' in correlation '${correlationId}'
-       does not have a manual task '${manualTaskId}'`;
+      const errorMessage: string = `Process model '${processModelId}' in correlation '${correlationId}' does not have a ManualTask '${manualTaskId}'`;
       throw new EssentialProjectErrors.NotFoundError(errorMessage);
     }
 
     return new Promise<void>((resolve: Function, reject: Function): void => {
+      const routePrameter: {[name: string]: string} = Messages.EventAggregatorSettings.routeParams;
 
       const manualTaskFinishedEvent: string = Messages.EventAggregatorSettings
-            .routePaths.manualTaskFinished
-        .replace(Messages.EventAggregatorSettings.routeParams.correlationId, correlationId)
-        .replace(Messages.EventAggregatorSettings.routeParams.processModelId, manualTask.processModelId)
-        .replace(Messages.EventAggregatorSettings.routeParams.manualTaskId, manualTask.id);
+          .routePaths.manualTaskFinished
+          .replace(routePrameter.correlationId, correlationId)
+          .replace(routePrameter.processModelId, manualTask.processModelId)
+          .replace(routePrameter.manualTaskId, manualTask.id);
 
       const subscription: ISubscription =
         this.eventAggregator.subscribeOnce(manualTaskFinishedEvent, (message: Messages.SystemEvents.ManualTaskFinishedMessage) => {
@@ -457,9 +457,9 @@ export class ConsumerApiService implements IConsumerApi {
 
       const finishManualTaskEvent: string = Messages.EventAggregatorSettings
             .routePaths.finishManualTask
-        .replace(Messages.EventAggregatorSettings.routeParams.correlationId, correlationId)
-        .replace(Messages.EventAggregatorSettings.routeParams.processModelId, manualTask.processModelId)
-        .replace(Messages.EventAggregatorSettings.routeParams.manualTaskId, manualTask.id);
+        .replace(routePrameter.correlationId, correlationId)
+        .replace(routePrameter.processModelId, manualTask.processModelId)
+        .replace(routePrameter.manualTaskId, manualTask.id);
 
       this.eventAggregator.publish(finishManualTaskEvent, finishManualTaskMessage);
     });
