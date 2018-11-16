@@ -3,7 +3,6 @@ import {IEventAggregator, ISubscription} from '@essential-projects/event_aggrega
 import {IIAMService, IIdentity} from '@essential-projects/iam_contracts';
 import {
   CorrelationResult,
-  Event,
   EventList,
   EventTriggerPayload,
   IConsumerApi,
