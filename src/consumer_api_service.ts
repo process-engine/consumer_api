@@ -432,7 +432,8 @@ export class ConsumerApiService implements IConsumerApi {
 
     return new Promise<void>((resolve: Function, reject: Function): void => {
 
-      const manualTaskFinishedEvent: string = Messages.EventAggregatorSettings.routePaths.manualTaskFinished
+      const manualTaskFinishedEvent: string = Messages.EventAggregatorSettings
+            .routePaths.manualTaskFinished
         .replace(Messages.EventAggregatorSettings.routeParams.correlationId, correlationId)
         .replace(Messages.EventAggregatorSettings.routeParams.processModelId, manualTask.processModelId)
         .replace(Messages.EventAggregatorSettings.routeParams.manualTaskId, manualTask.id);
@@ -454,7 +455,8 @@ export class ConsumerApiService implements IConsumerApi {
         manualTask.tokenPayload,
       );
 
-      const finishManualTaskEvent: string = Messages.EventAggregatorSettings.routePaths.finishManualTask
+      const finishManualTaskEvent: string = Messages.EventAggregatorSettings
+            .routePaths.finishManualTask
         .replace(Messages.EventAggregatorSettings.routeParams.correlationId, correlationId)
         .replace(Messages.EventAggregatorSettings.routeParams.processModelId, manualTask.processModelId)
         .replace(Messages.EventAggregatorSettings.routeParams.manualTaskId, manualTask.id);
