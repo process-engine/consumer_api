@@ -105,14 +105,12 @@ export class ConsumerApiService implements IConsumerApi {
     this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.manualTaskFinished, callback);
   }
 
-  public async onProcessTerminated(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessTerminatedCallback): Promise<void> {
-    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
-    this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.processTerminated, callback);
+  public onProcessStarted(callback: Messages.CallbackTypes.OnProcessStartedCallback): void {
+    this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.processStarted, callback);
   }
 
-  public async onProcessEnded(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessEndedCallback): Promise<void> {
-    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
-    this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.processEnded, callback);
+  public onProcessTerminated(callback: Messages.CallbackTypes.OnProcessTerminatedCallback): void {
+    this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.processTerminated, callback);
   }
 
   // Process models
