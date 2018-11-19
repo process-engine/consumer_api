@@ -49,7 +49,7 @@ export class ConsumerApiService implements IConsumerApi {
 
   private readonly _canTriggerMessagesClaim: string = 'can_trigger_messages';
   private readonly _canTriggerSignalsClaim: string = 'can_trigger_signals';
-  private readonly _canSubscribeEvents: string = 'can_subscribe_events';
+  private readonly _canSubscribeToEvents: string = 'can_subscribe_to_events';
 
   constructor(consumerApiEventConverter: EventConverter,
               consumerApiUserTaskConverter: UserTaskConverter,
@@ -73,7 +73,7 @@ export class ConsumerApiService implements IConsumerApi {
   }
 
   public async onUserTaskWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskWaitingCallback): Promise<void> {
-    await this._iamService.ensureHasClaim(identity, this._canSubscribeEvents);
+    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
 
     this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.userTaskReached, callback);
   }
