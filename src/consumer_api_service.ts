@@ -110,6 +110,21 @@ export class ConsumerApiService implements IConsumerApi {
     this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.processStarted, callback);
   }
 
+  public async onProcessWithProcessModelIdStarted(
+                                                    identity: IIdentity,
+                                                    callback: Messages.CallbackTypes.OnProcessStartedCallback,
+                                                    processModelId: string): Promise<void> {
+    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
+
+    const processStartedBaseName: string = eventAggregatorSettings.routePaths.processInstanceStarted;
+    const processModelIdParam: string = eventAggregatorSettings.routeParams.processModelId;
+    const processWithIdStartedMessageEventName: string =
+      processStartedBaseName
+        .replace(processModelIdParam, processModelId);
+
+    this._eventAggregator.subscribe(processWithIdStartedMessageEventName, callback);
+  }
+
   public async onProcessEnded(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessEndedCallback): Promise<void> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
     this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.processEnded, callback);
