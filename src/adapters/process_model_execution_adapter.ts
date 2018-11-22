@@ -91,7 +91,7 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
     // Only start the process instance and return
     const resolveImmediatelyAfterStart: boolean = startCallbackType === StartCallbackType.CallbackOnProcessInstanceCreated;
     if (resolveImmediatelyAfterStart) {
-      this.executeProcessService.start(identity, processModel, startEventId, correlationId, payload.inputValues);
+      this.executeProcessService.start(identity, processModel, startEventId, correlationId, payload.inputValues, payload.callerId);
 
       return response;
     }
@@ -104,7 +104,7 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
 
       processEndedMessage = await this
         .executeProcessService
-        .startAndAwaitSpecificEndEvent(identity, processModel, startEventId, correlationId, endEventId, payload.inputValues);
+        .startAndAwaitSpecificEndEvent(identity, processModel, startEventId, correlationId, endEventId, payload.inputValues, payload.callerId);
 
       response.endEventId = processEndedMessage.flowNodeId;
       response.tokenPayload = processEndedMessage.currentToken;
@@ -115,7 +115,7 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
     // Start the process instance and wait for the first end event result
     processEndedMessage = await this
       .executeProcessService
-      .startAndAwaitEndEvent(identity, processModel, startEventId, correlationId, payload.inputValues);
+      .startAndAwaitEndEvent(identity, processModel, startEventId, correlationId, payload.inputValues, payload.callerId);
 
     response.endEventId = processEndedMessage.flowNodeId;
     response.tokenPayload = processEndedMessage.currentToken;
