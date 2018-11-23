@@ -87,26 +87,31 @@ export class ConsumerApiService implements IConsumerApi {
   // Notifications
   public async onUserTaskWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskWaitingCallback): Promise<void> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
+
     this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.userTaskReached, callback);
   }
 
   public async onUserTaskFinished(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskFinishedCallback): Promise<void> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
+
     this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.userTaskFinished, callback);
   }
 
   public async onManualTaskWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnManualTaskWaitingCallback): Promise<void> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
+
     this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.manualTaskReached, callback);
   }
 
   public async onManualTaskFinished(identity: IIdentity, callback: Messages.CallbackTypes.OnManualTaskFinishedCallback): Promise<void> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
+
     this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.manualTaskFinished, callback);
   }
 
   public async onProcessStarted(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessStartedCallback): Promise<void> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
+
     this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.processStarted, callback);
   }
 
@@ -129,11 +134,13 @@ export class ConsumerApiService implements IConsumerApi {
 
   public async onProcessEnded(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessEndedCallback): Promise<void> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
+
     this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.processEnded, callback);
   }
 
   public async onProcessTerminated(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessTerminatedCallback): Promise<void> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
+
     this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.processTerminated, callback);
   }
 
