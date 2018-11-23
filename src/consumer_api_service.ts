@@ -111,9 +111,11 @@ export class ConsumerApiService implements IConsumerApi {
   }
 
   public async onProcessWithProcessModelIdStarted(
-                                                    identity: IIdentity,
-                                                    callback: Messages.CallbackTypes.OnProcessStartedCallback,
-                                                    processModelId: string): Promise<void> {
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnProcessStartedCallback,
+    processModelId: string,
+  ): Promise<void> {
+
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
 
     const processStartedBaseName: string = eventAggregatorSettings.routePaths.processInstanceStarted;
