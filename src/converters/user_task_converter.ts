@@ -117,10 +117,7 @@ export class UserTaskConverter {
                                              userTaskInstance: Runtime.Types.FlowNodeInstance,
                                             ): Promise<UserTask> {
 
-    const currentUserTaskToken: Runtime.Types.ProcessToken =
-      userTaskInstance.tokens.find((token: Runtime.Types.ProcessToken): boolean => {
-        return token.type === Runtime.Types.ProcessTokenType.onSuspend;
-      });
+    const currentUserTaskToken: Runtime.Types.ProcessToken = userTaskInstance.getTokenByType(Runtime.Types.ProcessTokenType.onSuspend);
 
     const userTaskTokenOldFormat: any = await this._getUserTaskTokenInOldFormat(currentUserTaskToken);
 
