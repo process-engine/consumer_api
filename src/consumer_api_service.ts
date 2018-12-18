@@ -1,8 +1,6 @@
 // tslint:disable:max-file-line-count
-import * as bluebird from 'bluebird';
-
 import * as EssentialProjectErrors from '@essential-projects/errors_ts';
-import {IEventAggregator, ISubscription} from '@essential-projects/event_aggregator_contracts';
+import {IEventAggregator} from '@essential-projects/event_aggregator_contracts';
 import {IIAMService, IIdentity} from '@essential-projects/iam_contracts';
 import {
   CorrelationResult,
@@ -243,7 +241,7 @@ export class ConsumerApiService implements IConsumerApi {
     const suspendedEvents: Array<Runtime.Types.FlowNodeInstance> = suspendedFlowNodeInstances.filter(this._isFlowNodeAnEvent);
 
     const accessibleEvents: Array<Runtime.Types.FlowNodeInstance> =
-      await bluebird.filter(suspendedEvents, async(flowNode: Runtime.Types.FlowNodeInstance) => {
+      await Promise.filter(suspendedEvents, async(flowNode: Runtime.Types.FlowNodeInstance) => {
         try {
           await this._processModelService.getProcessModelById(identity, flowNode.processModelId);
 
@@ -363,13 +361,9 @@ export class ConsumerApiService implements IConsumerApi {
         .replace(Messages.EventAggregatorSettings.routeParams.processInstanceId, processInstanceId)
         .replace(Messages.EventAggregatorSettings.routeParams.flowNodeInstanceId, userTaskInstanceId);
 
-      const subscription: ISubscription =
-        this._eventAggregator.subscribeOnce(userTaskFinishedEvent, (message: Messages.SystemEvents.UserTaskFinishedMessage) => {
-          if (subscription) {
-            subscription.dispose();
-          }
-          resolve();
-        });
+      this._eventAggregator.subscribeOnce(userTaskFinishedEvent, (message: Messages.SystemEvents.UserTaskFinishedMessage) => {
+        resolve();
+      });
 
       await this._sendUserTaskResultToProcessEngine(matchingFlowNodeInstance, resultForProcessEngine);
     });
@@ -429,13 +423,9 @@ export class ConsumerApiService implements IConsumerApi {
           .replace(routePrameter.processInstanceId, processInstanceId)
           .replace(routePrameter.flowNodeInstanceId, manualTaskInstanceId);
 
-      const subscription: ISubscription =
-        this._eventAggregator.subscribeOnce(manualTaskFinishedEvent, (message: Messages.SystemEvents.ManualTaskFinishedMessage) => {
-          if (subscription) {
-            subscription.dispose();
-          }
-          resolve();
-        });
+      this._eventAggregator.subscribeOnce(manualTaskFinishedEvent, (message: Messages.SystemEvents.ManualTaskFinishedMessage) => {
+        resolve();
+      });
 
       const finishManualTaskMessage: Messages.SystemEvents.FinishManualTaskMessage = new Messages.SystemEvents.FinishManualTaskMessage(
         matchingFlowNodeInstance.correlationId,
