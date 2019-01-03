@@ -22,7 +22,7 @@
     "@essential-projects/errors_ts": "~1.4.0",
     "@essential-projects/event_aggregator_contracts": "~4.0.0",
     "@essential-projects/iam_contracts": "~3.3.0",
-    "@process-engine/consumer_api_contracts": "feature~add_get_token_by_process-instance_functionality",
+    "@process-engine/consumer_api_contracts": "feature~add_process-instance-id_to_start-result",
     "@process-engine/process_engine_contracts": "feature~add_get_token_by_process-instance_functionality",
     "bluebird": "3.5.2",
     "bluebird-global": "~1.0.1",
