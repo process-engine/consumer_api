@@ -2,6 +2,7 @@ import {IIdentity} from '@essential-projects/iam_contracts';
 
 import {
   EndEventReachedMessage,
+  IExecuteProcessResult,
   IExecuteProcessService,
   IProcessModelService,
   Model,
@@ -91,7 +92,14 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
     // Only start the process instance and return
     const resolveImmediatelyAfterStart: boolean = startCallbackType === StartCallbackType.CallbackOnProcessInstanceCreated;
     if (resolveImmediatelyAfterStart) {
-      this.executeProcessService.start(identity, processModel, startEventId, correlationId, payload.inputValues, payload.callerId);
+      const startResult: IExecuteProcessResult = await this.executeProcessService.start(identity,
+                                                                                        processModel,
+                                                                                        startEventId,
+                                                                                        correlationId,
+                                                                                        payload.inputValues,
+                                                                                        payload.callerId);
+
+      response.processInstanceId = startResult.processInstanceId;
 
       return response;
     }
