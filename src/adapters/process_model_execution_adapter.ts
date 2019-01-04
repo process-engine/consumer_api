@@ -61,12 +61,14 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
                                     endEventId?: string): Promise<ProcessStartResponsePayload> {
 
     const correlationId: string = payload.correlationId || uuid.v4();
+    const processInstanceId: string = uuid.v4();
 
     // Uses the mock IAM facade with the processModelService => The process model will always be complete.
     const processModel: Model.Types.Process = await this.processModelService.getProcessModelById(identity, processModelId);
 
     const response: ProcessStartResponsePayload = await this._startProcessInstance(identity,
                                                                                    correlationId,
+                                                                                   processInstanceId,
                                                                                    processModel,
                                                                                    startEventId,
                                                                                    payload,
@@ -78,6 +80,7 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
 
   private async _startProcessInstance(identity: IIdentity,
                                       correlationId: string,
+                                      processInstanceId: string,
                                       processModel: Model.Types.Process,
                                       startEventId: string,
                                       payload: ProcessStartRequestPayload,
@@ -87,19 +90,19 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
 
     const response: ProcessStartResponsePayload = {
       correlationId: correlationId,
+      processInstanceId: processInstanceId,
     };
 
     // Only start the process instance and return
     const resolveImmediatelyAfterStart: boolean = startCallbackType === StartCallbackType.CallbackOnProcessInstanceCreated;
     if (resolveImmediatelyAfterStart) {
-      const startResult: IExecuteProcessResult = await this.executeProcessService.start(identity,
-                                                                                        processModel,
-                                                                                        startEventId,
-                                                                                        correlationId,
-                                                                                        payload.inputValues,
-                                                                                        payload.callerId);
-
-      response.processInstanceId = startResult.processInstanceId;
+      this.executeProcessService.start(identity,
+                                       processModel,
+                                       startEventId,
+                                       correlationId,
+                                       processInstanceId,
+                                       payload.inputValues,
+                                       payload.callerId);
 
       return response;
     }
@@ -112,7 +115,14 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
 
       processEndedMessage = await this
         .executeProcessService
-        .startAndAwaitSpecificEndEvent(identity, processModel, startEventId, correlationId, endEventId, payload.inputValues, payload.callerId);
+        .startAndAwaitSpecificEndEvent(identity,
+                                       processModel,
+                                       startEventId,
+                                       correlationId,
+                                       processInstanceId,
+                                       endEventId,
+                                       payload.inputValues,
+                                       payload.callerId);
 
       response.endEventId = processEndedMessage.flowNodeId;
       response.tokenPayload = processEndedMessage.currentToken;
@@ -123,7 +133,13 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
     // Start the process instance and wait for the first end event result
     processEndedMessage = await this
       .executeProcessService
-      .startAndAwaitEndEvent(identity, processModel, startEventId, correlationId, payload.inputValues, payload.callerId);
+      .startAndAwaitEndEvent(identity,
+                             processModel,
+                             startEventId,
+                             correlationId,
+                             processInstanceId,
+                             payload.inputValues,
+                             payload.callerId);
 
     response.endEventId = processEndedMessage.flowNodeId;
     response.tokenPayload = processEndedMessage.currentToken;
