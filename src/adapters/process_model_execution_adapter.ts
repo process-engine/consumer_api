@@ -2,7 +2,6 @@ import {IIdentity} from '@essential-projects/iam_contracts';
 
 import {
   EndEventReachedMessage,
-  IExecuteProcessResult,
   IExecuteProcessService,
   IProcessModelService,
   Model,
