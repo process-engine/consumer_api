@@ -111,6 +111,7 @@ export class ManualTaskConverter {
       correlationId: flowNodeInstance.correlationId,
       processModelId: flowNodeInstance.processModelId,
       processInstanceId: flowNodeInstance.processInstanceId,
+      identity: flowNodeInstance.identity,
       tokenPayload: currentProcessToken.payload,
     };
 
