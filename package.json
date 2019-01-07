@@ -26,6 +26,7 @@
     "@process-engine/process_engine_contracts": "feature~get_instances_by_owner_id",
     "bluebird": "3.5.2",
     "bluebird-global": "~1.0.1",
+    "jsonwebtoken": "~8.4.0",
     "loggerhythm": "3.0.3",
     "uuid": "3.3.2"
   },
