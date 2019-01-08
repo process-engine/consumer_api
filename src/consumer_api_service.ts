@@ -36,6 +36,7 @@ import {IProcessModelExecutionAdapter} from './adapters/index';
 import {
   EventConverter,
   ManualTaskConverter,
+  ProcessInstanceConverter,
   ProcessModelConverter,
   UserTaskConverter,
 } from './converters/index';
@@ -43,16 +44,17 @@ import {
 export class ConsumerApiService implements IConsumerApi {
   public config: any = undefined;
 
-  private _eventAggregator: IEventAggregator;
-  private _eventConverter: EventConverter;
-  private _flowNodeInstanceService: IFlowNodeInstanceService;
-  private _iamService: IIAMService;
-  private _processModelExecutionAdapter: IProcessModelExecutionAdapter;
-  private _processModelFacadeFactory: IProcessModelFacadeFactory;
-  private _processModelService: IProcessModelService;
-  private _userTaskConverter: UserTaskConverter;
-  private _manualTaskConverter: ManualTaskConverter;
-  private _processModelConverter: ProcessModelConverter;
+  private readonly _eventAggregator: IEventAggregator;
+  private readonly _eventConverter: EventConverter;
+  private readonly _flowNodeInstanceService: IFlowNodeInstanceService;
+  private readonly _iamService: IIAMService;
+  private readonly _processModelExecutionAdapter: IProcessModelExecutionAdapter;
+  private readonly _processModelFacadeFactory: IProcessModelFacadeFactory;
+  private readonly _processModelService: IProcessModelService;
+  private readonly _userTaskConverter: UserTaskConverter;
+  private readonly _manualTaskConverter: ManualTaskConverter;
+  private readonly _processInstanceConverter: ProcessInstanceConverter;
+  private readonly _processModelConverter: ProcessModelConverter;
 
   private readonly _canTriggerMessagesClaim: string = 'can_trigger_messages';
   private readonly _canTriggerSignalsClaim: string = 'can_trigger_signals';
@@ -69,6 +71,7 @@ export class ConsumerApiService implements IConsumerApi {
               processModelService: IProcessModelService,
               userTaskConverter: UserTaskConverter,
               manualTaskConverter: ManualTaskConverter,
+              processInstanceConverter: ProcessInstanceConverter,
               processModelConverter: ProcessModelConverter) {
 
     this._eventConverter = consumerApiEventConverter;
@@ -82,6 +85,7 @@ export class ConsumerApiService implements IConsumerApi {
     this._processModelService = processModelService;
     this._userTaskConverter = userTaskConverter;
     this._manualTaskConverter = manualTaskConverter;
+    this._processInstanceConverter = processInstanceConverter;
     this._processModelConverter = processModelConverter;
   }
 
@@ -288,6 +292,10 @@ export class ConsumerApiService implements IConsumerApi {
       suspendedFlowNodeInstances.filter((flowNodeInstance: Runtime.Types.FlowNodeInstance): boolean => {
         return this._checkIfIdentityUserIDsMatch(identity, flowNodeInstance.identity);
       });
+
+    const processInstances: Array<ProcessInstance> = this._processInstanceConverter.convertFlowNodeInstances(flowNodeInstancesOwnedByUser);
+
+    return processInstances;
   }
 
   // Events
