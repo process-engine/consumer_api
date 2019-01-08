@@ -10,6 +10,7 @@ import {
   ManualTask,
   ManualTaskList,
   Messages,
+  ProcessInstance,
   ProcessModel,
   ProcessModelList,
   ProcessStartRequestPayload,
@@ -20,7 +21,6 @@ import {
   UserTaskResult,
 } from '@process-engine/consumer_api_contracts';
 import {
-  eventAggregatorSettings,
   IFlowNodeInstanceService,
   IProcessModelFacade,
   IProcessModelFacadeFactory,
@@ -38,6 +38,7 @@ import {
 } from './converters/index';
 
 export class ConsumerApiService implements IConsumerApi {
+
   public config: any = undefined;
 
   private _eventAggregator: IEventAggregator;
@@ -95,6 +96,16 @@ export class ConsumerApiService implements IConsumerApi {
     this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.userTaskFinished, callback);
   }
 
+  public async onUserTaskForIdentityWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskWaitingCallback): Promise<void> {
+    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
+    throw new Error('Method not implemented.');
+  }
+
+  public async onUserTaskForIdentityFinished(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskFinishedCallback): Promise<void> {
+    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
+    throw new Error('Method not implemented.');
+  }
+
   public async onManualTaskWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnManualTaskWaitingCallback): Promise<void> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
 
@@ -121,8 +132,8 @@ export class ConsumerApiService implements IConsumerApi {
 
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
 
-    const processStartedBaseName: string = eventAggregatorSettings.routePaths.processInstanceStarted;
-    const processModelIdParam: string = eventAggregatorSettings.routeParams.processModelId;
+    const processStartedBaseName: string = Messages.EventAggregatorSettings.messagePaths.processInstanceStarted;
+    const processModelIdParam: string = Messages.EventAggregatorSettings.messageParams.processModelId;
     const processWithIdStartedMessageEventName: string =
       processStartedBaseName
         .replace(processModelIdParam, processModelId);
@@ -142,7 +153,7 @@ export class ConsumerApiService implements IConsumerApi {
     this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.processTerminated, callback);
   }
 
-  // Process models
+  // Process models and instances
   public async getProcessModels(identity: IIdentity): Promise<ProcessModelList> {
 
     const processModels: Array<Model.Types.Process> = await this._processModelService.getProcessModels(identity);
@@ -220,6 +231,10 @@ export class ConsumerApiService implements IConsumerApi {
     return results;
   }
 
+  public async getProcessInstancesByIdentity(identity: IIdentity): Promise<Array<ProcessInstance>> {
+    throw new Error('Method not implemented.');
+  }
+
   // Events
   public async getEventsForProcessModel(identity: IIdentity, processModelId: string): Promise<EventList> {
 
@@ -280,8 +295,8 @@ export class ConsumerApiService implements IConsumerApi {
 
     await this._iamService.ensureHasClaim(identity, this._canTriggerMessagesClaim);
 
-    const messageEventName: string = eventAggregatorSettings.routePaths.messageEventReached
-      .replace(eventAggregatorSettings.routeParams.messageReference, messageName);
+    const messageEventName: string = Messages.EventAggregatorSettings.messagePaths.messageEventReached
+      .replace(Messages.EventAggregatorSettings.messageParams.messageReference, messageName);
 
     this._eventAggregator.publish(messageEventName, payload);
   }
@@ -290,8 +305,8 @@ export class ConsumerApiService implements IConsumerApi {
 
     await this._iamService.ensureHasClaim(identity, this._canTriggerSignalsClaim);
 
-    const signalEventName: string = eventAggregatorSettings.routePaths.signalEventReached
-      .replace(eventAggregatorSettings.routeParams.signalReference, signalName);
+    const signalEventName: string = Messages.EventAggregatorSettings.messagePaths.signalEventReached
+      .replace(Messages.EventAggregatorSettings.messageParams.signalReference, signalName);
 
     this._eventAggregator.publish(signalEventName, payload);
   }
@@ -342,6 +357,10 @@ export class ConsumerApiService implements IConsumerApi {
     return userTaskList;
   }
 
+  public async getWaitingUserTasksByIdentity(identity: IIdentity): Promise<UserTaskList> {
+    throw new Error('Method not implemented.');
+  }
+
   public async finishUserTask(identity: IIdentity,
                               processInstanceId: string,
                               correlationId: string,
@@ -356,10 +375,10 @@ export class ConsumerApiService implements IConsumerApi {
 
     return new Promise<void>(async(resolve: Function, reject: Function): Promise<void> => {
 
-      const userTaskFinishedEvent: string = Messages.EventAggregatorSettings.routePaths.userTaskFinished
-        .replace(Messages.EventAggregatorSettings.routeParams.correlationId, correlationId)
-        .replace(Messages.EventAggregatorSettings.routeParams.processInstanceId, processInstanceId)
-        .replace(Messages.EventAggregatorSettings.routeParams.flowNodeInstanceId, userTaskInstanceId);
+      const userTaskFinishedEvent: string = Messages.EventAggregatorSettings.messagePaths.userTaskWithInstanceIdFinished
+        .replace(Messages.EventAggregatorSettings.messageParams.correlationId, correlationId)
+        .replace(Messages.EventAggregatorSettings.messageParams.processInstanceId, processInstanceId)
+        .replace(Messages.EventAggregatorSettings.messageParams.flowNodeInstanceId, userTaskInstanceId);
 
       this._eventAggregator.subscribeOnce(userTaskFinishedEvent, (message: Messages.SystemEvents.UserTaskFinishedMessage) => {
         resolve();
@@ -415,10 +434,10 @@ export class ConsumerApiService implements IConsumerApi {
       await this._getSuspendedManualTask(identity, correlationId, processInstanceId, manualTaskInstanceId);
 
     return new Promise<void>((resolve: Function, reject: Function): void => {
-      const routePrameter: {[name: string]: string} = Messages.EventAggregatorSettings.routeParams;
+      const routePrameter: {[name: string]: string} = Messages.EventAggregatorSettings.messageParams;
 
       const manualTaskFinishedEvent: string = Messages.EventAggregatorSettings
-          .routePaths.manualTaskFinished
+          .messagePaths.manualTaskFinished
           .replace(routePrameter.correlationId, correlationId)
           .replace(routePrameter.processInstanceId, processInstanceId)
           .replace(routePrameter.flowNodeInstanceId, manualTaskInstanceId);
@@ -433,11 +452,12 @@ export class ConsumerApiService implements IConsumerApi {
         matchingFlowNodeInstance.processInstanceId,
         matchingFlowNodeInstance.id,
         matchingFlowNodeInstance.flowNodeInstanceId,
+        matchingFlowNodeInstance.identity,
         matchingFlowNodeInstance.tokenPayload,
       );
 
       const finishManualTaskEvent: string = Messages.EventAggregatorSettings
-          .routePaths.finishManualTask
+          .messagePaths.finishManualTask
           .replace(routePrameter.correlationId, correlationId)
           .replace(routePrameter.processInstanceId, processInstanceId)
           .replace(routePrameter.flowNodeInstanceId, manualTaskInstanceId);
@@ -533,36 +553,36 @@ export class ConsumerApiService implements IConsumerApi {
     }
 
     return matchingUserTask;
-}
-
-private async _getSuspendedManualTask(
-  identity: IIdentity,
-  correlationId: string,
-  processInstanceId: string,
-  manualTaskInstanceId: string,
-): Promise<ManualTask> {
-
-  const suspendedFlowNodeInstances: Array<Runtime.Types.FlowNodeInstance> =
-    await this._flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
-
-  const manualTaskList: ManualTaskList =
-    await this._manualTaskConverter.convert(identity, suspendedFlowNodeInstances);
-
-  const matchingManualTask: ManualTask =
-  manualTaskList.manualTasks.find((manualTask: ManualTask): boolean => {
-      return manualTask.flowNodeInstanceId === manualTaskInstanceId
-        && manualTask.processInstanceId === processInstanceId;
-    });
-
-  const noMatchingManualTaskFound: boolean = matchingManualTask === undefined;
-  if (noMatchingManualTaskFound) {
-    const errorMessage: string =
-      `ProcessInstance '${processInstanceId}' in Correlation '${correlationId}' does not have a ManualTask with id '${manualTaskInstanceId}'`;
-    throw new EssentialProjectErrors.NotFoundError(errorMessage);
   }
 
-  return matchingManualTask;
-}
+  private async _getSuspendedManualTask(
+    identity: IIdentity,
+    correlationId: string,
+    processInstanceId: string,
+    manualTaskInstanceId: string,
+  ): Promise<ManualTask> {
+
+    const suspendedFlowNodeInstances: Array<Runtime.Types.FlowNodeInstance> =
+      await this._flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
+
+    const manualTaskList: ManualTaskList =
+      await this._manualTaskConverter.convert(identity, suspendedFlowNodeInstances);
+
+    const matchingManualTask: ManualTask =
+    manualTaskList.manualTasks.find((manualTask: ManualTask): boolean => {
+        return manualTask.flowNodeInstanceId === manualTaskInstanceId
+          && manualTask.processInstanceId === processInstanceId;
+      });
+
+    const noMatchingManualTaskFound: boolean = matchingManualTask === undefined;
+    if (noMatchingManualTaskFound) {
+      const errorMessage: string =
+        `ProcessInstance '${processInstanceId}' in Correlation '${correlationId}' does not have a ManualTask with id '${manualTaskInstanceId}'`;
+      throw new EssentialProjectErrors.NotFoundError(errorMessage);
+    }
+
+    return matchingManualTask;
+  }
 
   private _createUserTaskResultForProcessEngine(finishedTask: UserTaskResult): any {
 
@@ -590,15 +610,16 @@ private async _getSuspendedManualTask(
       userTaskInstance.correlationId,
       userTaskInstance.processModelId,
       userTaskInstance.processInstanceId,
-      userTaskInstance.tokenPayload,
-      userTaskInstance.processInstanceId,
+      userTaskInstance.id,
+      userTaskInstance.flowNodeInstanceId,
+      userTaskInstance.identity,
       userTaskInstance.tokenPayload,
     );
 
-    const finishUserTaskEvent: string = Messages.EventAggregatorSettings.routePaths.finishUserTask
-      .replace(Messages.EventAggregatorSettings.routeParams.correlationId, userTaskInstance.correlationId)
-      .replace(Messages.EventAggregatorSettings.routeParams.processInstanceId, userTaskInstance.processInstanceId)
-      .replace(Messages.EventAggregatorSettings.routeParams.flowNodeInstanceId, userTaskInstance.flowNodeInstanceId);
+    const finishUserTaskEvent: string = Messages.EventAggregatorSettings.messagePaths.finishUserTask
+      .replace(Messages.EventAggregatorSettings.messageParams.correlationId, userTaskInstance.correlationId)
+      .replace(Messages.EventAggregatorSettings.messageParams.processInstanceId, userTaskInstance.processInstanceId)
+      .replace(Messages.EventAggregatorSettings.messageParams.flowNodeInstanceId, userTaskInstance.flowNodeInstanceId);
 
     this._eventAggregator.publish(finishUserTaskEvent, finishUserTaskMessage);
   }
