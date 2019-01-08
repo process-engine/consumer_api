@@ -286,7 +286,7 @@ export class ConsumerApiService implements IConsumerApi {
   public async getProcessInstancesByIdentity(identity: IIdentity): Promise<Array<ProcessInstance>> {
 
     const suspendedFlowNodeInstances: Array<Runtime.Types.FlowNodeInstance> =
-      await this._flowNodeInstanceService.queryByState(Runtime.Types.FlowNodeInstanceState.suspended);
+      await this._flowNodeInstanceService.queryActive();
 
     const flowNodeInstancesOwnedByUser: Array<Runtime.Types.FlowNodeInstance> =
       suspendedFlowNodeInstances.filter((flowNodeInstance: Runtime.Types.FlowNodeInstance): boolean => {
