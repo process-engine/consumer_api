@@ -486,7 +486,19 @@ export class ConsumerApiService implements IConsumerApi {
   }
 
   public async getWaitingManualTasksByIdentity(identity: IIdentity): Promise<ManualTaskList> {
-    throw new Error("Method not implemented.");
+
+    const suspendedFlowNodeInstances: Array<Runtime.Types.FlowNodeInstance> =
+      await this._flowNodeInstanceService.queryByState(Runtime.Types.FlowNodeInstanceState.suspended);
+
+    const flowNodeInstancesOwnedByUser: Array<Runtime.Types.FlowNodeInstance> =
+      suspendedFlowNodeInstances.filter((flowNodeInstance: Runtime.Types.FlowNodeInstance): boolean => {
+        return this._checkIfIdentityUserIDsMatch(identity, flowNodeInstance.identity);
+      });
+
+    const manualTaskList: ManualTaskList =
+      await this._manualTaskConverter.convert(identity, flowNodeInstancesOwnedByUser);
+
+    return manualTaskList;
   }
 
   public async finishManualTask(identity: IIdentity,
