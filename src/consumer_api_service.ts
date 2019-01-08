@@ -38,7 +38,6 @@ import {
 } from './converters/index';
 
 export class ConsumerApiService implements IConsumerApi {
-
   public config: any = undefined;
 
   private _eventAggregator: IEventAggregator;
@@ -54,7 +53,7 @@ export class ConsumerApiService implements IConsumerApi {
 
   private readonly _canTriggerMessagesClaim: string = 'can_trigger_messages';
   private readonly _canTriggerSignalsClaim: string = 'can_trigger_signals';
-  private readonly _canSubscribeToEvents: string = 'can_subscribe_to_events';
+  private readonly _canSubscribeToEventsClaim: string = 'can_subscribe_to_events';
 
   constructor(consumerApiEventConverter: EventConverter,
               consumerApiUserTaskConverter: UserTaskConverter,
@@ -85,41 +84,51 @@ export class ConsumerApiService implements IConsumerApi {
 
   // Notifications
   public async onUserTaskWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskWaitingCallback): Promise<void> {
-    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
+    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
 
     this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.userTaskReached, callback);
   }
 
   public async onUserTaskFinished(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskFinishedCallback): Promise<void> {
-    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
+    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
 
     this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.userTaskFinished, callback);
   }
 
   public async onUserTaskForIdentityWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskWaitingCallback): Promise<void> {
-    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
-    throw new Error('Method not implemented.');
+    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
+    throw new Error("Method not implemented.");
   }
 
   public async onUserTaskForIdentityFinished(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskFinishedCallback): Promise<void> {
-    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
-    throw new Error('Method not implemented.');
+    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
+    throw new Error("Method not implemented.");
   }
 
   public async onManualTaskWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnManualTaskWaitingCallback): Promise<void> {
-    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
+    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
 
     this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.manualTaskReached, callback);
   }
 
   public async onManualTaskFinished(identity: IIdentity, callback: Messages.CallbackTypes.OnManualTaskFinishedCallback): Promise<void> {
-    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
+    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
 
     this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.manualTaskFinished, callback);
   }
 
+  public async onManualTaskForIdentityWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnManualTaskWaitingCallback): Promise<void> {
+    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
+    throw new Error("Method not implemented.");
+  }
+
+  public async onManualTaskForIdentityFinished(identity: IIdentity, callback: Messages.CallbackTypes.OnManualTaskFinishedCallback): Promise<void> {
+    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
+    throw new Error("Method not implemented.");
+  }
+
   public async onProcessStarted(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessStartedCallback): Promise<void> {
-    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
+    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
 
     this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.processStarted, callback);
   }
@@ -130,7 +139,7 @@ export class ConsumerApiService implements IConsumerApi {
     processModelId: string,
   ): Promise<void> {
 
-    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
+    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
 
     const processStartedBaseName: string = Messages.EventAggregatorSettings.messagePaths.processInstanceStarted;
     const processModelIdParam: string = Messages.EventAggregatorSettings.messageParams.processModelId;
@@ -142,13 +151,13 @@ export class ConsumerApiService implements IConsumerApi {
   }
 
   public async onProcessEnded(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessEndedCallback): Promise<void> {
-    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
+    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
 
     this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.processEnded, callback);
   }
 
   public async onProcessTerminated(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessTerminatedCallback): Promise<void> {
-    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEvents);
+    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
 
     this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.processTerminated, callback);
   }
@@ -232,7 +241,7 @@ export class ConsumerApiService implements IConsumerApi {
   }
 
   public async getProcessInstancesByIdentity(identity: IIdentity): Promise<Array<ProcessInstance>> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
 
   // Events
@@ -358,7 +367,7 @@ export class ConsumerApiService implements IConsumerApi {
   }
 
   public async getWaitingUserTasksByIdentity(identity: IIdentity): Promise<UserTaskList> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
 
   public async finishUserTask(identity: IIdentity,
@@ -423,6 +432,10 @@ export class ConsumerApiService implements IConsumerApi {
       await this._manualTaskConverter.convert(identity, suspendedProcessModelFlowNodes);
 
     return manualTaskList;
+  }
+
+  public async getWaitingManualTasksByIdentity(identity: IIdentity): Promise<ManualTaskList> {
+    throw new Error("Method not implemented.");
   }
 
   public async finishManualTask(identity: IIdentity,
