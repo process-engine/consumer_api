@@ -1,9 +1,12 @@
 // tslint:disable:max-file-line-count
+import * as jsonwebtoken from 'jsonwebtoken';
+
 import * as EssentialProjectErrors from '@essential-projects/errors_ts';
 import {IEventAggregator} from '@essential-projects/event_aggregator_contracts';
 import {IIAMService, IIdentity} from '@essential-projects/iam_contracts';
 import {
   CorrelationResult,
+  DecodedIdentityToken,
   EventList,
   EventTriggerPayload,
   IConsumerApi,
@@ -97,12 +100,30 @@ export class ConsumerApiService implements IConsumerApi {
 
   public async onUserTaskForIdentityWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskWaitingCallback): Promise<void> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
-    throw new Error("Method not implemented.");
+
+    this
+      ._eventAggregator
+      .subscribe(Messages.EventAggregatorSettings.messagePaths.userTaskReached, (message: Messages.SystemEvents.UserTaskReachedMessage) => {
+
+        const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.identity);
+        if (identitiesMatch) {
+          callback(message);
+        }
+      });
   }
 
   public async onUserTaskForIdentityFinished(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskFinishedCallback): Promise<void> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
-    throw new Error("Method not implemented.");
+
+    this
+      ._eventAggregator
+      .subscribe(Messages.EventAggregatorSettings.messagePaths.userTaskFinished, (message: Messages.SystemEvents.UserTaskReachedMessage) => {
+
+        const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.identity);
+        if (identitiesMatch) {
+          callback(message);
+        }
+      });
   }
 
   public async onManualTaskWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnManualTaskWaitingCallback): Promise<void> {
@@ -119,12 +140,30 @@ export class ConsumerApiService implements IConsumerApi {
 
   public async onManualTaskForIdentityWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnManualTaskWaitingCallback): Promise<void> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
-    throw new Error("Method not implemented.");
+
+    this
+      ._eventAggregator
+      .subscribe(Messages.EventAggregatorSettings.messagePaths.userTaskReached, (message: Messages.SystemEvents.ManualTaskReachedMessage) => {
+
+        const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.identity);
+        if (identitiesMatch) {
+          callback(message);
+        }
+      });
   }
 
   public async onManualTaskForIdentityFinished(identity: IIdentity, callback: Messages.CallbackTypes.OnManualTaskFinishedCallback): Promise<void> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
-    throw new Error("Method not implemented.");
+
+    this
+      ._eventAggregator
+      .subscribe(Messages.EventAggregatorSettings.messagePaths.userTaskReached, (message: Messages.SystemEvents.ManualTaskFinishedMessage) => {
+
+        const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.identity);
+        if (identitiesMatch) {
+          callback(message);
+        }
+      });
   }
 
   public async onProcessStarted(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessStartedCallback): Promise<void> {
@@ -635,5 +674,13 @@ export class ConsumerApiService implements IConsumerApi {
       .replace(Messages.EventAggregatorSettings.messageParams.flowNodeInstanceId, userTaskInstance.flowNodeInstanceId);
 
     this._eventAggregator.publish(finishUserTaskEvent, finishUserTaskMessage);
+  }
+
+  private _checkIfIdentityUserIDsMatch(identityA: IIdentity, identityB: IIdentity): boolean {
+
+    const decodedRequestingIdentity: DecodedIdentityToken = <DecodedIdentityToken> jsonwebtoken.decode(identityA.token);
+    const decodedUserTaskIdentity: DecodedIdentityToken = <DecodedIdentityToken> jsonwebtoken.decode(identityB.token);
+
+    return decodedRequestingIdentity.sub === decodedUserTaskIdentity.sub;
   }
 }
