@@ -527,7 +527,7 @@ export class ConsumerApiService implements IConsumerApi {
       const routePrameter: {[name: string]: string} = Messages.EventAggregatorSettings.messageParams;
 
       const manualTaskFinishedEvent: string = Messages.EventAggregatorSettings
-          .messagePaths.manualTaskFinished
+          .messagePaths.manualTaskWithInstanceIdFinished
           .replace(routePrameter.correlationId, correlationId)
           .replace(routePrameter.processInstanceId, processInstanceId)
           .replace(routePrameter.flowNodeInstanceId, manualTaskInstanceId);
