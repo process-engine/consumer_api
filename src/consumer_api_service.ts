@@ -3,10 +3,9 @@ import * as jsonwebtoken from 'jsonwebtoken';
 
 import * as EssentialProjectErrors from '@essential-projects/errors_ts';
 import {IEventAggregator} from '@essential-projects/event_aggregator_contracts';
-import {IIAMService, IIdentity} from '@essential-projects/iam_contracts';
+import {IIAMService, IIdentity, TokenBody} from '@essential-projects/iam_contracts';
 import {
   CorrelationResult,
-  DecodedIdentityToken,
   EventList,
   EventTriggerPayload,
   IConsumerApi,
@@ -717,8 +716,8 @@ export class ConsumerApiService implements IConsumerApi {
 
   private _checkIfIdentityUserIDsMatch(identityA: IIdentity, identityB: IIdentity): boolean {
 
-    const decodedRequestingIdentity: DecodedIdentityToken = <DecodedIdentityToken> jsonwebtoken.decode(identityA.token);
-    const decodedUserTaskIdentity: DecodedIdentityToken = <DecodedIdentityToken> jsonwebtoken.decode(identityB.token);
+    const decodedRequestingIdentity: TokenBody = <TokenBody> jsonwebtoken.decode(identityA.token);
+    const decodedUserTaskIdentity: TokenBody = <TokenBody> jsonwebtoken.decode(identityB.token);
 
     return decodedRequestingIdentity.sub === decodedUserTaskIdentity.sub;
   }
