@@ -146,7 +146,7 @@ export class ConsumerApiService implements IConsumerApi {
 
     this
       ._eventAggregator
-      .subscribe(Messages.EventAggregatorSettings.messagePaths.userTaskReached, (message: Messages.SystemEvents.ManualTaskReachedMessage) => {
+      .subscribe(Messages.EventAggregatorSettings.messagePaths.manualTaskReached, (message: Messages.SystemEvents.ManualTaskReachedMessage) => {
 
         const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.identity);
         if (identitiesMatch) {
@@ -160,7 +160,7 @@ export class ConsumerApiService implements IConsumerApi {
 
     this
       ._eventAggregator
-      .subscribe(Messages.EventAggregatorSettings.messagePaths.userTaskReached, (message: Messages.SystemEvents.ManualTaskFinishedMessage) => {
+      .subscribe(Messages.EventAggregatorSettings.messagePaths.manualTaskFinished, (message: Messages.SystemEvents.ManualTaskFinishedMessage) => {
 
         const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.identity);
         if (identitiesMatch) {
