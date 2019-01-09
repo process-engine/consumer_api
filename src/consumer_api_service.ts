@@ -108,7 +108,7 @@ export class ConsumerApiService implements IConsumerApi {
       ._eventAggregator
       .subscribe(Messages.EventAggregatorSettings.messagePaths.userTaskReached, (message: Messages.SystemEvents.UserTaskReachedMessage) => {
 
-        const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.identity);
+        const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
         if (identitiesMatch) {
           callback(message);
         }
@@ -122,7 +122,7 @@ export class ConsumerApiService implements IConsumerApi {
       ._eventAggregator
       .subscribe(Messages.EventAggregatorSettings.messagePaths.userTaskFinished, (message: Messages.SystemEvents.UserTaskReachedMessage) => {
 
-        const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.identity);
+        const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
         if (identitiesMatch) {
           callback(message);
         }
@@ -148,7 +148,7 @@ export class ConsumerApiService implements IConsumerApi {
       ._eventAggregator
       .subscribe(Messages.EventAggregatorSettings.messagePaths.manualTaskReached, (message: Messages.SystemEvents.ManualTaskReachedMessage) => {
 
-        const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.identity);
+        const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
         if (identitiesMatch) {
           callback(message);
         }
@@ -162,7 +162,7 @@ export class ConsumerApiService implements IConsumerApi {
       ._eventAggregator
       .subscribe(Messages.EventAggregatorSettings.messagePaths.manualTaskFinished, (message: Messages.SystemEvents.ManualTaskFinishedMessage) => {
 
-        const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.identity);
+        const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
         if (identitiesMatch) {
           callback(message);
         }
