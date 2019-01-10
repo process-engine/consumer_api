@@ -60,14 +60,12 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
                                     endEventId?: string): Promise<ProcessStartResponsePayload> {
 
     const correlationId: string = payload.correlationId || uuid.v4();
-    const processInstanceId: string = uuid.v4();
 
     // Uses the mock IAM facade with the processModelService => The process model will always be complete.
     const processModel: Model.Types.Process = await this.processModelService.getProcessModelById(identity, processModelId);
 
     const response: ProcessStartResponsePayload = await this._startProcessInstance(identity,
                                                                                    correlationId,
-                                                                                   processInstanceId,
                                                                                    processModel,
                                                                                    startEventId,
                                                                                    payload,
@@ -79,7 +77,6 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
 
   private async _startProcessInstance(identity: IIdentity,
                                       correlationId: string,
-                                      processInstanceId: string,
                                       processModel: Model.Types.Process,
                                       startEventId: string,
                                       payload: ProcessStartRequestPayload,
@@ -89,7 +86,7 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
 
     const response: ProcessStartResponsePayload = {
       correlationId: correlationId,
-      processInstanceId: processInstanceId,
+      processInstanceId: undefined,
     };
 
     // Only start the process instance and return
@@ -99,7 +96,6 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
                                        processModel,
                                        startEventId,
                                        correlationId,
-                                       processInstanceId,
                                        payload.inputValues,
                                        payload.callerId);
 
@@ -118,7 +114,6 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
                                        processModel,
                                        startEventId,
                                        correlationId,
-                                       processInstanceId,
                                        endEventId,
                                        payload.inputValues,
                                        payload.callerId);
@@ -136,7 +131,6 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
                              processModel,
                              startEventId,
                              correlationId,
-                             processInstanceId,
                              payload.inputValues,
                              payload.callerId);
 
