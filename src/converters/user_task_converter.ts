@@ -21,10 +21,10 @@ type ProcessModelCache = {[processModelId: string]: Model.Types.Process};
 
 export class UserTaskConverter {
 
-  private _processModelService: IProcessModelService;
-  private _flowNodeInstanceService: IFlowNodeInstanceService;
-  private _processModelFacadeFactory: IProcessModelFacadeFactory;
-  private _processTokenFacadeFactory: IProcessTokenFacadeFactory;
+  private readonly _processModelService: IProcessModelService;
+  private readonly _flowNodeInstanceService: IFlowNodeInstanceService;
+  private readonly _processModelFacadeFactory: IProcessModelFacadeFactory;
+  private readonly _processTokenFacadeFactory: IProcessTokenFacadeFactory;
 
   constructor(processModelService: IProcessModelService,
               flowNodeInstanceService: IFlowNodeInstanceService,
@@ -34,22 +34,6 @@ export class UserTaskConverter {
     this._flowNodeInstanceService = flowNodeInstanceService;
     this._processModelFacadeFactory = processModelFacadeFactory;
     this._processTokenFacadeFactory = processTokenFacadeFactory;
-  }
-
-  private get processModelService(): IProcessModelService {
-    return this._processModelService;
-  }
-
-  private get flowNodeInstanceService(): IFlowNodeInstanceService {
-    return this._flowNodeInstanceService;
-  }
-
-  private get processModelFacadeFactory(): IProcessModelFacadeFactory {
-    return this._processModelFacadeFactory;
-  }
-
-  private get processTokenFacadeFactory(): IProcessTokenFacadeFactory {
-    return this._processTokenFacadeFactory;
   }
 
   public async convertUserTasks(identity: IIdentity, suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance>): Promise<UserTaskList> {
@@ -104,11 +88,11 @@ export class UserTaskConverter {
     if (cacheHasMatchingEntry) {
       processModel = processModelCache[processModelId];
     } else {
-      processModel = await this.processModelService.getProcessModelById(identity, processModelId);
+      processModel = await this._processModelService.getProcessModelById(identity, processModelId);
       processModelCache[processModelId] = processModel;
     }
 
-    const processModelFacade: IProcessModelFacade = this.processModelFacadeFactory.create(processModel);
+    const processModelFacade: IProcessModelFacade = this._processModelFacadeFactory.create(processModel);
 
     return processModelFacade;
   }
@@ -190,19 +174,20 @@ export class UserTaskConverter {
     const {processInstanceId, processModelId, correlationId, identity} = currentProcessToken;
 
     const processInstanceTokens: Array<Runtime.Types.ProcessToken> =
-      await this.flowNodeInstanceService.queryProcessTokensByProcessInstanceId(processInstanceId);
+      await this._flowNodeInstanceService.queryProcessTokensByProcessInstanceId(processInstanceId);
 
     const filteredInstanceTokens: Array<Runtime.Types.ProcessToken> = processInstanceTokens.filter((token: Runtime.Types.ProcessToken) => {
       return token.type === Runtime.Types.ProcessTokenType.onExit;
     });
 
-    const processTokenFacade: IProcessTokenFacade = this.processTokenFacadeFactory.create(processInstanceId, processModelId, correlationId, identity);
+    const processTokenFacade: IProcessTokenFacade =
+      this._processTokenFacadeFactory.create(processInstanceId, processModelId, correlationId, identity);
 
     const processTokenResultPromises: Array<Promise<IProcessTokenResult>> =
       filteredInstanceTokens.map(async(processToken: Runtime.Types.ProcessToken) => {
 
       const processTokenFlowNodeInstance: Runtime.Types.FlowNodeInstance =
-        await this.flowNodeInstanceService.queryByInstanceId(processToken.flowNodeInstanceId);
+        await this._flowNodeInstanceService.queryByInstanceId(processToken.flowNodeInstanceId);
 
       return {
         flowNodeId: processTokenFlowNodeInstance.flowNodeId,

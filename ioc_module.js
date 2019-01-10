@@ -3,10 +3,12 @@
 const {
   ConsumerApiService,
   EventConverter,
+  ManualTaskConverter,
+  NotificationAdapter,
+  ProcessInstanceConverter,
+  ProcessModelConverter,
   ProcessModelExecutionAdapter,
   UserTaskConverter,
-  ProcessModelConverter,
-  ManualTaskConverter,
 } = require('./dist/commonjs/index');
 
 function registerInContainer(container) {
@@ -14,6 +16,11 @@ function registerInContainer(container) {
   container
     .register('ProcessModelExecutionAdapter', ProcessModelExecutionAdapter)
     .dependencies('ExecuteProcessService', 'ProcessModelService')
+    .singleton();
+
+  container
+    .register('ConsumerApiNotificationAdapter', NotificationAdapter)
+    .dependencies('EventAggregator')
     .singleton();
 
   container
@@ -25,10 +32,14 @@ function registerInContainer(container) {
     .register('ConsumerApiUserTaskConverter', UserTaskConverter)
     .dependencies('ProcessModelService', 'FlowNodeInstanceService', 'ProcessModelFacadeFactory', 'ProcessTokenFacadeFactory')
     .singleton();
-  
+
   container
     .register('ConsumerApiManualTaskConverter', ManualTaskConverter)
     .dependencies('ProcessModelService', 'ProcessModelFacadeFactory')
+    .singleton();
+
+  container
+    .register('ConsumerApiProcessInstanceConverter', ProcessInstanceConverter)
     .singleton();
 
   container
@@ -39,17 +50,17 @@ function registerInContainer(container) {
   container
     .register('ConsumerApiService', ConsumerApiService)
     .dependencies(
-      'ConsumerApiEventConverter',
-      'ConsumerApiUserTaskConverter',
-      'ConsumerApiProcessModelConverter',
       'EventAggregator',
       'FlowNodeInstanceService',
       'IamService',
       'ProcessModelExecutionAdapter',
       'ProcessModelFacadeFactory',
       'ProcessModelService',
+      'ConsumerApiNotificationAdapter',
+      'ConsumerApiEventConverter',
       'ConsumerApiUserTaskConverter',
       'ConsumerApiManualTaskConverter',
+      'ConsumerApiProcessInstanceConverter',
       'ConsumerApiProcessModelConverter')
     .singleton();
 }

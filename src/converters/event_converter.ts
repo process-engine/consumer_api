@@ -18,21 +18,13 @@ type ProcessModelCache = {[processModelId: string]: Model.Types.Process};
 
 export class EventConverter {
 
-  private _processModelService: IProcessModelService;
-  private _processModelFacadeFactory: IProcessModelFacadeFactory;
+  private readonly _processModelService: IProcessModelService;
+  private readonly _processModelFacadeFactory: IProcessModelFacadeFactory;
 
   constructor(processModelService: IProcessModelService,
               processModelFacadeFactory: IProcessModelFacadeFactory) {
     this._processModelService = processModelService;
     this._processModelFacadeFactory = processModelFacadeFactory;
-  }
-
-  private get processModelService(): IProcessModelService {
-    return this._processModelService;
-  }
-
-  private get processModelFacadeFactory(): IProcessModelFacadeFactory {
-    return this._processModelFacadeFactory;
   }
 
   public async convertEvents(identity: IIdentity, suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance>): Promise<EventList> {
@@ -88,11 +80,11 @@ export class EventConverter {
     if (cacheHasMatchingEntry) {
       processModel = processModelCache[processModelId];
     } else {
-      processModel = await this.processModelService.getProcessModelById(identity, processModelId);
+      processModel = await this._processModelService.getProcessModelById(identity, processModelId);
       processModelCache[processModelId] = processModel;
     }
 
-    const processModelFacade: IProcessModelFacade = this.processModelFacadeFactory.create(processModel);
+    const processModelFacade: IProcessModelFacade = this._processModelFacadeFactory.create(processModel);
 
     return processModelFacade;
   }

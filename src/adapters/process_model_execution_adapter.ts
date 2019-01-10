@@ -1,10 +1,10 @@
 import {IIdentity} from '@essential-projects/iam_contracts';
 
 import {
+  EndEventReachedMessage,
   IExecuteProcessService,
   IProcessModelService,
   Model,
-  ProcessEndedMessage,
 } from '@process-engine/process_engine_contracts';
 
 import {ProcessStartRequestPayload, ProcessStartResponsePayload, StartCallbackType} from '@process-engine/consumer_api_contracts';
@@ -96,7 +96,7 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
       return response;
     }
 
-    let processEndedMessage: ProcessEndedMessage;
+    let processEndedMessage: EndEventReachedMessage;
 
     // Start the process instance and wait for a specific end event result
     const resolveAfterReachingSpecificEndEvent: boolean = startCallbackType === StartCallbackType.CallbackOnEndEventReached;
