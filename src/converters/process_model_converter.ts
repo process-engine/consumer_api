@@ -9,13 +9,9 @@ export class ProcessModelConverter {
     this._processModelFacadeFactory = processModelFacadeFactory;
   }
 
-  private get processModelFacadeFactory(): IProcessModelFacadeFactory {
-    return this._processModelFacadeFactory;
-  }
-
   public convertProcessModel(processModel: Model.Types.Process): ProcessModel {
 
-    const processModelFacade: IProcessModelFacade = this.processModelFacadeFactory.create(processModel);
+    const processModelFacade: IProcessModelFacade = this._processModelFacadeFactory.create(processModel);
 
     function consumerApiEventConverter(event: Model.Events.Event): Event {
       const consumerApiEvent: Event = new Event();
