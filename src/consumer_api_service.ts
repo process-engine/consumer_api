@@ -31,7 +31,7 @@ import {
   Runtime,
 } from '@process-engine/process_engine_contracts';
 
-import {IProcessModelExecutionAdapter} from './adapters/index';
+import {IProcessModelExecutionAdapter, NotificationAdapter} from './adapters/index';
 import {
   EventConverter,
   ManualTaskConverter,
@@ -50,6 +50,9 @@ export class ConsumerApiService implements IConsumerApi {
   private readonly _processModelExecutionAdapter: IProcessModelExecutionAdapter;
   private readonly _processModelFacadeFactory: IProcessModelFacadeFactory;
   private readonly _processModelService: IProcessModelService;
+
+  private readonly _notificationAdapter: NotificationAdapter;
+
   private readonly _userTaskConverter: UserTaskConverter;
   private readonly _manualTaskConverter: ManualTaskConverter;
   private readonly _processInstanceConverter: ProcessInstanceConverter;
@@ -59,29 +62,29 @@ export class ConsumerApiService implements IConsumerApi {
   private readonly _canTriggerSignalsClaim: string = 'can_trigger_signals';
   private readonly _canSubscribeToEventsClaim: string = 'can_subscribe_to_events';
 
-  constructor(consumerApiEventConverter: EventConverter,
-              consumerApiUserTaskConverter: UserTaskConverter,
-              consumerApiProcessModelConverter: ProcessModelConverter,
-              eventAggregator: IEventAggregator,
+  constructor(eventAggregator: IEventAggregator,
               flowNodeInstanceService: IFlowNodeInstanceService,
               iamService: IIAMService,
               processModelExecutionAdapter: IProcessModelExecutionAdapter,
               processModelFacadeFactory: IProcessModelFacadeFactory,
               processModelService: IProcessModelService,
+              notificationAdapter: NotificationAdapter,
+              eventConverter: EventConverter,
               userTaskConverter: UserTaskConverter,
               manualTaskConverter: ManualTaskConverter,
               processInstanceConverter: ProcessInstanceConverter,
               processModelConverter: ProcessModelConverter) {
 
-    this._eventConverter = consumerApiEventConverter;
-    this._userTaskConverter = consumerApiUserTaskConverter;
-    this._processModelConverter = consumerApiProcessModelConverter;
     this._eventAggregator = eventAggregator;
     this._flowNodeInstanceService = flowNodeInstanceService;
     this._iamService = iamService;
     this._processModelExecutionAdapter = processModelExecutionAdapter;
     this._processModelFacadeFactory = processModelFacadeFactory;
     this._processModelService = processModelService;
+
+    this._notificationAdapter = notificationAdapter;
+
+    this._eventConverter = eventConverter;
     this._userTaskConverter = userTaskConverter;
     this._manualTaskConverter = manualTaskConverter;
     this._processInstanceConverter = processInstanceConverter;
@@ -91,88 +94,47 @@ export class ConsumerApiService implements IConsumerApi {
   // Notifications
   public async onUserTaskWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskWaitingCallback): Promise<void> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
-
-    this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.userTaskReached, callback);
+    this._notificationAdapter.onUserTaskWaiting(identity, callback);
   }
 
   public async onUserTaskFinished(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskFinishedCallback): Promise<void> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
-
-    this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.userTaskFinished, callback);
+    this._notificationAdapter.onUserTaskFinished(identity, callback);
   }
 
   public async onUserTaskForIdentityWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskWaitingCallback): Promise<void> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
-
-    this
-      ._eventAggregator
-      .subscribe(Messages.EventAggregatorSettings.messagePaths.userTaskReached, (message: Messages.SystemEvents.UserTaskReachedMessage) => {
-
-        const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
-        if (identitiesMatch) {
-          callback(message);
-        }
-      });
+    this._notificationAdapter.onUserTaskForIdentityWaiting(identity, callback);
   }
 
   public async onUserTaskForIdentityFinished(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskFinishedCallback): Promise<void> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
-
-    this
-      ._eventAggregator
-      .subscribe(Messages.EventAggregatorSettings.messagePaths.userTaskFinished, (message: Messages.SystemEvents.UserTaskReachedMessage) => {
-
-        const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
-        if (identitiesMatch) {
-          callback(message);
-        }
-      });
+    this._notificationAdapter.onUserTaskForIdentityFinished(identity, callback);
   }
 
   public async onManualTaskWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnManualTaskWaitingCallback): Promise<void> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
-
-    this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.manualTaskReached, callback);
+    this._notificationAdapter.onManualTaskWaiting(identity, callback);
   }
 
   public async onManualTaskFinished(identity: IIdentity, callback: Messages.CallbackTypes.OnManualTaskFinishedCallback): Promise<void> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
-
-    this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.manualTaskFinished, callback);
+    this._notificationAdapter.onManualTaskFinished(identity, callback);
   }
 
   public async onManualTaskForIdentityWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnManualTaskWaitingCallback): Promise<void> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
-
-    this
-      ._eventAggregator
-      .subscribe(Messages.EventAggregatorSettings.messagePaths.manualTaskReached, (message: Messages.SystemEvents.ManualTaskReachedMessage) => {
-
-        const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
-        if (identitiesMatch) {
-          callback(message);
-        }
-      });
+    this._notificationAdapter.onManualTaskForIdentityWaiting(identity, callback);
   }
 
   public async onManualTaskForIdentityFinished(identity: IIdentity, callback: Messages.CallbackTypes.OnManualTaskFinishedCallback): Promise<void> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
-
-    this
-      ._eventAggregator
-      .subscribe(Messages.EventAggregatorSettings.messagePaths.manualTaskFinished, (message: Messages.SystemEvents.ManualTaskFinishedMessage) => {
-
-        const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
-        if (identitiesMatch) {
-          callback(message);
-        }
-      });
+    this._notificationAdapter.onManualTaskForIdentityFinished(identity, callback);
   }
 
   public async onProcessStarted(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessStartedCallback): Promise<void> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
-
-    this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.processStarted, callback);
+    this._notificationAdapter.onProcessStarted(identity, callback);
   }
 
   public async onProcessWithProcessModelIdStarted(
@@ -180,28 +142,18 @@ export class ConsumerApiService implements IConsumerApi {
     callback: Messages.CallbackTypes.OnProcessStartedCallback,
     processModelId: string,
   ): Promise<void> {
-
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
-
-    const processStartedBaseName: string = Messages.EventAggregatorSettings.messagePaths.processInstanceStarted;
-    const processModelIdParam: string = Messages.EventAggregatorSettings.messageParams.processModelId;
-    const processWithIdStartedMessageEventName: string =
-      processStartedBaseName
-        .replace(processModelIdParam, processModelId);
-
-    this._eventAggregator.subscribe(processWithIdStartedMessageEventName, callback);
+    this._notificationAdapter.onProcessWithProcessModelIdStarted(identity, callback, processModelId);
   }
 
   public async onProcessEnded(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessEndedCallback): Promise<void> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
-
-    this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.processEnded, callback);
+    this._notificationAdapter.onProcessEnded(identity, callback);
   }
 
   public async onProcessTerminated(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessTerminatedCallback): Promise<void> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
-
-    this._eventAggregator.subscribe(Messages.EventAggregatorSettings.messagePaths.processTerminated, callback);
+    this._notificationAdapter.onProcessTerminated(identity, callback);
   }
 
   // Process models and instances
@@ -454,7 +406,7 @@ export class ConsumerApiService implements IConsumerApi {
         .replace(Messages.EventAggregatorSettings.messageParams.processInstanceId, processInstanceId)
         .replace(Messages.EventAggregatorSettings.messageParams.flowNodeInstanceId, userTaskInstanceId);
 
-      this._eventAggregator.subscribeOnce(userTaskFinishedEvent, (message: Messages.SystemEvents.UserTaskFinishedMessage) => {
+      this._eventAggregator.subscribeOnce(userTaskFinishedEvent, (message: Messages.Internal.SystemEvents.UserTaskFinishedMessage) => {
         resolve();
       });
 
@@ -532,19 +484,20 @@ export class ConsumerApiService implements IConsumerApi {
           .replace(routePrameter.processInstanceId, processInstanceId)
           .replace(routePrameter.flowNodeInstanceId, manualTaskInstanceId);
 
-      this._eventAggregator.subscribeOnce(manualTaskFinishedEvent, (message: Messages.SystemEvents.ManualTaskFinishedMessage) => {
+      this._eventAggregator.subscribeOnce(manualTaskFinishedEvent, (message: Messages.Internal.SystemEvents.ManualTaskFinishedMessage) => {
         resolve();
       });
 
-      const finishManualTaskMessage: Messages.SystemEvents.FinishManualTaskMessage = new Messages.SystemEvents.FinishManualTaskMessage(
-        matchingFlowNodeInstance.correlationId,
-        matchingFlowNodeInstance.processModelId,
-        matchingFlowNodeInstance.processInstanceId,
-        matchingFlowNodeInstance.id,
-        matchingFlowNodeInstance.flowNodeInstanceId,
-        matchingFlowNodeInstance.owner,
-        matchingFlowNodeInstance.tokenPayload,
-      );
+      const finishManualTaskMessage: Messages.Internal.SystemEvents.FinishManualTaskMessage =
+        new Messages.Internal.SystemEvents.FinishManualTaskMessage(
+          matchingFlowNodeInstance.correlationId,
+          matchingFlowNodeInstance.processModelId,
+          matchingFlowNodeInstance.processInstanceId,
+          matchingFlowNodeInstance.id,
+          matchingFlowNodeInstance.flowNodeInstanceId,
+          matchingFlowNodeInstance.processInstanceOwner,
+          matchingFlowNodeInstance.tokenPayload,
+        );
 
       const finishManualTaskEvent: string = Messages.EventAggregatorSettings
           .messagePaths.finishManualTask
@@ -695,16 +648,17 @@ export class ConsumerApiService implements IConsumerApi {
 
   private async _sendUserTaskResultToProcessEngine(userTaskInstance: UserTask, userTaskResult: any): Promise<void> {
 
-    const finishUserTaskMessage: Messages.SystemEvents.FinishUserTaskMessage = new Messages.SystemEvents.FinishUserTaskMessage(
-      userTaskResult,
-      userTaskInstance.correlationId,
-      userTaskInstance.processModelId,
-      userTaskInstance.processInstanceId,
-      userTaskInstance.id,
-      userTaskInstance.flowNodeInstanceId,
-      userTaskInstance.owner,
-      userTaskInstance.tokenPayload,
-    );
+    const finishUserTaskMessage: Messages.Internal.SystemEvents.FinishUserTaskMessage =
+      new Messages.Internal.SystemEvents.FinishUserTaskMessage(
+        userTaskResult,
+        userTaskInstance.correlationId,
+        userTaskInstance.processModelId,
+        userTaskInstance.processInstanceId,
+        userTaskInstance.id,
+        userTaskInstance.flowNodeInstanceId,
+        userTaskInstance.processInstanceOwner,
+        userTaskInstance.tokenPayload,
+      );
 
     const finishUserTaskEvent: string = Messages.EventAggregatorSettings.messagePaths.finishUserTask
       .replace(Messages.EventAggregatorSettings.messageParams.correlationId, userTaskInstance.correlationId)
