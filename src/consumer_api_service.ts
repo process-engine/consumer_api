@@ -289,7 +289,7 @@ export class ConsumerApiService implements IConsumerApi {
 
     const flowNodeInstancesOwnedByUser: Array<Runtime.Types.FlowNodeInstance> =
       suspendedFlowNodeInstances.filter((flowNodeInstance: Runtime.Types.FlowNodeInstance): boolean => {
-        return this._checkIfIdentityUserIDsMatch(identity, flowNodeInstance.identity);
+        return this._checkIfIdentityUserIDsMatch(identity, flowNodeInstance.owner);
       });
 
     const processInstances: Array<ProcessInstance> = this._processInstanceConverter.convertFlowNodeInstances(flowNodeInstancesOwnedByUser);
@@ -426,7 +426,7 @@ export class ConsumerApiService implements IConsumerApi {
 
     const flowNodeInstancesOwnedByUser: Array<Runtime.Types.FlowNodeInstance> =
       suspendedFlowNodeInstances.filter((flowNodeInstance: Runtime.Types.FlowNodeInstance): boolean => {
-        return this._checkIfIdentityUserIDsMatch(identity, flowNodeInstance.identity);
+        return this._checkIfIdentityUserIDsMatch(identity, flowNodeInstance.owner);
       });
 
     const userTaskList: UserTaskList =
@@ -506,7 +506,7 @@ export class ConsumerApiService implements IConsumerApi {
 
     const flowNodeInstancesOwnedByUser: Array<Runtime.Types.FlowNodeInstance> =
       suspendedFlowNodeInstances.filter((flowNodeInstance: Runtime.Types.FlowNodeInstance): boolean => {
-        return this._checkIfIdentityUserIDsMatch(identity, flowNodeInstance.identity);
+        return this._checkIfIdentityUserIDsMatch(identity, flowNodeInstance.owner);
       });
 
     const manualTaskList: ManualTaskList =
@@ -542,7 +542,7 @@ export class ConsumerApiService implements IConsumerApi {
         matchingFlowNodeInstance.processInstanceId,
         matchingFlowNodeInstance.id,
         matchingFlowNodeInstance.flowNodeInstanceId,
-        matchingFlowNodeInstance.identity,
+        matchingFlowNodeInstance.owner,
         matchingFlowNodeInstance.tokenPayload,
       );
 
@@ -702,7 +702,7 @@ export class ConsumerApiService implements IConsumerApi {
       userTaskInstance.processInstanceId,
       userTaskInstance.id,
       userTaskInstance.flowNodeInstanceId,
-      userTaskInstance.identity,
+      userTaskInstance.owner,
       userTaskInstance.tokenPayload,
     );
 

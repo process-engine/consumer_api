@@ -18,7 +18,7 @@ export class ProcessInstanceConverter {
         const processInstance: ProcessInstance = new ProcessInstance(flowNodeInstance.processInstanceId,
                                                                      flowNodeInstance.processModelId,
                                                                      flowNodeInstance.correlationId,
-                                                                     flowNodeInstance.identity,
+                                                                     flowNodeInstance.owner,
                                                                      flowNodeInstance.parentProcessInstanceId);
         activeProcessInstances.push(processInstance);
       }

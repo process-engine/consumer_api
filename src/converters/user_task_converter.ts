@@ -121,7 +121,7 @@ export class UserTaskConverter {
       correlationId: userTaskInstance.correlationId,
       processModelId: userTaskInstance.processModelId,
       processInstanceId: userTaskInstance.processInstanceId,
-      identity: userTaskInstance.identity,
+      owner: userTaskInstance.owner,
       data: userTaskConfig,
       tokenPayload: currentUserTaskToken.payload,
     };
