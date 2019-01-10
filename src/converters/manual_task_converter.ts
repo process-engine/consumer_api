@@ -103,7 +103,6 @@ export class ManualTaskConverter {
       correlationId: flowNodeInstance.correlationId,
       processModelId: flowNodeInstance.processModelId,
       processInstanceId: flowNodeInstance.processInstanceId,
-      processInstanceOwner: flowNodeInstance.owner,
       tokenPayload: currentProcessToken.payload,
     };
 

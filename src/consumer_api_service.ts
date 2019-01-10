@@ -410,7 +410,7 @@ export class ConsumerApiService implements IConsumerApi {
         resolve();
       });
 
-      await this._sendUserTaskResultToProcessEngine(matchingFlowNodeInstance, resultForProcessEngine);
+      await this._sendUserTaskResultToProcessEngine(identity, matchingFlowNodeInstance, resultForProcessEngine);
     });
   }
 
@@ -495,7 +495,7 @@ export class ConsumerApiService implements IConsumerApi {
           matchingFlowNodeInstance.processInstanceId,
           matchingFlowNodeInstance.id,
           matchingFlowNodeInstance.flowNodeInstanceId,
-          matchingFlowNodeInstance.processInstanceOwner,
+          identity,
           matchingFlowNodeInstance.tokenPayload,
         );
 
@@ -646,7 +646,7 @@ export class ConsumerApiService implements IConsumerApi {
     return finishedTask.formFields;
   }
 
-  private async _sendUserTaskResultToProcessEngine(userTaskInstance: UserTask, userTaskResult: any): Promise<void> {
+  private async _sendUserTaskResultToProcessEngine(identity: IIdentity, userTaskInstance: UserTask, userTaskResult: any): Promise<void> {
 
     const finishUserTaskMessage: Messages.Internal.SystemEvents.FinishUserTaskMessage =
       new Messages.Internal.SystemEvents.FinishUserTaskMessage(
@@ -656,7 +656,7 @@ export class ConsumerApiService implements IConsumerApi {
         userTaskInstance.processInstanceId,
         userTaskInstance.id,
         userTaskInstance.flowNodeInstanceId,
-        userTaskInstance.processInstanceOwner,
+        identity,
         userTaskInstance.tokenPayload,
       );
 
