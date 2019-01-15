@@ -99,7 +99,7 @@ export class UserTaskConverter {
 
   private async convertToConsumerApiUserTask(userTaskModel: Model.Activities.UserTask,
                                              userTaskInstance: Runtime.Types.FlowNodeInstance,
-                                            ): Promise<UserTask> {
+  ): Promise<UserTask> {
 
     const currentUserTaskToken: Runtime.Types.ProcessToken = userTaskInstance.getTokenByType(Runtime.Types.ProcessTokenType.onSuspend);
 
@@ -112,6 +112,8 @@ export class UserTaskConverter {
     const userTaskConfig: UserTaskConfig = {
       formFields: userTaskFormFields,
       preferredControl: this._evaluateExpressionWithOldToken(userTaskModel.preferredControl, userTaskTokenOldFormat),
+      description: userTaskModel.description,
+      finishedMessage: userTaskModel.finishedMessage,
     };
 
     const consumerApiUserTask: UserTask = {
@@ -186,14 +188,14 @@ export class UserTaskConverter {
     const processTokenResultPromises: Array<Promise<IProcessTokenResult>> =
       filteredInstanceTokens.map(async(processToken: Runtime.Types.ProcessToken) => {
 
-      const processTokenFlowNodeInstance: Runtime.Types.FlowNodeInstance =
-        await this._flowNodeInstanceService.queryByInstanceId(processToken.flowNodeInstanceId);
+        const processTokenFlowNodeInstance: Runtime.Types.FlowNodeInstance =
+          await this._flowNodeInstanceService.queryByInstanceId(processToken.flowNodeInstanceId);
 
-      return {
-        flowNodeId: processTokenFlowNodeInstance.flowNodeId,
-        result: processToken.payload,
-      };
-    });
+        return {
+          flowNodeId: processTokenFlowNodeInstance.flowNodeId,
+          result: processToken.payload,
+        };
+      });
 
     const processTokenResults: Array<IProcessTokenResult> = await Promise.all(processTokenResultPromises);
 
