@@ -4,24 +4,7 @@ import * as jsonwebtoken from 'jsonwebtoken';
 import * as EssentialProjectErrors from '@essential-projects/errors_ts';
 import {IEventAggregator} from '@essential-projects/event_aggregator_contracts';
 import {IIAMService, IIdentity, TokenBody} from '@essential-projects/iam_contracts';
-import {
-  CorrelationResult,
-  EventList,
-  EventTriggerPayload,
-  IConsumerApi,
-  ManualTask,
-  ManualTaskList,
-  Messages,
-  ProcessInstance,
-  ProcessModel,
-  ProcessModelList,
-  ProcessStartRequestPayload,
-  ProcessStartResponsePayload,
-  StartCallbackType,
-  UserTask,
-  UserTaskList,
-  UserTaskResult,
-} from '@process-engine/consumer_api_contracts';
+import {DataModels, IConsumerApi, Messages} from '@process-engine/consumer_api_contracts';
 import {
   IFlowNodeInstanceService,
   IProcessModelFacade,
@@ -157,22 +140,22 @@ export class ConsumerApiService implements IConsumerApi {
   }
 
   // Process models and instances
-  public async getProcessModels(identity: IIdentity): Promise<ProcessModelList> {
+  public async getProcessModels(identity: IIdentity): Promise<DataModels.ProcessModels.ProcessModelList> {
 
     const processModels: Array<Model.Types.Process> = await this._processModelService.getProcessModels(identity);
-    const consumerApiProcessModels: Array<ProcessModel> = processModels.map((processModel: Model.Types.Process) => {
+    const consumerApiProcessModels: Array<DataModels.ProcessModels.ProcessModel> = processModels.map((processModel: Model.Types.Process) => {
       return this._processModelConverter.convertProcessModel(processModel);
     });
 
-    return <ProcessModelList> {
+    return <DataModels.ProcessModels.ProcessModelList> {
       processModels: consumerApiProcessModels,
     };
   }
 
-  public async getProcessModelById(identity: IIdentity, processModelId: string): Promise<ProcessModel> {
+  public async getProcessModelById(identity: IIdentity, processModelId: string): Promise<DataModels.ProcessModels.ProcessModel> {
 
     const processModel: Model.Types.Process = await this._processModelService.getProcessModelById(identity, processModelId);
-    const consumerApiProcessModel: ProcessModel = this._processModelConverter.convertProcessModel(processModel);
+    const consumerApiProcessModel: DataModels.ProcessModels.ProcessModel = this._processModelConverter.convertProcessModel(processModel);
 
     return consumerApiProcessModel;
   }
@@ -180,10 +163,15 @@ export class ConsumerApiService implements IConsumerApi {
   public async startProcessInstance(identity: IIdentity,
                                     processModelId: string,
                                     startEventId: string,
-                                    payload: ProcessStartRequestPayload,
-                                    startCallbackType: StartCallbackType = StartCallbackType.CallbackOnProcessInstanceCreated,
+                                    payload: DataModels.ProcessModels.ProcessStartRequestPayload,
+                                    startCallbackType?: DataModels.ProcessModels.StartCallbackType,
                                     endEventId?: string,
-                                  ): Promise<ProcessStartResponsePayload> {
+                                  ): Promise<DataModels.ProcessModels.ProcessStartResponsePayload> {
+
+    const useDefaultStartCallbackType: boolean = !startCallbackType;
+    if (useDefaultStartCallbackType) {
+      startCallbackType = DataModels.ProcessModels.StartCallbackType.CallbackOnProcessInstanceCreated;
+    }
 
     // Uses the standard IAM facade with the processModelService => The process model gets filtered.
     const processModel: Model.Types.Process = await this._processModelService.getProcessModelById(identity, processModelId);
@@ -197,7 +185,7 @@ export class ConsumerApiService implements IConsumerApi {
 
   public async getProcessResultForCorrelation(identity: IIdentity,
                                               correlationId: string,
-                                              processModelId: string): Promise<Array<CorrelationResult>> {
+                                              processModelId: string): Promise<Array<DataModels.CorrelationResult>> {
 
     const processModel: Model.Types.Process =
       await this._processModelService.getProcessModelById(identity, processModelId);
@@ -229,12 +217,12 @@ export class ConsumerApiService implements IConsumerApi {
           && exitToken.processModelId === processModelId;
     });
 
-    const results: Array<CorrelationResult> = endEventInstances.map(this._createCorrelationResultFromEndEventInstance);
+    const results: Array<DataModels.CorrelationResult> = endEventInstances.map(this._createCorrelationResultFromEndEventInstance);
 
     return results;
   }
 
-  public async getProcessInstancesByIdentity(identity: IIdentity): Promise<Array<ProcessInstance>> {
+  public async getProcessInstancesByIdentity(identity: IIdentity): Promise<Array<DataModels.ProcessInstance>> {
 
     const suspendedFlowNodeInstances: Array<Runtime.Types.FlowNodeInstance> =
       await this._flowNodeInstanceService.queryActive();
@@ -244,25 +232,25 @@ export class ConsumerApiService implements IConsumerApi {
         return this._checkIfIdentityUserIDsMatch(identity, flowNodeInstance.owner);
       });
 
-    const processInstances: Array<ProcessInstance> = this._processInstanceConverter.convertFlowNodeInstances(flowNodeInstancesOwnedByUser);
+    const processInstances: Array<DataModels.ProcessInstance> = this._processInstanceConverter.convertFlowNodeInstances(flowNodeInstancesOwnedByUser);
 
     return processInstances;
   }
 
   // Events
-  public async getEventsForProcessModel(identity: IIdentity, processModelId: string): Promise<EventList> {
+  public async getEventsForProcessModel(identity: IIdentity, processModelId: string): Promise<DataModels.Events.EventList> {
 
     const suspendedFlowNodeInstances: Array<Runtime.Types.FlowNodeInstance> =
       await this._flowNodeInstanceService.querySuspendedByProcessModel(processModelId);
 
     const suspendedEvents: Array<Runtime.Types.FlowNodeInstance> = suspendedFlowNodeInstances.filter(this._isFlowNodeAnEvent);
 
-    const eventList: EventList = await this._eventConverter.convertEvents(identity, suspendedEvents);
+    const eventList: DataModels.Events.EventList = await this._eventConverter.convertEvents(identity, suspendedEvents);
 
     return eventList;
   }
 
-  public async getEventsForCorrelation(identity: IIdentity, correlationId: string): Promise<EventList> {
+  public async getEventsForCorrelation(identity: IIdentity, correlationId: string): Promise<DataModels.Events.EventList> {
 
     const suspendedFlowNodeInstances: Array<Runtime.Types.FlowNodeInstance> =
       await this._flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
@@ -281,12 +269,16 @@ export class ConsumerApiService implements IConsumerApi {
         }
       });
 
-    const eventList: EventList = await this._eventConverter.convertEvents(identity, accessibleEvents);
+    const eventList: DataModels.Events.EventList = await this._eventConverter.convertEvents(identity, accessibleEvents);
 
     return eventList;
   }
 
-  public async getEventsForProcessModelInCorrelation(identity: IIdentity, processModelId: string, correlationId: string): Promise<EventList> {
+  public async getEventsForProcessModelInCorrelation(
+    identity: IIdentity,
+    processModelId: string,
+    correlationId: string,
+  ): Promise<DataModels.Events.EventList> {
 
     const suspendedFlowNodeInstances: Array<Runtime.Types.FlowNodeInstance> =
       await this._flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
@@ -300,12 +292,12 @@ export class ConsumerApiService implements IConsumerApi {
         return flowNodeIsEvent && flowNodeBelongstoCorrelation;
       });
 
-    const triggerableEvents: EventList = await this._eventConverter.convertEvents(identity, suspendedEvents);
+    const triggerableEvents: DataModels.Events.EventList = await this._eventConverter.convertEvents(identity, suspendedEvents);
 
     return triggerableEvents;
   }
 
-  public async triggerMessageEvent(identity: IIdentity, messageName: string, payload?: EventTriggerPayload): Promise<void> {
+  public async triggerMessageEvent(identity: IIdentity, messageName: string, payload?: DataModels.Events.EventTriggerPayload): Promise<void> {
 
     await this._iamService.ensureHasClaim(identity, this._canTriggerMessagesClaim);
 
@@ -315,7 +307,7 @@ export class ConsumerApiService implements IConsumerApi {
     this._eventAggregator.publish(messageEventName, payload);
   }
 
-  public async triggerSignalEvent(identity: IIdentity, signalName: string, payload?: EventTriggerPayload): Promise<void> {
+  public async triggerSignalEvent(identity: IIdentity, signalName: string, payload?: DataModels.Events.EventTriggerPayload): Promise<void> {
 
     await this._iamService.ensureHasClaim(identity, this._canTriggerSignalsClaim);
 
@@ -326,29 +318,29 @@ export class ConsumerApiService implements IConsumerApi {
   }
 
   // UserTasks
-  public async getUserTasksForProcessModel(identity: IIdentity, processModelId: string): Promise<UserTaskList> {
+  public async getUserTasksForProcessModel(identity: IIdentity, processModelId: string): Promise<DataModels.UserTasks.UserTaskList> {
 
     const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
       await this._flowNodeInstanceService.querySuspendedByProcessModel(processModelId);
 
-    const userTaskList: UserTaskList = await this._userTaskConverter.convertUserTasks(identity, suspendedFlowNodes);
+    const userTaskList: DataModels.UserTasks.UserTaskList = await this._userTaskConverter.convertUserTasks(identity, suspendedFlowNodes);
 
     return userTaskList;
   }
 
-  public async getUserTasksForCorrelation(identity: IIdentity, correlationId: string): Promise<UserTaskList> {
+  public async getUserTasksForCorrelation(identity: IIdentity, correlationId: string): Promise<DataModels.UserTasks.UserTaskList> {
 
     const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
       await this._flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
-    const userTaskList: UserTaskList = await this._userTaskConverter.convertUserTasks(identity, suspendedFlowNodes);
+    const userTaskList: DataModels.UserTasks.UserTaskList = await this._userTaskConverter.convertUserTasks(identity, suspendedFlowNodes);
 
     return userTaskList;
   }
 
   public async getUserTasksForProcessModelInCorrelation(identity: IIdentity,
                                                         processModelId: string,
-                                                        correlationId: string): Promise<UserTaskList> {
+                                                        correlationId: string): Promise<DataModels.UserTasks.UserTaskList> {
 
     const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
       await this._flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
@@ -360,18 +352,18 @@ export class ConsumerApiService implements IConsumerApi {
 
     const noSuspendedFlowNodesFound: boolean = !suspendedFlowNodes || suspendedFlowNodes.length === 0;
     if (noSuspendedFlowNodesFound) {
-      return <UserTaskList> {
+      return <DataModels.UserTasks.UserTaskList> {
         userTasks: [],
       };
     }
 
-    const userTaskList: UserTaskList =
+    const userTaskList: DataModels.UserTasks.UserTaskList =
       await this._userTaskConverter.convertUserTasks(identity, suspendedProcessModelFlowNodes);
 
     return userTaskList;
   }
 
-  public async getWaitingUserTasksByIdentity(identity: IIdentity): Promise<UserTaskList> {
+  public async getWaitingUserTasksByIdentity(identity: IIdentity): Promise<DataModels.UserTasks.UserTaskList> {
 
     const suspendedFlowNodeInstances: Array<Runtime.Types.FlowNodeInstance> =
       await this._flowNodeInstanceService.queryByState(Runtime.Types.FlowNodeInstanceState.suspended);
@@ -381,7 +373,7 @@ export class ConsumerApiService implements IConsumerApi {
         return this._checkIfIdentityUserIDsMatch(identity, flowNodeInstance.owner);
       });
 
-    const userTaskList: UserTaskList =
+    const userTaskList: DataModels.UserTasks.UserTaskList =
       await this._userTaskConverter.convertUserTasks(identity, flowNodeInstancesOwnedByUser);
 
     return userTaskList;
@@ -391,12 +383,12 @@ export class ConsumerApiService implements IConsumerApi {
                               processInstanceId: string,
                               correlationId: string,
                               userTaskInstanceId: string,
-                              userTaskResult?: UserTaskResult): Promise<void> {
+                              userTaskResult?: DataModels.UserTasks.UserTaskResult): Promise<void> {
 
     // Do this first in order to avoid unnecessary database requests, in case the provided result is invalid.
     const resultForProcessEngine: any = this._createUserTaskResultForProcessEngine(userTaskResult);
 
-    const matchingFlowNodeInstance: UserTask =
+    const matchingFlowNodeInstance: DataModels.UserTasks.UserTask =
       await this._getSuspendedUserTask(identity, correlationId, processInstanceId, userTaskInstanceId);
 
     return new Promise<void>(async(resolve: Function, reject: Function): Promise<void> => {
@@ -415,27 +407,27 @@ export class ConsumerApiService implements IConsumerApi {
   }
 
   // ManualTasks
-  public async getManualTasksForProcessModel(identity: IIdentity, processModelId: string): Promise<ManualTaskList> {
+  public async getManualTasksForProcessModel(identity: IIdentity, processModelId: string): Promise<DataModels.ManualTasks.ManualTaskList> {
     const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
       await this._flowNodeInstanceService.querySuspendedByProcessModel(processModelId);
 
-    const manualTaskList: ManualTaskList = await this._manualTaskConverter.convert(identity, suspendedFlowNodes);
+    const manualTaskList: DataModels.ManualTasks.ManualTaskList = await this._manualTaskConverter.convert(identity, suspendedFlowNodes);
 
     return manualTaskList;
   }
 
-  public async getManualTasksForCorrelation(identity: IIdentity, correlationId: string): Promise<ManualTaskList> {
+  public async getManualTasksForCorrelation(identity: IIdentity, correlationId: string): Promise<DataModels.ManualTasks.ManualTaskList> {
     const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
       await this._flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
-    const manualTaskList: ManualTaskList = await this._manualTaskConverter.convert(identity, suspendedFlowNodes);
+    const manualTaskList: DataModels.ManualTasks.ManualTaskList = await this._manualTaskConverter.convert(identity, suspendedFlowNodes);
 
     return manualTaskList;
   }
 
   public async getManualTasksForProcessModelInCorrelation(identity: IIdentity,
                                                           processModelId: string,
-                                                          correlationId: string): Promise<ManualTaskList> {
+                                                          correlationId: string): Promise<DataModels.ManualTasks.ManualTaskList> {
 
     const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
       await this._flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
@@ -445,13 +437,13 @@ export class ConsumerApiService implements IConsumerApi {
         return flowNodeInstance.tokens[0].processModelId === processModelId;
       });
 
-    const manualTaskList: ManualTaskList =
+    const manualTaskList: DataModels.ManualTasks.ManualTaskList =
       await this._manualTaskConverter.convert(identity, suspendedProcessModelFlowNodes);
 
     return manualTaskList;
   }
 
-  public async getWaitingManualTasksByIdentity(identity: IIdentity): Promise<ManualTaskList> {
+  public async getWaitingManualTasksByIdentity(identity: IIdentity): Promise<DataModels.ManualTasks.ManualTaskList> {
 
     const suspendedFlowNodeInstances: Array<Runtime.Types.FlowNodeInstance> =
       await this._flowNodeInstanceService.queryByState(Runtime.Types.FlowNodeInstanceState.suspended);
@@ -461,7 +453,7 @@ export class ConsumerApiService implements IConsumerApi {
         return this._checkIfIdentityUserIDsMatch(identity, flowNodeInstance.owner);
       });
 
-    const manualTaskList: ManualTaskList =
+    const manualTaskList: DataModels.ManualTasks.ManualTaskList =
       await this._manualTaskConverter.convert(identity, flowNodeInstancesOwnedByUser);
 
     return manualTaskList;
@@ -472,7 +464,7 @@ export class ConsumerApiService implements IConsumerApi {
                                 correlationId: string,
                                 manualTaskInstanceId: string): Promise<void> {
 
-    const matchingFlowNodeInstance: ManualTask =
+    const matchingFlowNodeInstance: DataModels.ManualTasks.ManualTask =
       await this._getSuspendedManualTask(identity, correlationId, processInstanceId, manualTaskInstanceId);
 
     return new Promise<void>((resolve: Function, reject: Function): void => {
@@ -512,10 +504,10 @@ export class ConsumerApiService implements IConsumerApi {
   private _validateStartRequest(processModel: Model.Types.Process,
                                 startEventId: string,
                                 endEventId: string,
-                                startCallbackType: StartCallbackType,
+                                startCallbackType: DataModels.ProcessModels.StartCallbackType,
                                ): void {
 
-    if (!Object.values(StartCallbackType).includes(startCallbackType)) {
+    if (!Object.values(DataModels.ProcessModels.StartCallbackType).includes(startCallbackType)) {
       throw new EssentialProjectErrors.BadRequestError(`${startCallbackType} is not a valid return option!`);
     }
 
@@ -531,7 +523,7 @@ export class ConsumerApiService implements IConsumerApi {
       throw new EssentialProjectErrors.NotFoundError(`StartEvent with ID '${startEventId}' not found!`);
     }
 
-    if (startCallbackType === StartCallbackType.CallbackOnEndEventReached) {
+    if (startCallbackType === DataModels.ProcessModels.StartCallbackType.CallbackOnEndEventReached) {
 
       if (!endEventId) {
         throw new EssentialProjectErrors.BadRequestError(`Must provide an EndEventId, when using callback type 'CallbackOnEndEventReached'!`);
@@ -547,13 +539,13 @@ export class ConsumerApiService implements IConsumerApi {
     }
   }
 
-  private _createCorrelationResultFromEndEventInstance(endEventInstance: Runtime.Types.FlowNodeInstance): CorrelationResult {
+  private _createCorrelationResultFromEndEventInstance(endEventInstance: Runtime.Types.FlowNodeInstance): DataModels.CorrelationResult {
 
     const exitToken: Runtime.Types.ProcessToken = endEventInstance.tokens.find((token: Runtime.Types.ProcessToken): boolean => {
       return token.type === Runtime.Types.ProcessTokenType.onExit;
     });
 
-    const correlationResult: CorrelationResult = {
+    const correlationResult: DataModels.CorrelationResult = {
       correlationId: exitToken.correlationId,
       endEventId: endEventInstance.flowNodeId,
       tokenPayload: exitToken.payload,
@@ -574,16 +566,16 @@ export class ConsumerApiService implements IConsumerApi {
     correlationId: string,
     processInstanceId: string,
     userTaskInstanceId: string,
-  ): Promise<UserTask> {
+  ): Promise<DataModels.UserTasks.UserTask> {
 
     const suspendedFlowNodeInstances: Array<Runtime.Types.FlowNodeInstance> =
       await this._flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
-    const userTaskList: UserTaskList =
+    const userTaskList: DataModels.UserTasks.UserTaskList =
       await this._userTaskConverter.convertUserTasks(identity, suspendedFlowNodeInstances);
 
-    const matchingUserTask: UserTask =
-      userTaskList.userTasks.find((userTask: UserTask): boolean => {
+    const matchingUserTask: DataModels.UserTasks.UserTask =
+      userTaskList.userTasks.find((userTask: DataModels.UserTasks.UserTask): boolean => {
         return userTask.flowNodeInstanceId === userTaskInstanceId
           && userTask.processInstanceId === processInstanceId;
       });
@@ -603,16 +595,16 @@ export class ConsumerApiService implements IConsumerApi {
     correlationId: string,
     processInstanceId: string,
     manualTaskInstanceId: string,
-  ): Promise<ManualTask> {
+  ): Promise<DataModels.ManualTasks.ManualTask> {
 
     const suspendedFlowNodeInstances: Array<Runtime.Types.FlowNodeInstance> =
       await this._flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
-    const manualTaskList: ManualTaskList =
+    const manualTaskList: DataModels.ManualTasks.ManualTaskList =
       await this._manualTaskConverter.convert(identity, suspendedFlowNodeInstances);
 
-    const matchingManualTask: ManualTask =
-    manualTaskList.manualTasks.find((manualTask: ManualTask): boolean => {
+    const matchingManualTask: DataModels.ManualTasks.ManualTask =
+    manualTaskList.manualTasks.find((manualTask: DataModels.ManualTasks.ManualTask): boolean => {
         return manualTask.flowNodeInstanceId === manualTaskInstanceId
           && manualTask.processInstanceId === processInstanceId;
       });
@@ -627,7 +619,7 @@ export class ConsumerApiService implements IConsumerApi {
     return matchingManualTask;
   }
 
-  private _createUserTaskResultForProcessEngine(finishedTask: UserTaskResult): any {
+  private _createUserTaskResultForProcessEngine(finishedTask: DataModels.UserTasks.UserTaskResult): any {
 
     const noResultsProvided: boolean = !finishedTask || !finishedTask.formFields;
 
@@ -646,7 +638,11 @@ export class ConsumerApiService implements IConsumerApi {
     return finishedTask.formFields;
   }
 
-  private async _sendUserTaskResultToProcessEngine(identity: IIdentity, userTaskInstance: UserTask, userTaskResult: any): Promise<void> {
+  private async _sendUserTaskResultToProcessEngine(
+    identity: IIdentity,
+    userTaskInstance: DataModels.UserTasks.UserTask,
+    userTaskResult: any,
+  ): Promise<void> {
 
     const finishUserTaskMessage: Messages.Internal.SystemEvents.FinishUserTaskMessage =
       new Messages.Internal.SystemEvents.FinishUserTaskMessage(
