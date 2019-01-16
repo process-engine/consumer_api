@@ -221,6 +221,14 @@ export class ConsumerApiService implements IConsumerApi {
     return consumerApiProcessModel;
   }
 
+  public async getProcessModelByProcessInstanceId(identity: IIdentity, processInstanceId: string): Promise<ProcessModel> {
+
+    const processModel: Model.Types.Process = await this._processModelService.getProcessModelByProcessInstanceId(identity, processInstanceId);
+    const consumerApiProcessModel: ProcessModel = this._processModelConverter.convertProcessModel(processModel);
+
+    return consumerApiProcessModel;
+  }
+
   public async startProcessInstance(identity: IIdentity,
                                     processModelId: string,
                                     startEventId: string,
