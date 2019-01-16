@@ -8,7 +8,7 @@ import {
   ProcessStartedMessage,
 } from '@process-engine/process_engine_contracts';
 
-import {ProcessStartRequestPayload, ProcessStartResponsePayload, StartCallbackType} from '@process-engine/consumer_api_contracts';
+import {DataModels} from '@process-engine/consumer_api_contracts';
 
 import * as uuid from 'uuid';
 
@@ -18,9 +18,9 @@ export interface IProcessModelExecutionAdapter {
   startProcessInstance(identity: IIdentity,
                        processModelId: string,
                        startEventId: string,
-                       payload: ProcessStartRequestPayload,
-                       startCallbackType: StartCallbackType,
-                       endEventId?: string): Promise<ProcessStartResponsePayload>;
+                       payload: DataModels.ProcessModels.ProcessStartRequestPayload,
+                       startCallbackType: DataModels.ProcessModels.StartCallbackType,
+                       endEventId?: string): Promise<DataModels.ProcessModels.ProcessStartResponsePayload>;
 }
 
 // TODO: When running processes, we need to pass full process model to the ExecuteProcessService.
@@ -56,22 +56,17 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
   public async startProcessInstance(identity: IIdentity,
                                     processModelId: string,
                                     startEventId: string,
-                                    payload: ProcessStartRequestPayload,
-                                    startCallbackType: StartCallbackType = StartCallbackType.CallbackOnProcessInstanceCreated,
-                                    endEventId?: string): Promise<ProcessStartResponsePayload> {
+                                    payload: DataModels.ProcessModels.ProcessStartRequestPayload,
+                                    startCallbackType: DataModels.ProcessModels.StartCallbackType,
+                                    endEventId?: string): Promise<DataModels.ProcessModels.ProcessStartResponsePayload> {
 
     const correlationId: string = payload.correlationId || uuid.v4();
 
     // Uses the mock IAM facade with the processModelService => The process model will always be complete.
     const processModel: Model.Types.Process = await this.processModelService.getProcessModelById(identity, processModelId);
 
-    const response: ProcessStartResponsePayload = await this._startProcessInstance(identity,
-                                                                                   correlationId,
-                                                                                   processModel,
-                                                                                   startEventId,
-                                                                                   payload,
-                                                                                   startCallbackType,
-                                                                                   endEventId);
+    const response: DataModels.ProcessModels.ProcessStartResponsePayload =
+      await this._startProcessInstance(identity, correlationId, processModel, startEventId, payload, startCallbackType, endEventId);
 
     return response;
   }
@@ -80,18 +75,18 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
                                       correlationId: string,
                                       processModel: Model.Types.Process,
                                       startEventId: string,
-                                      payload: ProcessStartRequestPayload,
-                                      startCallbackType: StartCallbackType = StartCallbackType.CallbackOnProcessInstanceCreated,
+                                      payload: DataModels.ProcessModels.ProcessStartRequestPayload,
+                                      startCallbackType: DataModels.ProcessModels.StartCallbackType,
                                       endEventId?: string,
-                                    ): Promise<ProcessStartResponsePayload> {
+                                    ): Promise<DataModels.ProcessModels.ProcessStartResponsePayload> {
 
-    const response: ProcessStartResponsePayload = {
+    const response: DataModels.ProcessModels.ProcessStartResponsePayload = {
       correlationId: correlationId,
       processInstanceId: undefined,
     };
 
     // Only start the process instance and return
-    const resolveImmediatelyAfterStart: boolean = startCallbackType === StartCallbackType.CallbackOnProcessInstanceCreated;
+    const resolveImmediatelyAfterStart: boolean = startCallbackType === DataModels.ProcessModels.StartCallbackType.CallbackOnProcessInstanceCreated;
     if (resolveImmediatelyAfterStart) {
       const startResult: ProcessStartedMessage = await this.executeProcessService.start(identity,
                                                                                         processModel,
@@ -108,7 +103,7 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
     let processEndedMessage: EndEventReachedMessage;
 
     // Start the process instance and wait for a specific end event result
-    const resolveAfterReachingSpecificEndEvent: boolean = startCallbackType === StartCallbackType.CallbackOnEndEventReached;
+    const resolveAfterReachingSpecificEndEvent: boolean = startCallbackType === DataModels.ProcessModels.StartCallbackType.CallbackOnEndEventReached;
     if (resolveAfterReachingSpecificEndEvent) {
 
       processEndedMessage = await this

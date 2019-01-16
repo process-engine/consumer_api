@@ -1,6 +1,6 @@
 import {IIdentity} from '@essential-projects/iam_contracts';
 
-import {UserTask, UserTaskConfig, UserTaskFormField, UserTaskFormFieldType, UserTaskList} from '@process-engine/consumer_api_contracts';
+import {DataModels} from '@process-engine/consumer_api_contracts';
 import {
   IFlowNodeInstanceService,
   IProcessModelFacade,
@@ -36,9 +36,12 @@ export class UserTaskConverter {
     this._processTokenFacadeFactory = processTokenFacadeFactory;
   }
 
-  public async convertUserTasks(identity: IIdentity, suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance>): Promise<UserTaskList> {
+  public async convertUserTasks(
+    identity: IIdentity,
+    suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance>,
+  ): Promise<DataModels.UserTasks.UserTaskList> {
 
-    const suspendedUserTasks: Array<UserTask> = [];
+    const suspendedUserTasks: Array<DataModels.UserTasks.UserTask> = [];
 
     const processModelCache: ProcessModelCache = {};
 
@@ -57,12 +60,13 @@ export class UserTaskConverter {
         continue;
       }
 
-      const userTask: UserTask = await this.convertToConsumerApiUserTask(flowNodeModel as Model.Activities.UserTask, suspendedFlowNode);
+      const userTask: DataModels.UserTasks.UserTask =
+        await this.convertToConsumerApiUserTask(flowNodeModel as Model.Activities.UserTask, suspendedFlowNode);
 
       suspendedUserTasks.push(userTask);
     }
 
-    const userTaskList: UserTaskList = {
+    const userTaskList: DataModels.UserTasks.UserTaskList = {
       userTasks: suspendedUserTasks,
     };
 
@@ -97,26 +101,27 @@ export class UserTaskConverter {
     return processModelFacade;
   }
 
-  private async convertToConsumerApiUserTask(userTaskModel: Model.Activities.UserTask,
-                                             userTaskInstance: Runtime.Types.FlowNodeInstance,
-  ): Promise<UserTask> {
+  private async convertToConsumerApiUserTask(
+    userTaskModel: Model.Activities.UserTask,
+    userTaskInstance: Runtime.Types.FlowNodeInstance,
+  ): Promise<DataModels.UserTasks.UserTask> {
 
     const currentUserTaskToken: Runtime.Types.ProcessToken = userTaskInstance.getTokenByType(Runtime.Types.ProcessTokenType.onSuspend);
 
     const userTaskTokenOldFormat: any = await this._getUserTaskTokenInOldFormat(currentUserTaskToken);
 
-    const userTaskFormFields: Array<UserTaskFormField> = userTaskModel.formFields.map((formField: Model.Types.FormField) => {
+    const userTaskFormFields: Array<DataModels.UserTasks.UserTaskFormField> = userTaskModel.formFields.map((formField: Model.Types.FormField) => {
       return this.convertToConsumerApiFormField(formField, userTaskTokenOldFormat);
     });
 
-    const userTaskConfig: UserTaskConfig = {
+    const userTaskConfig: DataModels.UserTasks.UserTaskConfig = {
       formFields: userTaskFormFields,
       preferredControl: this._evaluateExpressionWithOldToken(userTaskModel.preferredControl, userTaskTokenOldFormat),
       description: userTaskModel.description,
       finishedMessage: userTaskModel.finishedMessage,
     };
 
-    const consumerApiUserTask: UserTask = {
+    const consumerApiUserTask: DataModels.UserTasks.UserTask = {
       id: userTaskInstance.flowNodeId,
       flowNodeInstanceId: userTaskInstance.id,
       name: userTaskModel.name,
@@ -130,12 +135,12 @@ export class UserTaskConverter {
     return consumerApiUserTask;
   }
 
-  private convertToConsumerApiFormField(formField: Model.Types.FormField, oldTokenFormat: any): UserTaskFormField {
+  private convertToConsumerApiFormField(formField: Model.Types.FormField, oldTokenFormat: any): DataModels.UserTasks.UserTaskFormField {
 
-    const userTaskFormField: UserTaskFormField = new UserTaskFormField();
+    const userTaskFormField: DataModels.UserTasks.UserTaskFormField = new DataModels.UserTasks.UserTaskFormField();
     userTaskFormField.id = formField.id;
     userTaskFormField.label = this._evaluateExpressionWithOldToken(formField.label, oldTokenFormat);
-    userTaskFormField.type = UserTaskFormFieldType[formField.type];
+    userTaskFormField.type = DataModels.UserTasks.UserTaskFormFieldType[formField.type];
     userTaskFormField.enumValues = formField.enumValues;
     userTaskFormField.defaultValue = this._evaluateExpressionWithOldToken(formField.defaultValue, oldTokenFormat);
     userTaskFormField.preferredControl = this._evaluateExpressionWithOldToken(formField.preferredControl, oldTokenFormat);

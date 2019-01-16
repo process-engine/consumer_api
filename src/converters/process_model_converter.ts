@@ -1,4 +1,4 @@
-import {Event, ProcessModel} from '@process-engine/consumer_api_contracts';
+import {DataModels} from '@process-engine/consumer_api_contracts';
 import {IProcessModelFacade, IProcessModelFacadeFactory, Model} from '@process-engine/process_engine_contracts';
 
 export class ProcessModelConverter {
@@ -9,19 +9,19 @@ export class ProcessModelConverter {
     this._processModelFacadeFactory = processModelFacadeFactory;
   }
 
-  public convertProcessModel(processModel: Model.Types.Process): ProcessModel {
+  public convertProcessModel(processModel: Model.Types.Process): DataModels.ProcessModels.ProcessModel {
 
     const processModelFacade: IProcessModelFacade = this._processModelFacadeFactory.create(processModel);
 
-    function consumerApiEventConverter(event: Model.Events.Event): Event {
-      const consumerApiEvent: Event = new Event();
+    function consumerApiEventConverter(event: Model.Events.Event): DataModels.Events.Event {
+      const consumerApiEvent: DataModels.Events.Event = new DataModels.Events.Event();
       consumerApiEvent.id = event.id;
 
       return consumerApiEvent;
     }
 
-    let consumerApiStartEvents: Array<Event> = [];
-    let consumerApiEndEvents: Array<Event> = [];
+    let consumerApiStartEvents: Array<DataModels.Events.Event> = [];
+    let consumerApiEndEvents: Array<DataModels.Events.Event> = [];
 
     const processModelIsExecutable: boolean = processModelFacade.getIsExecutable();
 
@@ -33,7 +33,7 @@ export class ProcessModelConverter {
       consumerApiEndEvents = endEvents.map(consumerApiEventConverter);
     }
 
-    const processModelResponse: ProcessModel = {
+    const processModelResponse: DataModels.ProcessModels.ProcessModel = {
       id: processModel.id,
       startEvents: consumerApiStartEvents,
       endEvents: consumerApiEndEvents,

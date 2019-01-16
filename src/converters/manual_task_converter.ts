@@ -1,6 +1,6 @@
 import {IIdentity} from '@essential-projects/iam_contracts';
 
-import {ManualTask, ManualTaskList} from '@process-engine/consumer_api_contracts';
+import {DataModels} from '@process-engine/consumer_api_contracts';
 import {
   IProcessModelFacade,
   IProcessModelFacadeFactory,
@@ -25,9 +25,12 @@ export class ManualTaskConverter {
     this._processModelFacadeFactory = processModelFacadeFactory;
   }
 
-  public async convert(identity: IIdentity, suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance>): Promise<ManualTaskList> {
+  public async convert(
+    identity: IIdentity,
+    suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance>,
+  ): Promise<DataModels.ManualTasks.ManualTaskList> {
 
-    const suspendedManualTasks: Array<ManualTask> = [];
+    const suspendedManualTasks: Array<DataModels.ManualTasks.ManualTask> = [];
 
     const processModelCache: ProcessModelCache = {};
 
@@ -54,7 +57,7 @@ export class ManualTaskConverter {
         processModelCache[currentProcessToken.processModelId] = processModel;
       }
 
-      const manualTask: ManualTask =
+      const manualTask: DataModels.ManualTasks.ManualTask =
         await this._convertSuspendedFlowNodeToManualTask(suspendedFlowNode, currentProcessToken, processModel);
 
       const taskIsNotAManualTask: boolean = manualTask === undefined;
@@ -65,17 +68,18 @@ export class ManualTaskConverter {
       suspendedManualTasks.push(manualTask);
     }
 
-    const manualTaskList: ManualTaskList = {
+    const manualTaskList: DataModels.ManualTasks.ManualTaskList = {
       manualTasks: suspendedManualTasks,
     };
 
     return manualTaskList;
   }
 
-  private async _convertSuspendedFlowNodeToManualTask(flowNodeInstance: Runtime.Types.FlowNodeInstance,
-                                                      currentProcessToken: Runtime.Types.ProcessToken,
-                                                      processModel: Model.Types.Process,
-                                                    ): Promise<ManualTask> {
+  private async _convertSuspendedFlowNodeToManualTask(
+    flowNodeInstance: Runtime.Types.FlowNodeInstance,
+    currentProcessToken: Runtime.Types.ProcessToken,
+    processModel: Model.Types.Process,
+  ): Promise<DataModels.ManualTasks.ManualTask> {
 
     const processModelFacade: IProcessModelFacade = this._processModelFacadeFactory.create(processModel);
     const flowNodeModel: Model.Base.FlowNode = processModelFacade.getFlowNodeById(flowNodeInstance.flowNodeId);
@@ -94,9 +98,9 @@ export class ManualTaskConverter {
   private async _convertToConsumerApiManualTask(manualTask: Model.Activities.ManualTask,
                                                 flowNodeInstance: Runtime.Types.FlowNodeInstance,
                                                 currentProcessToken: Runtime.Types.ProcessToken,
-                                              ): Promise<ManualTask> {
+                                              ): Promise<DataModels.ManualTasks.ManualTask> {
 
-    const consumerApiManualTask: ManualTask = {
+    const consumerApiManualTask: DataModels.ManualTasks.ManualTask = {
       id: flowNodeInstance.flowNodeId,
       flowNodeInstanceId: flowNodeInstance.id,
       name: manualTask.name,
