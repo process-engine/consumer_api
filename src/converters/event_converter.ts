@@ -1,7 +1,7 @@
 import {IIdentity} from '@essential-projects/iam_contracts';
 
 import {InternalServerError} from '@essential-projects/errors_ts';
-import {Event, EventList, EventType} from '@process-engine/consumer_api_contracts';
+import {DataModels} from '@process-engine/consumer_api_contracts';
 import {
   IProcessModelFacade,
   IProcessModelFacadeFactory,
@@ -27,9 +27,9 @@ export class EventConverter {
     this._processModelFacadeFactory = processModelFacadeFactory;
   }
 
-  public async convertEvents(identity: IIdentity, suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance>): Promise<EventList> {
+  public async convertEvents(identity: IIdentity, suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance>): Promise<DataModels.Events.EventList> {
 
-    const suspendedEvents: Array<Event> = [];
+    const suspendedEvents: Array<DataModels.Events.Event> = [];
 
     const processModelCache: ProcessModelCache = {};
 
@@ -37,8 +37,8 @@ export class EventConverter {
 
       // A triggerable suspended event will always have an eventType attached to it, to indicate what the event is waiting for.
       // This will be either a signal or a message.
-      const flowNodeIsNotATriggerableEvent: boolean = suspendedFlowNode.eventType !== EventType.messageEvent &&
-                                                      suspendedFlowNode.eventType !== EventType.signalEvent;
+      const flowNodeIsNotATriggerableEvent: boolean = suspendedFlowNode.eventType !== DataModels.Events.EventType.messageEvent
+                                                      && suspendedFlowNode.eventType !== DataModels.Events.EventType.signalEvent;
 
       if (flowNodeIsNotATriggerableEvent) {
         continue;
@@ -49,12 +49,12 @@ export class EventConverter {
 
       const flowNodeModel: Model.Base.FlowNode = processModelFacade.getFlowNodeById(suspendedFlowNode.flowNodeId);
 
-      const event: Event = await this._convertToConsumerApiEvent(flowNodeModel as Model.Events.Event, suspendedFlowNode);
+      const event: DataModels.Events.Event = await this._convertToConsumerApiEvent(flowNodeModel as Model.Events.Event, suspendedFlowNode);
 
       suspendedEvents.push(event);
     }
 
-    const eventList: EventList = {
+    const eventList: DataModels.Events.EventList = {
       events: suspendedEvents,
     };
 
@@ -89,16 +89,15 @@ export class EventConverter {
     return processModelFacade;
   }
 
-  private _convertToConsumerApiEvent(flowNodeModel: Model.Events.Event, suspendedFlowNode: Runtime.Types.FlowNodeInstance): Event {
+  private _convertToConsumerApiEvent(flowNodeModel: Model.Events.Event, suspendedFlowNode: Runtime.Types.FlowNodeInstance): DataModels.Events.Event {
 
-    const consumerApiEvent: Event = {
+    const consumerApiEvent: DataModels.Events.Event = {
       id: suspendedFlowNode.flowNodeId,
       flowNodeInstanceId: suspendedFlowNode.id,
       correlationId: suspendedFlowNode.correlationId,
       processModelId: suspendedFlowNode.processModelId,
       processInstanceId: suspendedFlowNode.processInstanceId,
-      // TODO: The Runtime.Types.FlowNodeInstance model should also use a corresponding enum for the eventType property.
-      eventType: <EventType> suspendedFlowNode.eventType,
+      eventType: <DataModels.Events.EventType> suspendedFlowNode.eventType,
       eventName: this._getEventDefinitionFromFlowNodeModel(flowNodeModel, suspendedFlowNode.eventType),
       bpmnType: suspendedFlowNode.flowNodeType,
     };
@@ -109,9 +108,9 @@ export class EventConverter {
   private _getEventDefinitionFromFlowNodeModel(flowNodeModel: Model.Events.Event, eventType: string): string {
 
     switch (eventType) {
-      case EventType.messageEvent:
+      case DataModels.Events.EventType.messageEvent:
         return (flowNodeModel as any).messageEventDefinition.name;
-      case EventType.signalEvent:
+      case DataModels.Events.EventType.signalEvent:
         return (flowNodeModel as any).signalEventDefinition.name;
       default:
         throw new InternalServerError(`${flowNodeModel.id} is not a triggerable event!`);
