@@ -37,8 +37,8 @@ export class EventConverter {
 
       // A triggerable suspended event will always have an eventType attached to it, to indicate what the event is waiting for.
       // This will be either a signal or a message.
-      const flowNodeIsNotATriggerableEvent: boolean = suspendedFlowNode.eventType !== DataModels.Events.EventType.messageEvent &&
-                                                      suspendedFlowNode.eventType !== DataModels.Events.EventType.signalEvent;
+      const flowNodeIsNotATriggerableEvent: boolean = suspendedFlowNode.eventType !== DataModels.Events.EventType.messageEvent
+                                                      && suspendedFlowNode.eventType !== DataModels.Events.EventType.signalEvent;
 
       if (flowNodeIsNotATriggerableEvent) {
         continue;
