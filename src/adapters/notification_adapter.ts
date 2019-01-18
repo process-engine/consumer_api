@@ -1,6 +1,6 @@
 import * as jsonwebtoken from 'jsonwebtoken';
 
-import {IEventAggregator} from '@essential-projects/event_aggregator_contracts';
+import {IEventAggregator, Subscription} from '@essential-projects/event_aggregator_contracts';
 import {IIdentity, TokenBody} from '@essential-projects/iam_contracts';
 import {Messages} from '@process-engine/consumer_api_contracts';
 
@@ -12,9 +12,10 @@ export class NotificationAdapter {
     this._eventAggregator = eventAggregator;
   }
 
-  public onUserTaskWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskWaitingCallback): void {
+  public onUserTaskWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskWaitingCallback): Subscription {
     const eventName: string = Messages.EventAggregatorSettings.messagePaths.userTaskReached;
-    this
+
+    return this
       ._eventAggregator
       .subscribe(eventName, (message: Messages.Internal.SystemEvents.UserTaskReachedMessage) => {
         const sanitizedMessage: Messages.Public.SystemEvents.UserTaskReachedMessage = this._sanitizeInternalMessageForPublicNotification(message);
@@ -23,9 +24,10 @@ export class NotificationAdapter {
       });
   }
 
-  public onUserTaskFinished(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskFinishedCallback): void {
+  public onUserTaskFinished(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskFinishedCallback): Subscription {
     const eventName: string = Messages.EventAggregatorSettings.messagePaths.userTaskFinished;
-    this
+
+    return this
       ._eventAggregator
       .subscribe(eventName, (message: Messages.Internal.SystemEvents.UserTaskFinishedMessage) => {
         const sanitizedMessage: Messages.Public.SystemEvents.UserTaskFinishedMessage = this._sanitizeInternalMessageForPublicNotification(message);
@@ -34,9 +36,10 @@ export class NotificationAdapter {
       });
   }
 
-  public onUserTaskForIdentityWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskWaitingCallback): void {
+  public onUserTaskForIdentityWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskWaitingCallback): Subscription {
     const eventName: string = Messages.EventAggregatorSettings.messagePaths.userTaskReached;
-    this
+
+    return this
       ._eventAggregator
       .subscribe(eventName, (message: Messages.Internal.SystemEvents.UserTaskReachedMessage) => {
 
@@ -49,9 +52,10 @@ export class NotificationAdapter {
       });
   }
 
-  public onUserTaskForIdentityFinished(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskFinishedCallback): void {
+  public onUserTaskForIdentityFinished(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskFinishedCallback): Subscription {
     const eventName: string = Messages.EventAggregatorSettings.messagePaths.userTaskFinished;
-    this
+
+    return this
       ._eventAggregator
       .subscribe(eventName, (message: Messages.Internal.SystemEvents.UserTaskFinishedMessage) => {
 
@@ -64,9 +68,10 @@ export class NotificationAdapter {
       });
   }
 
-  public onManualTaskWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnManualTaskWaitingCallback): void {
+  public onManualTaskWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnManualTaskWaitingCallback): Subscription {
     const eventName: string = Messages.EventAggregatorSettings.messagePaths.manualTaskReached;
-    this
+
+    return this
       ._eventAggregator
       .subscribe(eventName, (message: Messages.Internal.SystemEvents.ManualTaskReachedMessage) => {
         const sanitizedMessage: Messages.Public.SystemEvents.ManualTaskReachedMessage = this._sanitizeInternalMessageForPublicNotification(message);
@@ -74,9 +79,10 @@ export class NotificationAdapter {
       });
   }
 
-  public onManualTaskFinished(identity: IIdentity, callback: Messages.CallbackTypes.OnManualTaskFinishedCallback): void {
+  public onManualTaskFinished(identity: IIdentity, callback: Messages.CallbackTypes.OnManualTaskFinishedCallback): Subscription {
     const eventName: string = Messages.EventAggregatorSettings.messagePaths.manualTaskFinished;
-    this
+
+    return this
       ._eventAggregator
       .subscribe(eventName, (message: Messages.Internal.SystemEvents.ManualTaskFinishedMessage) => {
         const sanitizedMessage: Messages.Public.SystemEvents.ManualTaskFinishedMessage = this._sanitizeInternalMessageForPublicNotification(message);
@@ -84,9 +90,10 @@ export class NotificationAdapter {
       });
   }
 
-  public onManualTaskForIdentityWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnManualTaskWaitingCallback): void {
+  public onManualTaskForIdentityWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnManualTaskWaitingCallback): Subscription {
     const eventName: string = Messages.EventAggregatorSettings.messagePaths.manualTaskReached;
-    this
+
+    return this
       ._eventAggregator
       .subscribe(eventName, (message: Messages.Internal.SystemEvents.ManualTaskReachedMessage) => {
 
@@ -98,9 +105,10 @@ export class NotificationAdapter {
       });
   }
 
-  public onManualTaskForIdentityFinished(identity: IIdentity, callback: Messages.CallbackTypes.OnManualTaskFinishedCallback): void {
+  public onManualTaskForIdentityFinished(identity: IIdentity, callback: Messages.CallbackTypes.OnManualTaskFinishedCallback): Subscription {
     const eventName: string = Messages.EventAggregatorSettings.messagePaths.manualTaskFinished;
-    this
+
+    return this
       ._eventAggregator
       .subscribe(eventName, (message: Messages.Internal.SystemEvents.ManualTaskFinishedMessage) => {
 
@@ -112,9 +120,10 @@ export class NotificationAdapter {
       });
   }
 
-  public onProcessStarted(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessStartedCallback): void {
+  public onProcessStarted(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessStartedCallback): Subscription {
     const eventName: string = Messages.EventAggregatorSettings.messagePaths.processStarted;
-    this
+
+    return this
       ._eventAggregator
       .subscribe(eventName, (message: Messages.Internal.SystemEvents.ProcessStartedMessage) => {
         const sanitizedMessage: Messages.Public.SystemEvents.ProcessStartedMessage = this._sanitizeInternalMessageForPublicNotification(message);
@@ -126,10 +135,11 @@ export class NotificationAdapter {
     identity: IIdentity,
     callback: Messages.CallbackTypes.OnProcessStartedCallback,
     processModelId: string,
-  ): void {
+  ): Subscription {
     const processWithIdStartedMessageEventName: string = Messages.EventAggregatorSettings.messagePaths.processInstanceStarted
         .replace(Messages.EventAggregatorSettings.messageParams.processModelId, processModelId);
-    this
+
+    return this
       ._eventAggregator
       .subscribe(processWithIdStartedMessageEventName, (message: Messages.Internal.SystemEvents.ProcessStartedMessage) => {
         const sanitizedMessage: Messages.Public.SystemEvents.ProcessStartedMessage = this._sanitizeInternalMessageForPublicNotification(message);
@@ -137,9 +147,10 @@ export class NotificationAdapter {
       });
   }
 
-  public onProcessEnded(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessEndedCallback): void {
+  public onProcessEnded(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessEndedCallback): Subscription {
     const eventName: string = Messages.EventAggregatorSettings.messagePaths.processEnded;
-    this
+
+    return this
       ._eventAggregator
       .subscribe(eventName, (message: Messages.Internal.BpmnEvents.EndEventReachedMessage) => {
         const sanitizedMessage: Messages.Public.BpmnEvents.EndEventReachedMessage = this._sanitizeInternalMessageForPublicNotification(message);
@@ -147,9 +158,10 @@ export class NotificationAdapter {
       });
   }
 
-  public onProcessTerminated(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessTerminatedCallback): void {
+  public onProcessTerminated(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessTerminatedCallback): Subscription {
     const eventName: string = Messages.EventAggregatorSettings.messagePaths.processTerminated;
-    this
+
+    return this
       ._eventAggregator
       .subscribe(eventName, (message: Messages.Internal.BpmnEvents.TerminateEndEventReachedMessage) => {
         const sanitizedMessage: Messages.Public.BpmnEvents.TerminateEndEventReachedMessage =
