@@ -170,6 +170,10 @@ export class NotificationAdapter {
       });
   }
 
+  public removeSubscription(identity: IIdentity, subscription: Subscription): void {
+    this._eventAggregator.unsubscribe(subscription);
+  }
+
   private _checkIfIdentityUserIDsMatch(identityA: IIdentity, identityB: IIdentity): boolean {
 
     const decodedRequestingIdentity: TokenBody = <TokenBody> jsonwebtoken.decode(identityA.token);

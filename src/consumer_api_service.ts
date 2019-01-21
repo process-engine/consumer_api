@@ -160,6 +160,12 @@ export class ConsumerApiService implements IConsumerApi {
     return this._notificationAdapter.onProcessTerminated(identity, callback);
   }
 
+  public async removeSubscription(identity: IIdentity, subscription: Subscription): Promise<void> {
+    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
+
+    this._notificationAdapter.removeSubscription(identity, subscription);
+  }
+
   // Process models and instances
   public async getProcessModels(identity: IIdentity): Promise<DataModels.ProcessModels.ProcessModelList> {
 
