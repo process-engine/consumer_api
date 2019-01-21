@@ -1,6 +1,6 @@
 import * as jsonwebtoken from 'jsonwebtoken';
 
-import {IEventAggregator, Subscription} from '@essential-projects/event_aggregator_contracts';
+import {EventReceivedCallback, IEventAggregator, Subscription} from '@essential-projects/event_aggregator_contracts';
 import {IIdentity, TokenBody} from '@essential-projects/iam_contracts';
 import {Messages} from '@process-engine/consumer_api_contracts';
 
@@ -12,166 +12,201 @@ export class NotificationAdapter {
     this._eventAggregator = eventAggregator;
   }
 
-  public onUserTaskWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskWaitingCallback): Subscription {
+  public onUserTaskWaiting(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnUserTaskWaitingCallback,
+    subscribeOnce: boolean,
+  ): Subscription {
+
     const eventName: string = Messages.EventAggregatorSettings.messagePaths.userTaskReached;
 
-    return this
-      ._eventAggregator
-      .subscribe(eventName, (message: Messages.Internal.SystemEvents.UserTaskReachedMessage) => {
-        const sanitizedMessage: Messages.Public.SystemEvents.UserTaskReachedMessage = this._sanitizeInternalMessageForPublicNotification(message);
-        sanitizedMessage.userTaskResult = message.userTaskResult;
-        callback(sanitizedMessage);
-      });
+    const attachResultCallback: EventReceivedCallback = (message: Messages.Internal.SystemEvents.UserTaskFinishedMessage): void => {
+      message.userTaskResult = message.userTaskResult;
+      callback(message);
+    };
+
+    return this._createSubscription(eventName, attachResultCallback, subscribeOnce);
   }
 
-  public onUserTaskFinished(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskFinishedCallback): Subscription {
+  public onUserTaskFinished(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnUserTaskFinishedCallback,
+    subscribeOnce: boolean,
+  ): Subscription {
+
     const eventName: string = Messages.EventAggregatorSettings.messagePaths.userTaskFinished;
 
-    return this
-      ._eventAggregator
-      .subscribe(eventName, (message: Messages.Internal.SystemEvents.UserTaskFinishedMessage) => {
-        const sanitizedMessage: Messages.Public.SystemEvents.UserTaskFinishedMessage = this._sanitizeInternalMessageForPublicNotification(message);
-        sanitizedMessage.userTaskResult = message.userTaskResult;
-        callback(sanitizedMessage);
-      });
+    const attachResultCallback: EventReceivedCallback = (message: Messages.Internal.SystemEvents.UserTaskFinishedMessage): void => {
+      message.userTaskResult = message.userTaskResult;
+      callback(message);
+    };
+
+    return this._createSubscription(eventName, attachResultCallback, subscribeOnce);
   }
 
-  public onUserTaskForIdentityWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskWaitingCallback): Subscription {
+  public onUserTaskForIdentityWaiting(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnUserTaskWaitingCallback,
+    subscribeOnce: boolean,
+  ): Subscription {
+
     const eventName: string = Messages.EventAggregatorSettings.messagePaths.userTaskReached;
 
-    return this
-      ._eventAggregator
-      .subscribe(eventName, (message: Messages.Internal.SystemEvents.UserTaskReachedMessage) => {
+    const identityCheckCallback: EventReceivedCallback = (message: Messages.Internal.SystemEvents.UserTaskReachedMessage): void => {
 
-        const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
-        if (identitiesMatch) {
-          const sanitizedMessage: Messages.Public.SystemEvents.UserTaskReachedMessage = this._sanitizeInternalMessageForPublicNotification(message);
-          sanitizedMessage.userTaskResult = message.userTaskResult;
-          callback(sanitizedMessage);
-        }
-      });
+      const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
+      if (identitiesMatch) {
+        message.userTaskResult = message.userTaskResult;
+        callback(message);
+      }
+    };
+
+    return this._createSubscription(eventName, identityCheckCallback, subscribeOnce);
   }
 
-  public onUserTaskForIdentityFinished(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskFinishedCallback): Subscription {
+  public onUserTaskForIdentityFinished(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnUserTaskFinishedCallback,
+    subscribeOnce: boolean,
+  ): Subscription {
+
     const eventName: string = Messages.EventAggregatorSettings.messagePaths.userTaskFinished;
 
-    return this
-      ._eventAggregator
-      .subscribe(eventName, (message: Messages.Internal.SystemEvents.UserTaskFinishedMessage) => {
+    const identityCheckCallback: EventReceivedCallback = (message: Messages.Internal.SystemEvents.UserTaskFinishedMessage): void => {
 
-        const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
-        if (identitiesMatch) {
-          const sanitizedMessage: Messages.Public.SystemEvents.UserTaskFinishedMessage = this._sanitizeInternalMessageForPublicNotification(message);
-          sanitizedMessage.userTaskResult = message.userTaskResult;
-          callback(sanitizedMessage);
-        }
-      });
+      const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
+      if (identitiesMatch) {
+        message.userTaskResult = message.userTaskResult;
+        callback(message);
+      }
+    };
+
+    return this._createSubscription(eventName, identityCheckCallback, subscribeOnce);
   }
 
-  public onManualTaskWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnManualTaskWaitingCallback): Subscription {
+  public onManualTaskWaiting(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnManualTaskWaitingCallback,
+    subscribeOnce: boolean,
+  ): Subscription {
+
     const eventName: string = Messages.EventAggregatorSettings.messagePaths.manualTaskReached;
 
-    return this
-      ._eventAggregator
-      .subscribe(eventName, (message: Messages.Internal.SystemEvents.ManualTaskReachedMessage) => {
-        const sanitizedMessage: Messages.Public.SystemEvents.ManualTaskReachedMessage = this._sanitizeInternalMessageForPublicNotification(message);
-        callback(sanitizedMessage);
-      });
+    return this._createSubscription(eventName, callback, subscribeOnce);
   }
 
-  public onManualTaskFinished(identity: IIdentity, callback: Messages.CallbackTypes.OnManualTaskFinishedCallback): Subscription {
+  public onManualTaskFinished(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnManualTaskFinishedCallback,
+    subscribeOnce: boolean,
+  ): Subscription {
+
     const eventName: string = Messages.EventAggregatorSettings.messagePaths.manualTaskFinished;
 
-    return this
-      ._eventAggregator
-      .subscribe(eventName, (message: Messages.Internal.SystemEvents.ManualTaskFinishedMessage) => {
-        const sanitizedMessage: Messages.Public.SystemEvents.ManualTaskFinishedMessage = this._sanitizeInternalMessageForPublicNotification(message);
-        callback(sanitizedMessage);
-      });
+    return this._createSubscription(eventName, callback, subscribeOnce);
   }
 
-  public onManualTaskForIdentityWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnManualTaskWaitingCallback): Subscription {
+  public onManualTaskForIdentityWaiting(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnManualTaskWaitingCallback,
+    subscribeOnce: boolean,
+  ): Subscription {
+
     const eventName: string = Messages.EventAggregatorSettings.messagePaths.manualTaskReached;
 
-    return this
-      ._eventAggregator
-      .subscribe(eventName, (message: Messages.Internal.SystemEvents.ManualTaskReachedMessage) => {
+    const identityCheckCallback: EventReceivedCallback = (message: Messages.Internal.SystemEvents.ManualTaskReachedMessage): void => {
 
-        const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
-        if (identitiesMatch) {
-          const sanitizedMessage: Messages.Public.SystemEvents.ManualTaskReachedMessage = this._sanitizeInternalMessageForPublicNotification(message);
-          callback(sanitizedMessage);
-        }
-      });
+      const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
+      if (identitiesMatch) {
+        callback(message);
+      }
+    };
+
+    return this._createSubscription(eventName, identityCheckCallback, subscribeOnce);
   }
 
-  public onManualTaskForIdentityFinished(identity: IIdentity, callback: Messages.CallbackTypes.OnManualTaskFinishedCallback): Subscription {
+  public onManualTaskForIdentityFinished(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnManualTaskFinishedCallback,
+    subscribeOnce: boolean,
+  ): Subscription {
+
     const eventName: string = Messages.EventAggregatorSettings.messagePaths.manualTaskFinished;
 
-    return this
-      ._eventAggregator
-      .subscribe(eventName, (message: Messages.Internal.SystemEvents.ManualTaskFinishedMessage) => {
+    const identityCheckCallback: EventReceivedCallback = (message: Messages.Internal.SystemEvents.ManualTaskFinishedMessage): void => {
 
-        const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
-        if (identitiesMatch) {
-          const sanitizedMessage: Messages.Public.SystemEvents.ManualTaskReachedMessage = this._sanitizeInternalMessageForPublicNotification(message);
-          callback(sanitizedMessage);
-        }
-      });
+      const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
+      if (identitiesMatch) {
+        callback(message);
+      }
+    };
+
+    return this._createSubscription(eventName, identityCheckCallback, subscribeOnce);
   }
 
-  public onProcessStarted(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessStartedCallback): Subscription {
+  public onProcessStarted(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnProcessStartedCallback,
+    subscribeOnce: boolean,
+  ): Subscription {
+
     const eventName: string = Messages.EventAggregatorSettings.messagePaths.processStarted;
 
-    return this
-      ._eventAggregator
-      .subscribe(eventName, (message: Messages.Internal.SystemEvents.ProcessStartedMessage) => {
-        const sanitizedMessage: Messages.Public.SystemEvents.ProcessStartedMessage = this._sanitizeInternalMessageForPublicNotification(message);
-        callback(sanitizedMessage);
-      });
+    return this._createSubscription(eventName, callback, subscribeOnce);
   }
 
   public onProcessWithProcessModelIdStarted(
     identity: IIdentity,
     callback: Messages.CallbackTypes.OnProcessStartedCallback,
     processModelId: string,
+    subscribeOnce: boolean,
   ): Subscription {
-    const processWithIdStartedMessageEventName: string = Messages.EventAggregatorSettings.messagePaths.processInstanceStarted
-        .replace(Messages.EventAggregatorSettings.messageParams.processModelId, processModelId);
 
-    return this
-      ._eventAggregator
-      .subscribe(processWithIdStartedMessageEventName, (message: Messages.Internal.SystemEvents.ProcessStartedMessage) => {
-        const sanitizedMessage: Messages.Public.SystemEvents.ProcessStartedMessage = this._sanitizeInternalMessageForPublicNotification(message);
-        callback(sanitizedMessage);
-      });
+    const processWithIdStartedMessageEventName: string = Messages.EventAggregatorSettings.messagePaths.processInstanceStarted
+      .replace(Messages.EventAggregatorSettings.messageParams.processModelId, processModelId);
+
+    return this._createSubscription(processWithIdStartedMessageEventName, callback, subscribeOnce);
   }
 
-  public onProcessEnded(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessEndedCallback): Subscription {
+  public onProcessEnded(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnProcessEndedCallback,
+    subscribeOnce: boolean,
+  ): Subscription {
+
     const eventName: string = Messages.EventAggregatorSettings.messagePaths.processEnded;
 
-    return this
-      ._eventAggregator
-      .subscribe(eventName, (message: Messages.Internal.BpmnEvents.EndEventReachedMessage) => {
-        const sanitizedMessage: Messages.Public.BpmnEvents.EndEventReachedMessage = this._sanitizeInternalMessageForPublicNotification(message);
-        callback(sanitizedMessage);
-      });
+    return this._createSubscription(eventName, callback, subscribeOnce);
   }
 
-  public onProcessTerminated(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessTerminatedCallback): Subscription {
+  public onProcessTerminated(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnProcessTerminatedCallback,
+    subscribeOnce: boolean,
+  ): Subscription {
+
     const eventName: string = Messages.EventAggregatorSettings.messagePaths.processTerminated;
 
-    return this
-      ._eventAggregator
-      .subscribe(eventName, (message: Messages.Internal.BpmnEvents.TerminateEndEventReachedMessage) => {
-        const sanitizedMessage: Messages.Public.BpmnEvents.TerminateEndEventReachedMessage =
-          this._sanitizeInternalMessageForPublicNotification(message);
-        callback(sanitizedMessage);
-      });
+    return this._createSubscription(eventName, callback, subscribeOnce);
   }
 
   public removeSubscription(identity: IIdentity, subscription: Subscription): void {
     this._eventAggregator.unsubscribe(subscription);
+  }
+
+  private _createSubscription(eventName: string, callback: EventReceivedCallback, subscribeOnce: boolean): Subscription {
+
+    const performSanitationCallback: EventReceivedCallback = (message: Messages.Internal.BaseInternalEventMessage): void => {
+      const sanitizedMessage: Messages.Public.BpmnEvents.TerminateEndEventReachedMessage =
+        this._sanitizeInternalMessageForPublicNotification(message);
+      callback(sanitizedMessage);
+    };
+
+    if (subscribeOnce) {
+      return this._eventAggregator.subscribeOnce(eventName, performSanitationCallback);
+    }
+
+    return this._eventAggregator.subscribe(eventName, performSanitationCallback);
   }
 
   private _checkIfIdentityUserIDsMatch(identityA: IIdentity, identityB: IIdentity): boolean {

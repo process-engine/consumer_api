@@ -75,89 +75,125 @@ export class ConsumerApiService implements IConsumerApi {
   }
 
   // Notifications
-  public async onUserTaskWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskWaitingCallback): Promise<Subscription> {
+  public async onUserTaskWaiting(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnUserTaskWaitingCallback,
+    subscribeOnce: boolean = false,
+  ): Promise<Subscription> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
 
-    return this._notificationAdapter.onUserTaskWaiting(identity, callback);
+    return this._notificationAdapter.onUserTaskWaiting(identity, callback, subscribeOnce);
   }
 
-  public async onUserTaskFinished(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskFinishedCallback): Promise<Subscription> {
+  public async onUserTaskFinished(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnUserTaskFinishedCallback,
+    subscribeOnce: boolean = false,
+  ): Promise<Subscription> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
 
-    return this._notificationAdapter.onUserTaskFinished(identity, callback);
+    return this._notificationAdapter.onUserTaskFinished(identity, callback, subscribeOnce);
   }
 
-  public async onUserTaskForIdentityWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskWaitingCallback): Promise<Subscription> {
+  public async onUserTaskForIdentityWaiting(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnUserTaskWaitingCallback,
+    subscribeOnce: boolean = false,
+  ): Promise<Subscription> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
 
-    return this._notificationAdapter.onUserTaskForIdentityWaiting(identity, callback);
+    return this._notificationAdapter.onUserTaskForIdentityWaiting(identity, callback, subscribeOnce);
   }
 
   public async onUserTaskForIdentityFinished(
     identity: IIdentity,
     callback: Messages.CallbackTypes.OnUserTaskFinishedCallback,
+    subscribeOnce: boolean = false,
   ): Promise<Subscription> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
 
-    return this._notificationAdapter.onUserTaskForIdentityFinished(identity, callback);
+    return this._notificationAdapter.onUserTaskForIdentityFinished(identity, callback, subscribeOnce);
   }
 
-  public async onManualTaskWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnManualTaskWaitingCallback): Promise<Subscription> {
+  public async onManualTaskWaiting(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnManualTaskWaitingCallback,
+    subscribeOnce: boolean = false,
+  ): Promise<Subscription> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
 
-    return this._notificationAdapter.onManualTaskWaiting(identity, callback);
+    return this._notificationAdapter.onManualTaskWaiting(identity, callback, subscribeOnce);
   }
 
-  public async onManualTaskFinished(identity: IIdentity, callback: Messages.CallbackTypes.OnManualTaskFinishedCallback): Promise<Subscription> {
+  public async onManualTaskFinished(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnManualTaskFinishedCallback,
+    subscribeOnce: boolean = false,
+  ): Promise<Subscription> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
 
-    return this._notificationAdapter.onManualTaskFinished(identity, callback);
+    return this._notificationAdapter.onManualTaskFinished(identity, callback, subscribeOnce);
   }
 
   public async onManualTaskForIdentityWaiting(
     identity: IIdentity,
     callback: Messages.CallbackTypes.OnManualTaskWaitingCallback,
+    subscribeOnce: boolean = false,
   ): Promise<Subscription> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
 
-    return this._notificationAdapter.onManualTaskForIdentityWaiting(identity, callback);
+    return this._notificationAdapter.onManualTaskForIdentityWaiting(identity, callback, subscribeOnce);
   }
 
   public async onManualTaskForIdentityFinished(
     identity: IIdentity,
     callback: Messages.CallbackTypes.OnManualTaskFinishedCallback,
+    subscribeOnce: boolean = false,
   ): Promise<Subscription> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
 
-    return this._notificationAdapter.onManualTaskForIdentityFinished(identity, callback);
+    return this._notificationAdapter.onManualTaskForIdentityFinished(identity, callback, subscribeOnce);
   }
 
-  public async onProcessStarted(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessStartedCallback): Promise<Subscription> {
+  public async onProcessStarted(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnProcessStartedCallback,
+    subscribeOnce: boolean = false,
+  ): Promise<Subscription> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
 
-    return this._notificationAdapter.onProcessStarted(identity, callback);
+    return this._notificationAdapter.onProcessStarted(identity, callback, subscribeOnce);
   }
 
   public async onProcessWithProcessModelIdStarted(
     identity: IIdentity,
     callback: Messages.CallbackTypes.OnProcessStartedCallback,
     processModelId: string,
+    subscribeOnce: boolean = false,
   ): Promise<Subscription> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
 
-    return this._notificationAdapter.onProcessWithProcessModelIdStarted(identity, callback, processModelId);
+    return this._notificationAdapter.onProcessWithProcessModelIdStarted(identity, callback, processModelId, subscribeOnce);
   }
 
-  public async onProcessEnded(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessEndedCallback): Promise<Subscription> {
+  public async onProcessEnded(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnProcessEndedCallback,
+    subscribeOnce: boolean = false,
+  ): Promise<Subscription> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
 
-    return this._notificationAdapter.onProcessEnded(identity, callback);
+    return this._notificationAdapter.onProcessEnded(identity, callback, subscribeOnce);
   }
 
-  public async onProcessTerminated(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessTerminatedCallback): Promise<Subscription> {
+  public async onProcessTerminated(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnProcessTerminatedCallback,
+    subscribeOnce: boolean = false,
+  ): Promise<Subscription> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
 
-    return this._notificationAdapter.onProcessTerminated(identity, callback);
+    return this._notificationAdapter.onProcessTerminated(identity, callback, subscribeOnce);
   }
 
   public async removeSubscription(identity: IIdentity, subscription: Subscription): Promise<void> {
