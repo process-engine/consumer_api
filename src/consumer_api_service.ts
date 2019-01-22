@@ -1,6 +1,4 @@
 // tslint:disable:max-file-line-count
-import * as jsonwebtoken from 'jsonwebtoken';
-
 import * as EssentialProjectErrors from '@essential-projects/errors_ts';
 import {IEventAggregator, Subscription} from '@essential-projects/event_aggregator_contracts';
 import {IIAMService, IIdentity, TokenBody} from '@essential-projects/iam_contracts';
@@ -728,10 +726,6 @@ export class ConsumerApiService implements IConsumerApi {
   }
 
   private _checkIfIdentityUserIDsMatch(identityA: IIdentity, identityB: IIdentity): boolean {
-
-    const decodedRequestingIdentity: TokenBody = <TokenBody> jsonwebtoken.decode(identityA.token);
-    const decodedUserTaskIdentity: TokenBody = <TokenBody> jsonwebtoken.decode(identityB.token);
-
-    return decodedRequestingIdentity.sub === decodedUserTaskIdentity.sub;
+    return identityA.userId === identityB.userId;
   }
 }

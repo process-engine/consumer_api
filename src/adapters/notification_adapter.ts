@@ -1,7 +1,5 @@
-import * as jsonwebtoken from 'jsonwebtoken';
-
 import {EventReceivedCallback, IEventAggregator, Subscription} from '@essential-projects/event_aggregator_contracts';
-import {IIdentity, TokenBody} from '@essential-projects/iam_contracts';
+import {IIdentity} from '@essential-projects/iam_contracts';
 import {Messages} from '@process-engine/consumer_api_contracts';
 
 export class NotificationAdapter {
@@ -225,11 +223,7 @@ export class NotificationAdapter {
   }
 
   private _checkIfIdentityUserIDsMatch(identityA: IIdentity, identityB: IIdentity): boolean {
-
-    const decodedRequestingIdentity: TokenBody = <TokenBody> jsonwebtoken.decode(identityA.token);
-    const decodedUserTaskIdentity: TokenBody = <TokenBody> jsonwebtoken.decode(identityB.token);
-
-    return decodedRequestingIdentity.sub === decodedUserTaskIdentity.sub;
+    return identityA.userId === identityB.userId;
   }
 
   private _sanitizeInternalMessageForPublicNotification
