@@ -199,7 +199,7 @@ export class ConsumerApiService implements IConsumerApi {
   public async removeSubscription(identity: IIdentity, subscription: Subscription): Promise<void> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
 
-    this._notificationAdapter.removeSubscription(identity, subscription);
+    this._notificationAdapter.removeSubscription(subscription);
   }
 
   // Process models and instances
