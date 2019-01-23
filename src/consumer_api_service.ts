@@ -397,6 +397,16 @@ export class ConsumerApiService implements IConsumerApi {
     return userTaskList;
   }
 
+  public async getUserTasksForProcessInstance(identity: IIdentity, processInstanceId: string): Promise<DataModels.UserTasks.UserTaskList> {
+
+    const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
+      await this._flowNodeInstanceService.querySuspendedByProcessInstance(processInstanceId);
+
+    const userTaskList: DataModels.UserTasks.UserTaskList = await this._userTaskConverter.convertUserTasks(identity, suspendedFlowNodes);
+
+    return userTaskList;
+  }
+
   public async getUserTasksForCorrelation(identity: IIdentity, correlationId: string): Promise<DataModels.UserTasks.UserTaskList> {
 
     const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
@@ -479,6 +489,15 @@ export class ConsumerApiService implements IConsumerApi {
   public async getManualTasksForProcessModel(identity: IIdentity, processModelId: string): Promise<DataModels.ManualTasks.ManualTaskList> {
     const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
       await this._flowNodeInstanceService.querySuspendedByProcessModel(processModelId);
+
+    const manualTaskList: DataModels.ManualTasks.ManualTaskList = await this._manualTaskConverter.convert(identity, suspendedFlowNodes);
+
+    return manualTaskList;
+  }
+
+  public async getManualTasksForProcessInstance(identity: IIdentity, processInstanceId: string): Promise<DataModels.ManualTasks.ManualTaskList> {
+    const suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance> =
+      await this._flowNodeInstanceService.querySuspendedByProcessInstance(processInstanceId);
 
     const manualTaskList: DataModels.ManualTasks.ManualTaskList = await this._manualTaskConverter.convert(identity, suspendedFlowNodes);
 
