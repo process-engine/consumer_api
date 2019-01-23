@@ -1,6 +1,6 @@
 {
   "name": "@process-engine/consumer_api_core",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "the api-package for process-engine-consumer",
   "main": "dist/commonjs/index.js",
   "typings": "dist/index.d.ts",
@@ -21,12 +21,11 @@
   "dependencies": {
     "@essential-projects/errors_ts": "~1.4.0",
     "@essential-projects/event_aggregator_contracts": "~4.0.0",
-    "@essential-projects/iam_contracts": "~3.3.0",
-    "@process-engine/consumer_api_contracts": "~3.0.0",
+    "@essential-projects/iam_contracts": "~3.4.0",
+    "@process-engine/consumer_api_contracts": "~4.0.0",
     "@process-engine/process_engine_contracts": "~36.5.0",
     "bluebird": "~3.5.2",
     "bluebird-global": "~1.0.1",
-    "jsonwebtoken": "~8.4.0",
     "loggerhythm": "^3.0.3",
     "uuid": "~3.3.2"
   },
