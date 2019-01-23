@@ -169,15 +169,20 @@ export class NotificationAdapter {
     subscribeOnce: boolean,
   ): Subscription {
 
-    const processWithIdStartedMessageEventName: string = Messages.EventAggregatorSettings.messagePaths.processInstanceStarted
-        .replace(Messages.EventAggregatorSettings.messageParams.processModelId, processModelId);
+    const eventName: string = Messages.EventAggregatorSettings.messagePaths.processStarted;
 
     const sanitationCallback: EventReceivedCallback = (message: Messages.Internal.SystemEvents.ProcessStartedMessage): void => {
+
+      const processModelIdsDoNotMatch: boolean = message.processModelId !== processModelId;
+      if (processModelIdsDoNotMatch) {
+        return;
+      }
+
       const sanitizedMessage: Messages.Public.SystemEvents.ProcessStartedMessage = this._sanitizeInternalMessageForPublicNotification(message);
       callback(sanitizedMessage);
     };
 
-    return this._createSubscription(processWithIdStartedMessageEventName, sanitationCallback, subscribeOnce);
+    return this._createSubscription(eventName, sanitationCallback, subscribeOnce);
   }
 
   public onProcessEnded(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessEndedCallback, subscribeOnce: boolean): Subscription {
