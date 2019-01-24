@@ -1,6 +1,6 @@
 {
   "name": "@process-engine/consumer_api_core",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "the api-package for process-engine-consumer",
   "main": "dist/commonjs/index.js",
   "typings": "dist/index.d.ts",
@@ -27,7 +27,7 @@
     "bluebird": "~3.5.2",
     "bluebird-global": "~1.0.1",
     "loggerhythm": "^3.0.3",
-    "uuid": "~3.3.2"
+    "node-uuid":"~1.4.8"
   },
   "devDependencies": {
     "@essential-projects/tslint-config": "^1.1.3",

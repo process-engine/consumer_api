@@ -10,7 +10,7 @@ import {
 
 import {DataModels} from '@process-engine/consumer_api_contracts';
 
-import * as uuid from 'uuid';
+import * as uuid from 'node-uuid';
 
 import {IamServiceMock} from './iam_service_mock';
 
