@@ -27,7 +27,7 @@
     "bluebird": "~3.5.2",
     "bluebird-global": "~1.0.1",
     "loggerhythm": "^3.0.3",
-    "node-uuid":"~1.4.8"
+    "node-uuid": "~1.4.8"
   },
   "devDependencies": {
     "@essential-projects/tslint-config": "^1.1.3",
