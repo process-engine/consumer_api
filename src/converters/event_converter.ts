@@ -68,13 +68,17 @@ export class EventConverter {
 
     let processModel: Model.Types.Process;
 
-    const cacheHasMatchingEntry: boolean = ProcessModelCache.hasEntry(flowNodeInstance.processInstanceId);
+    // We must store the ProcessModel for each user, to account for lane-restrictions.
+    // Some users may not be able to see some lanes that are visible to others.
+    const cacheKeyToUse: string = `${flowNodeInstance.processInstanceId}-${identity.userId}`;
+
+    const cacheHasMatchingEntry: boolean = ProcessModelCache.hasEntry(cacheKeyToUse);
     if (cacheHasMatchingEntry) {
-      processModel = ProcessModelCache.get(flowNodeInstance.processInstanceId);
+      processModel = ProcessModelCache.get(cacheKeyToUse);
     } else {
       const processModelHash: string = await this.getProcessModelHashForProcessInstance(identity, flowNodeInstance.processInstanceId);
       processModel = await this._processModelService.getByHash(identity, flowNodeInstance.processModelId, processModelHash);
-      ProcessModelCache.add(flowNodeInstance.processInstanceId, processModel);
+      ProcessModelCache.add(cacheKeyToUse, processModel);
     }
 
     const processModelFacade: IProcessModelFacade = this._processModelFacadeFactory.create(processModel);
