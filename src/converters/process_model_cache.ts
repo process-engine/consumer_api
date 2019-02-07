@@ -1,7 +1,7 @@
 import {Model} from '@process-engine/process_engine_contracts';
 
 /**
- * Used to cache ProcessModels during UserTask conversion.
+ * Used to cache ProcessModels during conversion of suspended FlowNodeInstances.
  * This helps to avoid repeated queries against the database for the same ProcessModel.
  */
 type ProcessModelCache = {[processInstanceId: string]: Model.Types.Process};
