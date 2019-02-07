@@ -2,25 +2,28 @@ import {IIdentity} from '@essential-projects/iam_contracts';
 
 import {DataModels} from '@process-engine/consumer_api_contracts';
 import {
+  ICorrelationService,
   IProcessModelFacade,
   IProcessModelFacadeFactory,
   IProcessModelService,
   Model,
   Runtime,
 } from '@process-engine/process_engine_contracts';
-/**
- * Used to cache process models during ManualTask conversion.
- * This helps to avoid repeated queries against the database for the same ProcessModel.
- */
-type ProcessModelCache = {[processModelId: string]: Model.Types.Process};
+
+import * as ProcessModelCache from './process_model_cache';
 
 export class ManualTaskConverter {
 
+  private readonly _correlationService: ICorrelationService;
   private readonly _processModelService: IProcessModelService;
   private readonly _processModelFacadeFactory: IProcessModelFacadeFactory;
 
-  constructor(processModelService: IProcessModelService,
-              processModelFacadeFactory: IProcessModelFacadeFactory) {
+  constructor(
+    correlationService: ICorrelationService,
+    processModelService: IProcessModelService,
+    processModelFacadeFactory: IProcessModelFacadeFactory,
+  ) {
+    this._correlationService = correlationService;
     this._processModelService = processModelService;
     this._processModelFacadeFactory = processModelFacadeFactory;
   }
@@ -32,33 +35,13 @@ export class ManualTaskConverter {
 
     const suspendedManualTasks: Array<DataModels.ManualTasks.ManualTask> = [];
 
-    const processModelCache: ProcessModelCache = {};
-
     for (const suspendedFlowNode of suspendedFlowNodes) {
 
-      const currentProcessToken: Runtime.Types.ProcessToken = suspendedFlowNode.tokens.find((token: Runtime.Types.ProcessToken): boolean => {
-        return token.type === Runtime.Types.ProcessTokenType.onSuspend;
-      });
-
-      let processModel: Model.Types.Process;
-
-      // To avoid repeated Queries against the database for the same process model,
-      // the retrieved process models will be cached.
-      // So when we want to get a ProcessModel for a ManualTask, we first check the cache and
-      // get the ProcessModel from there.
-      // We only query the database, if the ProcessModel was not yet retrieved.
-      // This avoids timeouts and request-lags when converting large numbers of manual tasks.
-      const modelInCache: boolean = processModelCache[currentProcessToken.processModelId] !== undefined;
-
-      if (modelInCache) {
-        processModel = processModelCache[currentProcessToken.processModelId];
-      } else {
-        processModel = await this._processModelService.getProcessModelById(identity, currentProcessToken.processModelId);
-        processModelCache[currentProcessToken.processModelId] = processModel;
-      }
+      const processModelFacade: IProcessModelFacade =
+        await this.getProcessModelForFlowNodeInstance(identity, suspendedFlowNode);
 
       const manualTask: DataModels.ManualTasks.ManualTask =
-        await this._convertSuspendedFlowNodeToManualTask(suspendedFlowNode, currentProcessToken, processModel);
+        await this._convertSuspendedFlowNodeToManualTask(suspendedFlowNode, processModelFacade);
 
       const taskIsNotAManualTask: boolean = manualTask === undefined;
       if (taskIsNotAManualTask) {
@@ -75,13 +58,44 @@ export class ManualTaskConverter {
     return manualTaskList;
   }
 
-  private async _convertSuspendedFlowNodeToManualTask(
+  private async getProcessModelForFlowNodeInstance(
+    identity: IIdentity,
     flowNodeInstance: Runtime.Types.FlowNodeInstance,
-    currentProcessToken: Runtime.Types.ProcessToken,
-    processModel: Model.Types.Process,
-  ): Promise<DataModels.ManualTasks.ManualTask> {
+  ): Promise<IProcessModelFacade> {
+
+    let processModel: Model.Types.Process;
+
+    // We must store the ProcessModel for each user, to account for lane-restrictions.
+    // Some users may not be able to see some lanes that are visible to others.
+    const cacheKeyToUse: string = `${flowNodeInstance.processInstanceId}-${identity.userId}`;
+
+    const cacheHasMatchingEntry: boolean = ProcessModelCache.hasEntry(cacheKeyToUse);
+    if (cacheHasMatchingEntry) {
+      processModel = ProcessModelCache.get(cacheKeyToUse);
+    } else {
+      const processModelHash: string = await this.getProcessModelHashForProcessInstance(identity, flowNodeInstance.processInstanceId);
+      processModel = await this._processModelService.getByHash(identity, flowNodeInstance.processModelId, processModelHash);
+      ProcessModelCache.add(cacheKeyToUse, processModel);
+    }
 
     const processModelFacade: IProcessModelFacade = this._processModelFacadeFactory.create(processModel);
+
+    return processModelFacade;
+  }
+
+  private async getProcessModelHashForProcessInstance(identity: IIdentity, processInstanceId: string): Promise<string> {
+    const correlationForProcessInstance: Runtime.Types.Correlation =
+      await this._correlationService.getByProcessInstanceId(identity, processInstanceId);
+
+    // Note that ProcessInstances will only ever have one processModel and therefore only one hash attached to them.
+    return correlationForProcessInstance.processModels[0].hash;
+  }
+
+  private async _convertSuspendedFlowNodeToManualTask(
+    flowNodeInstance: Runtime.Types.FlowNodeInstance,
+    processModelFacade: IProcessModelFacade,
+  ): Promise<DataModels.ManualTasks.ManualTask> {
+
     const flowNodeModel: Model.Base.FlowNode = processModelFacade.getFlowNodeById(flowNodeInstance.flowNodeId);
 
     // Note that ManualTasks are not the only types of FlowNodes that can be suspended.
@@ -92,13 +106,18 @@ export class ManualTaskConverter {
       return undefined;
     }
 
-    return this._convertToConsumerApiManualTask(flowNodeModel as Model.Activities.ManualTask, flowNodeInstance, currentProcessToken);
+    return this._convertToConsumerApiManualTask(flowNodeModel as Model.Activities.ManualTask, flowNodeInstance);
   }
 
-  private async _convertToConsumerApiManualTask(manualTask: Model.Activities.ManualTask,
-                                                flowNodeInstance: Runtime.Types.FlowNodeInstance,
-                                                currentProcessToken: Runtime.Types.ProcessToken,
-                                              ): Promise<DataModels.ManualTasks.ManualTask> {
+  private async _convertToConsumerApiManualTask(
+    manualTask: Model.Activities.ManualTask,
+    flowNodeInstance: Runtime.Types.FlowNodeInstance,
+  ): Promise<DataModels.ManualTasks.ManualTask> {
+
+    const currentProcessToken: Runtime.Types.ProcessToken =
+      flowNodeInstance.tokens.find((token: Runtime.Types.ProcessToken): boolean => {
+        return token.type === Runtime.Types.ProcessTokenType.onSuspend;
+      });
 
     const consumerApiManualTask: DataModels.ManualTasks.ManualTask = {
       id: flowNodeInstance.flowNodeId,

@@ -25,17 +25,17 @@ function registerInContainer(container) {
 
   container
     .register('ConsumerApiEventConverter', EventConverter)
-    .dependencies('ProcessModelService', 'ProcessModelFacadeFactory')
+    .dependencies('CorrelationService', 'ProcessModelService', 'ProcessModelFacadeFactory')
     .singleton();
 
   container
     .register('ConsumerApiUserTaskConverter', UserTaskConverter)
-    .dependencies('ProcessModelService', 'FlowNodeInstanceService', 'ProcessModelFacadeFactory', 'ProcessTokenFacadeFactory')
+    .dependencies('CorrelationService', 'ProcessModelService', 'FlowNodeInstanceService', 'ProcessModelFacadeFactory', 'ProcessTokenFacadeFactory')
     .singleton();
 
   container
     .register('ConsumerApiManualTaskConverter', ManualTaskConverter)
-    .dependencies('ProcessModelService', 'ProcessModelFacadeFactory')
+    .dependencies('CorrelationService', 'ProcessModelService', 'ProcessModelFacadeFactory')
     .singleton();
 
   container
