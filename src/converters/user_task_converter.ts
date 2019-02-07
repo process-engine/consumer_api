@@ -2,6 +2,7 @@ import {IIdentity} from '@essential-projects/iam_contracts';
 
 import {DataModels} from '@process-engine/consumer_api_contracts';
 import {
+  ICorrelationService,
   IFlowNodeInstanceService,
   IProcessModelFacade,
   IProcessModelFacadeFactory,
@@ -13,23 +14,24 @@ import {
   Runtime,
 } from '@process-engine/process_engine_contracts';
 
-/**
- * Used to cache ProcessModels during UserTask conversion.
- * This helps to avoid repeated queries against the database for the same ProcessModel.
- */
-type ProcessModelCache = {[processModelId: string]: Model.Types.Process};
+import * as ProcessModelCache from './process_model_cache';
 
 export class UserTaskConverter {
 
+  private readonly _correlationService: ICorrelationService;
   private readonly _processModelService: IProcessModelService;
   private readonly _flowNodeInstanceService: IFlowNodeInstanceService;
   private readonly _processModelFacadeFactory: IProcessModelFacadeFactory;
   private readonly _processTokenFacadeFactory: IProcessTokenFacadeFactory;
 
-  constructor(processModelService: IProcessModelService,
-              flowNodeInstanceService: IFlowNodeInstanceService,
-              processModelFacadeFactory: IProcessModelFacadeFactory,
-              processTokenFacadeFactory: IProcessTokenFacadeFactory) {
+  constructor(
+    correlationRepository: ICorrelationService,
+    processModelService: IProcessModelService,
+    flowNodeInstanceService: IFlowNodeInstanceService,
+    processModelFacadeFactory: IProcessModelFacadeFactory,
+    processTokenFacadeFactory: IProcessTokenFacadeFactory,
+  ) {
+    this._correlationService = correlationRepository;
     this._processModelService = processModelService;
     this._flowNodeInstanceService = flowNodeInstanceService;
     this._processModelFacadeFactory = processModelFacadeFactory;
@@ -43,12 +45,10 @@ export class UserTaskConverter {
 
     const suspendedUserTasks: Array<DataModels.UserTasks.UserTask> = [];
 
-    const processModelCache: ProcessModelCache = {};
-
     for (const suspendedFlowNode of suspendedFlowNodes) {
 
       const processModelFacade: IProcessModelFacade =
-        await this.getProcessModelForFlowNodeInstance(identity, suspendedFlowNode.processModelId, processModelCache);
+        await this.getProcessModelForFlowNodeInstance(identity, suspendedFlowNode);
 
       const flowNodeModel: Model.Base.FlowNode = processModelFacade.getFlowNodeById(suspendedFlowNode.flowNodeId);
 
@@ -75,30 +75,35 @@ export class UserTaskConverter {
 
   private async getProcessModelForFlowNodeInstance(
     identity: IIdentity,
-    processModelId: string,
-    processModelCache: ProcessModelCache,
+    flowNodeInstance: Runtime.Types.FlowNodeInstance,
   ): Promise<IProcessModelFacade> {
 
     let processModel: Model.Types.Process;
 
-    // To avoid repeated Queries against the database for the same ProcessModel,
-    // the retrieved ProcessModels will be cached.
-    // So when we want to get a ProcessModel for a UserTask, we first check the cache and
-    // get the ProcessModel from there.
-    // We only query the database, if the ProcessModel was not yet retrieved.
-    // This avoids timeouts and request-lags when converting large numbers of user tasks.
-    const cacheHasMatchingEntry: boolean = processModelCache[processModelId] !== undefined;
+    // We must store the ProcessModel for each user, to account for lane-restrictions.
+    // Some users may not be able to see some lanes that are visible to others.
+    const cacheKeyToUse: string = `${flowNodeInstance.processInstanceId}-${identity.userId}`;
 
+    const cacheHasMatchingEntry: boolean = ProcessModelCache.hasEntry(cacheKeyToUse);
     if (cacheHasMatchingEntry) {
-      processModel = processModelCache[processModelId];
+      processModel = ProcessModelCache.get(cacheKeyToUse);
     } else {
-      processModel = await this._processModelService.getProcessModelById(identity, processModelId);
-      processModelCache[processModelId] = processModel;
+      const processModelHash: string = await this.getProcessModelHashForProcessInstance(identity, flowNodeInstance.processInstanceId);
+      processModel = await this._processModelService.getByHash(identity, flowNodeInstance.processModelId, processModelHash);
+      ProcessModelCache.add(cacheKeyToUse, processModel);
     }
 
     const processModelFacade: IProcessModelFacade = this._processModelFacadeFactory.create(processModel);
 
     return processModelFacade;
+  }
+
+  private async getProcessModelHashForProcessInstance(identity: IIdentity, processInstanceId: string): Promise<string> {
+    const correlationForProcessInstance: Runtime.Types.Correlation =
+      await this._correlationService.getByProcessInstanceId(identity, processInstanceId);
+
+    // Note that ProcessInstances will only ever have one processModel and therefore only one hash attached to them.
+    return correlationForProcessInstance.processModels[0].hash;
   }
 
   private async convertToConsumerApiUserTask(

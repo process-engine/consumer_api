@@ -3,6 +3,7 @@ import {IIdentity} from '@essential-projects/iam_contracts';
 import {InternalServerError} from '@essential-projects/errors_ts';
 import {DataModels} from '@process-engine/consumer_api_contracts';
 import {
+  ICorrelationService,
   IProcessModelFacade,
   IProcessModelFacadeFactory,
   IProcessModelService,
@@ -10,19 +11,20 @@ import {
   Runtime,
 } from '@process-engine/process_engine_contracts';
 
-/**
- * Used to cache ProcessModels during Event conversion.
- * This helps to avoid repeated queries against the database for the same ProcessModel.
- */
-type ProcessModelCache = {[processModelId: string]: Model.Types.Process};
+import * as ProcessModelCache from './process_model_cache';
 
 export class EventConverter {
 
+  private readonly _correlationService: ICorrelationService;
   private readonly _processModelService: IProcessModelService;
   private readonly _processModelFacadeFactory: IProcessModelFacadeFactory;
 
-  constructor(processModelService: IProcessModelService,
-              processModelFacadeFactory: IProcessModelFacadeFactory) {
+  constructor(
+    correlationService: ICorrelationService,
+    processModelService: IProcessModelService,
+    processModelFacadeFactory: IProcessModelFacadeFactory,
+  ) {
+    this._correlationService = correlationService;
     this._processModelService = processModelService;
     this._processModelFacadeFactory = processModelFacadeFactory;
   }
@@ -30,8 +32,6 @@ export class EventConverter {
   public async convertEvents(identity: IIdentity, suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance>): Promise<DataModels.Events.EventList> {
 
     const suspendedEvents: Array<DataModels.Events.Event> = [];
-
-    const processModelCache: ProcessModelCache = {};
 
     for (const suspendedFlowNode of suspendedFlowNodes) {
 
@@ -45,7 +45,7 @@ export class EventConverter {
       }
 
       const processModelFacade: IProcessModelFacade =
-        await this.getProcessModelForFlowNodeInstance(identity, suspendedFlowNode.processModelId, processModelCache);
+        await this.getProcessModelForFlowNodeInstance(identity, suspendedFlowNode);
 
       const flowNodeModel: Model.Base.FlowNode = processModelFacade.getFlowNodeById(suspendedFlowNode.flowNodeId);
 
@@ -63,30 +63,35 @@ export class EventConverter {
 
   private async getProcessModelForFlowNodeInstance(
     identity: IIdentity,
-    processModelId: string,
-    processModelCache: ProcessModelCache,
+    flowNodeInstance: Runtime.Types.FlowNodeInstance,
   ): Promise<IProcessModelFacade> {
 
     let processModel: Model.Types.Process;
 
-    // To avoid repeated Queries against the database for the same ProcessModel,
-    // the retrieved ProcessModels will be cached.
-    // So when we want to get a ProcessModel for an Event, we first check the cache and
-    // get the ProcessModel from there.
-    // We only query the database, if the ProcessModel was not yet retrieved.
-    // This avoids timeouts and request-lags when converting large numbers of events.
-    const cacheHasMatchingEntry: boolean = processModelCache[processModelId] !== undefined;
+    // We must store the ProcessModel for each user, to account for lane-restrictions.
+    // Some users may not be able to see some lanes that are visible to others.
+    const cacheKeyToUse: string = `${flowNodeInstance.processInstanceId}-${identity.userId}`;
 
+    const cacheHasMatchingEntry: boolean = ProcessModelCache.hasEntry(cacheKeyToUse);
     if (cacheHasMatchingEntry) {
-      processModel = processModelCache[processModelId];
+      processModel = ProcessModelCache.get(cacheKeyToUse);
     } else {
-      processModel = await this._processModelService.getProcessModelById(identity, processModelId);
-      processModelCache[processModelId] = processModel;
+      const processModelHash: string = await this.getProcessModelHashForProcessInstance(identity, flowNodeInstance.processInstanceId);
+      processModel = await this._processModelService.getByHash(identity, flowNodeInstance.processModelId, processModelHash);
+      ProcessModelCache.add(cacheKeyToUse, processModel);
     }
 
     const processModelFacade: IProcessModelFacade = this._processModelFacadeFactory.create(processModel);
 
     return processModelFacade;
+  }
+
+  private async getProcessModelHashForProcessInstance(identity: IIdentity, processInstanceId: string): Promise<string> {
+    const correlationForProcessInstance: Runtime.Types.Correlation =
+      await this._correlationService.getByProcessInstanceId(identity, processInstanceId);
+
+    // Note that ProcessInstances will only ever have one processModel and therefore only one hash attached to them.
+    return correlationForProcessInstance.processModels[0].hash;
   }
 
   private _convertToConsumerApiEvent(flowNodeModel: Model.Events.Event, suspendedFlowNode: Runtime.Types.FlowNodeInstance): DataModels.Events.Event {
