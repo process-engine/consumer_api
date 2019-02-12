@@ -3,13 +3,13 @@ import {IIdentity} from '@essential-projects/iam_contracts';
 import {DataModels} from '@process-engine/consumer_api_contracts';
 import {
   ICorrelationService,
+  IFlowNodeInstanceResult,
   IFlowNodeInstanceService,
   IProcessModelFacade,
   IProcessModelFacadeFactory,
   IProcessModelService,
   IProcessTokenFacade,
   IProcessTokenFacadeFactory,
-  IProcessTokenResult,
   Model,
   Runtime,
 } from '@process-engine/process_engine_contracts';
@@ -195,19 +195,20 @@ export class UserTaskConverter {
     const processTokenFacade: IProcessTokenFacade =
       this._processTokenFacadeFactory.create(processInstanceId, processModelId, correlationId, identity);
 
-    const processTokenResultPromises: Array<Promise<IProcessTokenResult>> =
+    const processTokenResultPromises: Array<Promise<IFlowNodeInstanceResult>> =
       filteredInstanceTokens.map(async(processToken: Runtime.Types.ProcessToken) => {
 
         const processTokenFlowNodeInstance: Runtime.Types.FlowNodeInstance =
           await this._flowNodeInstanceService.queryByInstanceId(processToken.flowNodeInstanceId);
 
-        return {
+        return <IFlowNodeInstanceResult> {
+          flowNodeInstanceId: processTokenFlowNodeInstance.id,
           flowNodeId: processTokenFlowNodeInstance.flowNodeId,
           result: processToken.payload,
         };
       });
 
-    const processTokenResults: Array<IProcessTokenResult> = await Promise.all(processTokenResultPromises);
+    const processTokenResults: Array<IFlowNodeInstanceResult> = await Promise.all(processTokenResultPromises);
 
     processTokenFacade.importResults(processTokenResults);
 
