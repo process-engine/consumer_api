@@ -21,7 +21,10 @@
   "dependencies": {
     "@essential-projects/errors_ts": "~1.4.0",
     "@process-engine/consumer_api_contracts": "~4.1.0",
-    "@process-engine/process_engine_contracts": "^39.0.0",
+    "@process-engine/correlation.contracts": "feature~initial_implementation",
+    "@process-engine/flow_node_instance.contracts": "feature~initial_implementation",
+    "@process-engine/process_engine_contracts": "feature~implement_new_persistence_layer",
+    "@process-engine/process_model.contracts": "feature~initial_implementation",
     "bluebird": "~3.5.2",
     "bluebird-global": "~1.0.1",
     "loggerhythm": "~3.0.3",
