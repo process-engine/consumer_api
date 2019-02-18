@@ -2,34 +2,30 @@ import {IIdentity} from '@essential-projects/iam_contracts';
 
 import {InternalServerError} from '@essential-projects/errors_ts';
 import {DataModels} from '@process-engine/consumer_api_contracts';
-import {
-  ICorrelationService,
-  IProcessModelFacade,
-  IProcessModelFacadeFactory,
-  IProcessModelService,
-  Model,
-  Runtime,
-} from '@process-engine/process_engine_contracts';
+import {Correlation, ICorrelationService} from '@process-engine/correlation.contracts';
+import {FlowNodeInstance} from '@process-engine/flow_node_instance.contracts';
+import {IProcessModelFacade, IProcessModelFacadeFactory} from '@process-engine/process_engine_contracts';
+import {IProcessModelUseCases, Model} from '@process-engine/process_model.contracts';
 
 import * as ProcessModelCache from './process_model_cache';
 
 export class EventConverter {
 
   private readonly _correlationService: ICorrelationService;
-  private readonly _processModelService: IProcessModelService;
   private readonly _processModelFacadeFactory: IProcessModelFacadeFactory;
+  private readonly _processModelUseCase: IProcessModelUseCases;
 
   constructor(
     correlationService: ICorrelationService,
-    processModelService: IProcessModelService,
     processModelFacadeFactory: IProcessModelFacadeFactory,
+    processModelUseCase: IProcessModelUseCases,
   ) {
     this._correlationService = correlationService;
-    this._processModelService = processModelService;
     this._processModelFacadeFactory = processModelFacadeFactory;
+    this._processModelUseCase = processModelUseCase;
   }
 
-  public async convertEvents(identity: IIdentity, suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance>): Promise<DataModels.Events.EventList> {
+  public async convertEvents(identity: IIdentity, suspendedFlowNodes: Array<FlowNodeInstance>): Promise<DataModels.Events.EventList> {
 
     const suspendedEvents: Array<DataModels.Events.Event> = [];
 
@@ -63,7 +59,7 @@ export class EventConverter {
 
   private async getProcessModelForFlowNodeInstance(
     identity: IIdentity,
-    flowNodeInstance: Runtime.Types.FlowNodeInstance,
+    flowNodeInstance: FlowNodeInstance,
   ): Promise<IProcessModelFacade> {
 
     let processModel: Model.Types.Process;
@@ -77,7 +73,7 @@ export class EventConverter {
       processModel = ProcessModelCache.get(cacheKeyToUse);
     } else {
       const processModelHash: string = await this.getProcessModelHashForProcessInstance(identity, flowNodeInstance.processInstanceId);
-      processModel = await this._processModelService.getByHash(identity, flowNodeInstance.processModelId, processModelHash);
+      processModel = await this._processModelUseCase.getByHash(identity, flowNodeInstance.processModelId, processModelHash);
       ProcessModelCache.add(cacheKeyToUse, processModel);
     }
 
@@ -87,14 +83,13 @@ export class EventConverter {
   }
 
   private async getProcessModelHashForProcessInstance(identity: IIdentity, processInstanceId: string): Promise<string> {
-    const correlationForProcessInstance: Runtime.Types.Correlation =
-      await this._correlationService.getByProcessInstanceId(identity, processInstanceId);
+    const correlationForProcessInstance: Correlation = await this._correlationService.getByProcessInstanceId(identity, processInstanceId);
 
     // Note that ProcessInstances will only ever have one processModel and therefore only one hash attached to them.
     return correlationForProcessInstance.processModels[0].hash;
   }
 
-  private _convertToConsumerApiEvent(flowNodeModel: Model.Events.Event, suspendedFlowNode: Runtime.Types.FlowNodeInstance): DataModels.Events.Event {
+  private _convertToConsumerApiEvent(flowNodeModel: Model.Events.Event, suspendedFlowNode: FlowNodeInstance): DataModels.Events.Event {
 
     const consumerApiEvent: DataModels.Events.Event = {
       id: suspendedFlowNode.flowNodeId,

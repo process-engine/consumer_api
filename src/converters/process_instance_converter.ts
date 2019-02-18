@@ -1,9 +1,9 @@
 import {DataModels} from '@process-engine/consumer_api_contracts';
-import {Runtime} from '@process-engine/process_engine_contracts';
+import {FlowNodeInstance} from '@process-engine/flow_node_instance.contracts';
 
 export class ProcessInstanceConverter {
 
-  public convertFlowNodeInstances(flowNodeInstances: Array<Runtime.Types.FlowNodeInstance>): Array<DataModels.ProcessInstance> {
+  public convertFlowNodeInstances(flowNodeInstances: Array<FlowNodeInstance>): Array<DataModels.ProcessInstance> {
 
     const activeProcessInstances: Array<DataModels.ProcessInstance> = [];
 

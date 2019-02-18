@@ -1,14 +1,12 @@
 import {IIdentity} from '@essential-projects/iam_contracts';
 
+import {DataModels} from '@process-engine/consumer_api_contracts';
 import {
   EndEventReachedMessage,
   IExecuteProcessService,
-  IProcessModelService,
-  Model,
   ProcessStartedMessage,
 } from '@process-engine/process_engine_contracts';
-
-import {DataModels} from '@process-engine/consumer_api_contracts';
+import {IProcessModelUseCases, Model} from '@process-engine/process_model.contracts';
 
 import * as uuid from 'node-uuid';
 
@@ -30,27 +28,17 @@ export interface IProcessModelExecutionAdapter {
 export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapter {
 
   private _executeProcessService: IExecuteProcessService;
-  private _processModelService: IProcessModelService;
+  private _processModelUseCase: IProcessModelUseCases;
 
-  constructor(executeProcessService: IExecuteProcessService,
-              processModelService: IProcessModelService) {
-
+  constructor(executeProcessService: IExecuteProcessService, processModelUseCase: IProcessModelUseCases) {
     this._executeProcessService = executeProcessService;
-    this._processModelService = processModelService;
-  }
-
-  private get executeProcessService(): IExecuteProcessService {
-    return this._executeProcessService;
-  }
-
-  private get processModelService(): IProcessModelService {
-    return this._processModelService;
+    this._processModelUseCase = processModelUseCase;
   }
 
   public async initialize(): Promise<void> {
 
     const iamServiceMock: IamServiceMock = new IamServiceMock();
-    (this._processModelService as any)._iamService = iamServiceMock;
+    (this._processModelUseCase as any)._iamService = iamServiceMock;
   }
 
   public async startProcessInstance(identity: IIdentity,
@@ -62,8 +50,8 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
 
     const correlationId: string = payload.correlationId || uuid.v4();
 
-    // Uses the mock IAM facade with the processModelService => The process model will always be complete.
-    const processModel: Model.Types.Process = await this.processModelService.getProcessModelById(identity, processModelId);
+    // Uses the mock IAM facade with the processModelUseCase => The process model will always be complete.
+    const processModel: Model.Types.Process = await this._processModelUseCase.getProcessModelById(identity, processModelId);
 
     const response: DataModels.ProcessModels.ProcessStartResponsePayload =
       await this._startProcessInstance(identity, correlationId, processModel, startEventId, payload, startCallbackType, endEventId);
@@ -88,7 +76,7 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
     // Only start the process instance and return
     const resolveImmediatelyAfterStart: boolean = startCallbackType === DataModels.ProcessModels.StartCallbackType.CallbackOnProcessInstanceCreated;
     if (resolveImmediatelyAfterStart) {
-      const startResult: ProcessStartedMessage = await this.executeProcessService.start(identity,
+      const startResult: ProcessStartedMessage = await this._executeProcessService.start(identity,
                                                                                         processModel,
                                                                                         startEventId,
                                                                                         correlationId,
@@ -107,7 +95,7 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
     if (resolveAfterReachingSpecificEndEvent) {
 
       processEndedMessage = await this
-        .executeProcessService
+        ._executeProcessService
         .startAndAwaitSpecificEndEvent(identity,
                                        processModel,
                                        startEventId,
@@ -125,7 +113,7 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
 
     // Start the process instance and wait for the first end event result
     processEndedMessage = await this
-      .executeProcessService
+      ._executeProcessService
       .startAndAwaitEndEvent(identity,
                              processModel,
                              startEventId,
