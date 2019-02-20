@@ -1,38 +1,36 @@
 import {IIdentity} from '@essential-projects/iam_contracts';
 
 import {DataModels} from '@process-engine/consumer_api_contracts';
+import {Correlation, ICorrelationService} from '@process-engine/correlation.contracts';
+import {FlowNodeInstance, IFlowNodeInstanceService, ProcessToken, ProcessTokenType} from '@process-engine/flow_node_instance.contracts';
 import {
-  ICorrelationService,
   IFlowNodeInstanceResult,
-  IFlowNodeInstanceService,
   IProcessModelFacade,
   IProcessModelFacadeFactory,
-  IProcessModelService,
   IProcessTokenFacade,
   IProcessTokenFacadeFactory,
-  Model,
-  Runtime,
 } from '@process-engine/process_engine_contracts';
+import {IProcessModelUseCases, Model} from '@process-engine/process_model.contracts';
 
 import * as ProcessModelCache from './process_model_cache';
 
 export class UserTaskConverter {
 
   private readonly _correlationService: ICorrelationService;
-  private readonly _processModelService: IProcessModelService;
   private readonly _flowNodeInstanceService: IFlowNodeInstanceService;
   private readonly _processModelFacadeFactory: IProcessModelFacadeFactory;
+  private readonly _processModelUseCase: IProcessModelUseCases;
   private readonly _processTokenFacadeFactory: IProcessTokenFacadeFactory;
 
   constructor(
     correlationRepository: ICorrelationService,
-    processModelService: IProcessModelService,
     flowNodeInstanceService: IFlowNodeInstanceService,
     processModelFacadeFactory: IProcessModelFacadeFactory,
+    processModelUse: IProcessModelUseCases,
     processTokenFacadeFactory: IProcessTokenFacadeFactory,
   ) {
     this._correlationService = correlationRepository;
-    this._processModelService = processModelService;
+    this._processModelUseCase = processModelUse;
     this._flowNodeInstanceService = flowNodeInstanceService;
     this._processModelFacadeFactory = processModelFacadeFactory;
     this._processTokenFacadeFactory = processTokenFacadeFactory;
@@ -40,7 +38,7 @@ export class UserTaskConverter {
 
   public async convertUserTasks(
     identity: IIdentity,
-    suspendedFlowNodes: Array<Runtime.Types.FlowNodeInstance>,
+    suspendedFlowNodes: Array<FlowNodeInstance>,
   ): Promise<DataModels.UserTasks.UserTaskList> {
 
     const suspendedUserTasks: Array<DataModels.UserTasks.UserTask> = [];
@@ -75,7 +73,7 @@ export class UserTaskConverter {
 
   private async getProcessModelForFlowNodeInstance(
     identity: IIdentity,
-    flowNodeInstance: Runtime.Types.FlowNodeInstance,
+    flowNodeInstance: FlowNodeInstance,
   ): Promise<IProcessModelFacade> {
 
     let processModel: Model.Types.Process;
@@ -89,7 +87,7 @@ export class UserTaskConverter {
       processModel = ProcessModelCache.get(cacheKeyToUse);
     } else {
       const processModelHash: string = await this.getProcessModelHashForProcessInstance(identity, flowNodeInstance.processInstanceId);
-      processModel = await this._processModelService.getByHash(identity, flowNodeInstance.processModelId, processModelHash);
+      processModel = await this._processModelUseCase.getByHash(identity, flowNodeInstance.processModelId, processModelHash);
       ProcessModelCache.add(cacheKeyToUse, processModel);
     }
 
@@ -99,7 +97,7 @@ export class UserTaskConverter {
   }
 
   private async getProcessModelHashForProcessInstance(identity: IIdentity, processInstanceId: string): Promise<string> {
-    const correlationForProcessInstance: Runtime.Types.Correlation =
+    const correlationForProcessInstance: Correlation =
       await this._correlationService.getByProcessInstanceId(identity, processInstanceId);
 
     // Note that ProcessInstances will only ever have one processModel and therefore only one hash attached to them.
@@ -108,10 +106,10 @@ export class UserTaskConverter {
 
   private async convertToConsumerApiUserTask(
     userTaskModel: Model.Activities.UserTask,
-    userTaskInstance: Runtime.Types.FlowNodeInstance,
+    userTaskInstance: FlowNodeInstance,
   ): Promise<DataModels.UserTasks.UserTask> {
 
-    const currentUserTaskToken: Runtime.Types.ProcessToken = userTaskInstance.getTokenByType(Runtime.Types.ProcessTokenType.onSuspend);
+    const currentUserTaskToken: ProcessToken = userTaskInstance.getTokenByType(ProcessTokenType.onSuspend);
 
     const userTaskTokenOldFormat: any = await this._getUserTaskTokenInOldFormat(currentUserTaskToken);
 
@@ -181,24 +179,24 @@ export class UserTaskConverter {
     return result;
   }
 
-  private async _getUserTaskTokenInOldFormat(currentProcessToken: Runtime.Types.ProcessToken): Promise<any> {
+  private async _getUserTaskTokenInOldFormat(currentProcessToken: ProcessToken): Promise<any> {
 
     const {processInstanceId, processModelId, correlationId, identity} = currentProcessToken;
 
-    const processInstanceTokens: Array<Runtime.Types.ProcessToken> =
+    const processInstanceTokens: Array<ProcessToken> =
       await this._flowNodeInstanceService.queryProcessTokensByProcessInstanceId(processInstanceId);
 
-    const filteredInstanceTokens: Array<Runtime.Types.ProcessToken> = processInstanceTokens.filter((token: Runtime.Types.ProcessToken) => {
-      return token.type === Runtime.Types.ProcessTokenType.onExit;
+    const filteredInstanceTokens: Array<ProcessToken> = processInstanceTokens.filter((token: ProcessToken) => {
+      return token.type === ProcessTokenType.onExit;
     });
 
     const processTokenFacade: IProcessTokenFacade =
       this._processTokenFacadeFactory.create(processInstanceId, processModelId, correlationId, identity);
 
     const processTokenResultPromises: Array<Promise<IFlowNodeInstanceResult>> =
-      filteredInstanceTokens.map(async(processToken: Runtime.Types.ProcessToken) => {
+      filteredInstanceTokens.map(async(processToken: ProcessToken) => {
 
-        const processTokenFlowNodeInstance: Runtime.Types.FlowNodeInstance =
+        const processTokenFlowNodeInstance: FlowNodeInstance =
           await this._flowNodeInstanceService.queryByInstanceId(processToken.flowNodeInstanceId);
 
         return <IFlowNodeInstanceResult> {
