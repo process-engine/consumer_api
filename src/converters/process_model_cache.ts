@@ -1,4 +1,4 @@
-import {Model} from '@process-engine/process_engine_contracts';
+import {Model} from '@process-engine/process_model.contracts';
 
 /**
  * Used to cache ProcessModels during conversion of suspended FlowNodeInstances.

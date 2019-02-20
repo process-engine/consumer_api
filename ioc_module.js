@@ -15,7 +15,7 @@ function registerInContainer(container) {
 
   container
     .register('ProcessModelExecutionAdapter', ProcessModelExecutionAdapter)
-    .dependencies('ExecuteProcessService', 'ProcessModelService')
+    .dependencies('ExecuteProcessService', 'IdentityService', 'ProcessModelUseCases')
     .singleton();
 
   container
@@ -25,17 +25,17 @@ function registerInContainer(container) {
 
   container
     .register('ConsumerApiEventConverter', EventConverter)
-    .dependencies('CorrelationService', 'ProcessModelService', 'ProcessModelFacadeFactory')
+    .dependencies('CorrelationService', 'ProcessModelFacadeFactory', 'ProcessModelUseCases')
     .singleton();
 
   container
     .register('ConsumerApiUserTaskConverter', UserTaskConverter)
-    .dependencies('CorrelationService', 'ProcessModelService', 'FlowNodeInstanceService', 'ProcessModelFacadeFactory', 'ProcessTokenFacadeFactory')
+    .dependencies('CorrelationService', 'FlowNodeInstanceService', 'ProcessModelFacadeFactory', 'ProcessModelUseCases', 'ProcessTokenFacadeFactory')
     .singleton();
 
   container
     .register('ConsumerApiManualTaskConverter', ManualTaskConverter)
-    .dependencies('CorrelationService', 'ProcessModelService', 'ProcessModelFacadeFactory')
+    .dependencies('CorrelationService', 'ProcessModelFacadeFactory', 'ProcessModelUseCases')
     .singleton();
 
   container
@@ -55,7 +55,7 @@ function registerInContainer(container) {
       'IamService',
       'ProcessModelExecutionAdapter',
       'ProcessModelFacadeFactory',
-      'ProcessModelService',
+      'ProcessModelUseCases',
       'ConsumerApiNotificationAdapter',
       'ConsumerApiEventConverter',
       'ConsumerApiUserTaskConverter',
