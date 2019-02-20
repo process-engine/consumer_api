@@ -15,7 +15,7 @@ function registerInContainer(container) {
 
   container
     .register('ProcessModelExecutionAdapter', ProcessModelExecutionAdapter)
-    .dependencies('ExecuteProcessService')
+    .dependencies('ExecuteProcessService', 'ProcessModelUseCases')
     .singleton();
 
   container

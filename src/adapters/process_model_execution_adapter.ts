@@ -1,3 +1,4 @@
+import * as EssentialProjectErrors from '@essential-projects/errors_ts';
 import {IIdentity} from '@essential-projects/iam_contracts';
 
 import {DataModels} from '@process-engine/consumer_api_contracts';
@@ -6,6 +7,7 @@ import {
   IExecuteProcessService,
   ProcessStartedMessage,
 } from '@process-engine/process_engine_contracts';
+import {IProcessModelUseCases, Model} from '@process-engine/process_model.contracts';
 
 import * as uuid from 'node-uuid';
 
@@ -23,9 +25,11 @@ export interface IProcessModelExecutionAdapter {
 export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapter {
 
   private readonly _executeProcessService: IExecuteProcessService;
+  private readonly _processModelUseCase: IProcessModelUseCases;
 
-  constructor(executeProcessService: IExecuteProcessService) {
+  constructor(executeProcessService: IExecuteProcessService, processModelUseCase: IProcessModelUseCases) {
     this._executeProcessService = executeProcessService;
+    this._processModelUseCase = processModelUseCase;
   }
 
   public async startProcessInstance(
@@ -36,6 +40,16 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
     startCallbackType: DataModels.ProcessModels.StartCallbackType,
     endEventId?: string,
   ): Promise<DataModels.ProcessModels.ProcessStartResponsePayload> {
+
+    const useDefaultStartCallbackType: boolean = !startCallbackType;
+    if (useDefaultStartCallbackType) {
+      startCallbackType = DataModels.ProcessModels.StartCallbackType.CallbackOnProcessInstanceCreated;
+    }
+
+    // Uses the standard IAM facade with the processModelService => The process model gets filtered.
+    const processModel: Model.Types.Process = await this._processModelUseCase.getProcessModelById(identity, processModelId);
+
+    this._validateStartRequest(processModel, startEventId, endEventId, startCallbackType);
 
     const correlationId: string = payload.correlationId || uuid.v4();
 
@@ -99,5 +113,44 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
     response.processInstanceId = processEndedMessage.processInstanceId;
 
     return response;
+  }
+
+  private _validateStartRequest(
+    processModel: Model.Types.Process,
+    startEventId: string,
+    endEventId: string,
+    startCallbackType: DataModels.ProcessModels.StartCallbackType,
+  ): void {
+
+    if (!Object.values(DataModels.ProcessModels.StartCallbackType).includes(startCallbackType)) {
+      throw new EssentialProjectErrors.BadRequestError(`${startCallbackType} is not a valid return option!`);
+    }
+
+    if (!processModel.isExecutable) {
+      throw new EssentialProjectErrors.BadRequestError('The process model is not executable!');
+    }
+
+    const hasMatchingStartEvent: boolean = processModel.flowNodes.some((flowNode: Model.Base.FlowNode): boolean => {
+      return flowNode.id === startEventId;
+    });
+
+    if (!hasMatchingStartEvent) {
+      throw new EssentialProjectErrors.NotFoundError(`StartEvent with ID '${startEventId}' not found!`);
+    }
+
+    if (startCallbackType === DataModels.ProcessModels.StartCallbackType.CallbackOnEndEventReached) {
+
+      if (!endEventId) {
+        throw new EssentialProjectErrors.BadRequestError(`Must provide an EndEventId, when using callback type 'CallbackOnEndEventReached'!`);
+      }
+
+      const hasMatchingEndEvent: boolean = processModel.flowNodes.some((flowNode: Model.Base.FlowNode): boolean => {
+        return flowNode.id === endEventId;
+      });
+
+      if (!hasMatchingEndEvent) {
+        throw new EssentialProjectErrors.NotFoundError(`EndEvent with ID '${startEventId}' not found!`);
+      }
+    }
   }
 }
