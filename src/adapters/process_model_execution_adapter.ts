@@ -7,7 +7,6 @@ import {
   IExecuteProcessService,
   ProcessStartedMessage,
 } from '@process-engine/process_engine_contracts';
-import {IProcessModelUseCases, Model} from '@process-engine/process_model.contracts';
 
 import * as uuid from 'node-uuid';
 
@@ -25,11 +24,9 @@ export interface IProcessModelExecutionAdapter {
 export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapter {
 
   private readonly _executeProcessService: IExecuteProcessService;
-  private readonly _processModelUseCase: IProcessModelUseCases;
 
-  constructor(executeProcessService: IExecuteProcessService, processModelUseCase: IProcessModelUseCases) {
+  constructor(executeProcessService: IExecuteProcessService) {
     this._executeProcessService = executeProcessService;
-    this._processModelUseCase = processModelUseCase;
   }
 
   public async startProcessInstance(
