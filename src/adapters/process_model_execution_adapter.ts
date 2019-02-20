@@ -1,4 +1,4 @@
-import {IIdentity, IIdentityService} from '@essential-projects/iam_contracts';
+import {IIdentity} from '@essential-projects/iam_contracts';
 
 import {DataModels} from '@process-engine/consumer_api_contracts';
 import {
@@ -6,7 +6,7 @@ import {
   IExecuteProcessService,
   ProcessStartedMessage,
 } from '@process-engine/process_engine_contracts';
-import {IProcessModelUseCases, Model} from '@process-engine/process_model.contracts';
+import {Model} from '@process-engine/process_model.contracts';
 
 import * as uuid from 'node-uuid';
 
@@ -21,26 +21,12 @@ export interface IProcessModelExecutionAdapter {
   ): Promise<DataModels.ProcessModels.ProcessStartResponsePayload>;
 }
 
-// Note: When running processes, we need to pass full process model to the ExecuteProcessService.
-// Right now, this can only be achieved, if all claim checks against the ProcessModel API pass, regardless of who makes the request.
-// To that end, this adapter - and this adapter ONLY! - will have to make use of the dummy token we currently have in place.
 export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapter {
 
   private readonly _executeProcessService: IExecuteProcessService;
-  private readonly _identityService: IIdentityService;
-  private readonly _processModelUseCase: IProcessModelUseCases;
 
-  private _internalIdentity: IIdentity;
-
-  constructor(executeProcessService: IExecuteProcessService, identityService: IIdentityService, processModelUseCase: IProcessModelUseCases) {
+  constructor(executeProcessService: IExecuteProcessService) {
     this._executeProcessService = executeProcessService;
-    this._identityService = identityService;
-    this._processModelUseCase = processModelUseCase;
-  }
-
-  public async initialize(): Promise<void> {
-    const dummyToken: string = 'ZHVtbXlfdG9rZW4=';
-    this._internalIdentity = await this._identityService.getIdentity(dummyToken);
   }
 
   public async startProcessInstance(
@@ -54,12 +40,9 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
 
     const correlationId: string = payload.correlationId || uuid.v4();
 
-    // We use the internal identity here to ensure the ProcessModel will be complete.
-    const processModel: Model.Types.Process = await this._processModelUseCase.getProcessModelById(this._internalIdentity, processModelId);
-
     // Execution of the ProcessModel will still be done with the requesting users identity.
     const response: DataModels.ProcessModels.ProcessStartResponsePayload =
-      await this._startProcessInstance(identity, correlationId, processModel, startEventId, payload, startCallbackType, endEventId);
+      await this._startProcessInstance(identity, correlationId, processModelId, startEventId, payload, startCallbackType, endEventId);
 
     return response;
   }
