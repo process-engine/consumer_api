@@ -73,7 +73,7 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
     const resolveImmediatelyAfterStart: boolean = startCallbackType === DataModels.ProcessModels.StartCallbackType.CallbackOnProcessInstanceCreated;
     if (resolveImmediatelyAfterStart) {
       const startResult: ProcessStartedMessage =
-        await this._executeProcessService.start(identity, processModelId, startEventId, correlationId, payload.inputValues, payload.callerId);
+        await this._executeProcessService.start(identity, processModelId, correlationId, startEventId, payload.inputValues, payload.callerId);
 
       response.processInstanceId = startResult.processInstanceId;
 
@@ -88,7 +88,7 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
 
       processEndedMessage = await this
         ._executeProcessService
-        .startAndAwaitSpecificEndEvent(identity, processModelId, startEventId, correlationId, endEventId, payload.inputValues, payload.callerId);
+        .startAndAwaitSpecificEndEvent(identity, processModelId, correlationId, endEventId, payload.inputValues, startEventId, payload.callerId);
 
       response.endEventId = processEndedMessage.flowNodeId;
       response.tokenPayload = processEndedMessage.currentToken;
@@ -100,7 +100,7 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
     // Start the process instance and wait for the first end event result
     processEndedMessage = await this
       ._executeProcessService
-      .startAndAwaitEndEvent(identity, processModelId, startEventId, correlationId, payload.inputValues, payload.callerId);
+      .startAndAwaitEndEvent(identity, processModelId, correlationId, startEventId, payload.inputValues, payload.callerId);
 
     response.endEventId = processEndedMessage.flowNodeId;
     response.tokenPayload = processEndedMessage.currentToken;
