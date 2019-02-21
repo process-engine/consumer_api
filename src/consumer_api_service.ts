@@ -231,23 +231,14 @@ export class ConsumerApiService implements IConsumerApi {
     return consumerApiProcessModel;
   }
 
-  public async startProcessInstance(identity: IIdentity,
-                                    processModelId: string,
-                                    startEventId: string,
-                                    payload: DataModels.ProcessModels.ProcessStartRequestPayload,
-                                    startCallbackType?: DataModels.ProcessModels.StartCallbackType,
-                                    endEventId?: string,
-                                  ): Promise<DataModels.ProcessModels.ProcessStartResponsePayload> {
-
-    const useDefaultStartCallbackType: boolean = !startCallbackType;
-    if (useDefaultStartCallbackType) {
-      startCallbackType = DataModels.ProcessModels.StartCallbackType.CallbackOnProcessInstanceCreated;
-    }
-
-    // Uses the standard IAM facade with the processModelService => The process model gets filtered.
-    const processModel: Model.Types.Process = await this._processModelUseCase.getProcessModelById(identity, processModelId);
-
-    this._validateStartRequest(processModel, startEventId, endEventId, startCallbackType);
+  public async startProcessInstance(
+    identity: IIdentity,
+    processModelId: string,
+    startEventId: string,
+    payload: DataModels.ProcessModels.ProcessStartRequestPayload,
+    startCallbackType?: DataModels.ProcessModels.StartCallbackType,
+    endEventId?: string,
+  ): Promise<DataModels.ProcessModels.ProcessStartResponsePayload> {
 
     return this
       ._processModelExecutionAdapter
@@ -592,44 +583,6 @@ export class ConsumerApiService implements IConsumerApi {
 
       this._eventAggregator.publish(finishManualTaskEvent, finishManualTaskMessage);
     });
-  }
-
-  private _validateStartRequest(processModel: Model.Types.Process,
-                                startEventId: string,
-                                endEventId: string,
-                                startCallbackType: DataModels.ProcessModels.StartCallbackType,
-                               ): void {
-
-    if (!Object.values(DataModels.ProcessModels.StartCallbackType).includes(startCallbackType)) {
-      throw new EssentialProjectErrors.BadRequestError(`${startCallbackType} is not a valid return option!`);
-    }
-
-    if (!processModel.isExecutable) {
-      throw new EssentialProjectErrors.BadRequestError('The process model is not executable!');
-    }
-
-    const hasMatchingStartEvent: boolean = processModel.flowNodes.some((flowNode: Model.Base.FlowNode): boolean => {
-      return flowNode.id === startEventId;
-    });
-
-    if (!hasMatchingStartEvent) {
-      throw new EssentialProjectErrors.NotFoundError(`StartEvent with ID '${startEventId}' not found!`);
-    }
-
-    if (startCallbackType === DataModels.ProcessModels.StartCallbackType.CallbackOnEndEventReached) {
-
-      if (!endEventId) {
-        throw new EssentialProjectErrors.BadRequestError(`Must provide an EndEventId, when using callback type 'CallbackOnEndEventReached'!`);
-      }
-
-      const hasMatchingEndEvent: boolean = processModel.flowNodes.some((flowNode: Model.Base.FlowNode): boolean => {
-        return flowNode.id === endEventId;
-      });
-
-      if (!hasMatchingEndEvent) {
-        throw new EssentialProjectErrors.NotFoundError(`EndEvent with ID '${startEventId}' not found!`);
-      }
-    }
   }
 
   private _createCorrelationResultFromEndEventInstance(endEventInstance: FlowNodeInstance): DataModels.CorrelationResult {
