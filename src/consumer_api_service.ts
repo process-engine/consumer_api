@@ -4,6 +4,7 @@ import {IEventAggregator, Subscription} from '@essential-projects/event_aggregat
 import {IIAMService, IIdentity} from '@essential-projects/iam_contracts';
 import {DataModels, IConsumerApi, Messages} from '@process-engine/consumer_api_contracts';
 import {
+  BpmnType,
   FlowNodeInstance,
   FlowNodeInstanceState,
   IFlowNodeInstanceService,
@@ -245,16 +246,20 @@ export class ConsumerApiService implements IConsumerApi {
       .startProcessInstance(identity, processModelId, startEventId, payload, startCallbackType, endEventId);
   }
 
-  public async getProcessResultForCorrelation(identity: IIdentity,
-                                              correlationId: string,
-                                              processModelId: string): Promise<Array<DataModels.CorrelationResult>> {
+  public async getProcessResultForCorrelation(
+    identity: IIdentity,
+    correlationId: string,
+    processModelId: string,
+  ): Promise<Array<DataModels.CorrelationResult>> {
 
     const processModel: Model.Types.Process =
       await this._processModelUseCase.getProcessModelById(identity, processModelId);
 
+    // First retreive all EndEvents the user can access.
     const processModelFacade: IProcessModelFacade = this._processModelFacadeFactory.create(processModel);
-    const endEvents: Array<Model.Events.EndEvent> = processModelFacade.getEndEvents();
+    const userAccessibleEndEvents: Array<Model.Events.EndEvent> = processModelFacade.getEndEvents();
 
+    // Get all FlowNodeInstances that were run in the Correlation.
     const flowNodeInstances: Array<FlowNodeInstance> =
       await this._flowNodeInstanceService.queryByCorrelation(correlationId);
 
@@ -263,23 +268,32 @@ export class ConsumerApiService implements IConsumerApi {
       throw new EssentialProjectErrors.NotFoundError(`No process results for correlation with id '${correlationId}' found.`);
     }
 
+    // Get all EndEvents that were run in the Correlation.
     const endEventInstances: Array<FlowNodeInstance>
       = flowNodeInstances.filter((flowNodeInstance: FlowNodeInstance) => {
 
-        const isEndEvent: boolean = endEvents.some((endEvent: Model.Events.EndEvent) => {
-          return endEvent.id === flowNodeInstance.flowNodeId;
-        });
+        const isEndEvent: boolean = flowNodeInstance.flowNodeType === BpmnType.endEvent;
+        const isFromProcessModel: boolean = flowNodeInstance.processModelId === processModelId;
 
-        const exitToken: ProcessToken = flowNodeInstance.tokens.find((token: ProcessToken): boolean => {
-          return token.type === ProcessTokenType.onExit;
-        });
+        // If an onExit token exists, then this FlowNodeInstance was finished.
+        const flowNodeInstanceIsFinished: boolean = flowNodeInstance.getTokenByType(ProcessTokenType.onExit) !== undefined;
+
+        // Do not include EndEvent Results from CallActivities or Subprocesses.
+        const isNotFromSubprocess: boolean = !flowNodeInstance.parentProcessInstanceId;
 
         return isEndEvent
-          && !exitToken.caller // only from the process who started the correlation
-          && exitToken.processModelId === processModelId;
+          && isFromProcessModel
+          && flowNodeInstanceIsFinished
+          && isNotFromSubprocess;
     });
 
-    const results: Array<DataModels.CorrelationResult> = endEventInstances.map(this._createCorrelationResultFromEndEventInstance);
+    // Now filter out the EndEvents that the user has no access to.
+    const availableEndEvents: Array<FlowNodeInstance> = endEventInstances.filter((endEventInstance: FlowNodeInstance) => {
+      return userAccessibleEndEvents.some((accessibleEndEvent: Model.Events.EndEvent) => accessibleEndEvent.id === endEventInstance.flowNodeId);
+    });
+
+    // Now extract all results from the available EndEvents.
+    const results: Array<DataModels.CorrelationResult> = availableEndEvents.map(this._createCorrelationResultFromEndEventInstance);
 
     return results;
   }
