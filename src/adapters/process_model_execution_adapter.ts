@@ -38,7 +38,7 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
     endEventId?: string,
   ): Promise<DataModels.ProcessModels.ProcessStartResponsePayload> {
 
-    const useDefaultStartCallbackType: boolean = !startCallbackType;
+    const useDefaultStartCallbackType: boolean = startCallbackType === undefined;
     if (useDefaultStartCallbackType) {
       startCallbackType = DataModels.ProcessModels.StartCallbackType.CallbackOnProcessInstanceCreated;
     }
