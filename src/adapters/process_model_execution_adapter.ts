@@ -72,8 +72,17 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
     // Only start the process instance and return
     const resolveImmediatelyAfterStart: boolean = startCallbackType === DataModels.ProcessModels.StartCallbackType.CallbackOnProcessInstanceCreated;
     if (resolveImmediatelyAfterStart) {
+<<<<<<< HEAD
       const startResult: ProcessStartedMessage =
         await this._executeProcessService.start(identity, processModelId, startEventId, correlationId, payload.inputValues, payload.callerId);
+=======
+      const startResult: ProcessStartedMessage = await this.executeProcessService.start(identity,
+                                                                                        processModel,
+                                                                                        correlationId,
+                                                                                        startEventId,
+                                                                                        payload.inputValues,
+                                                                                        payload.callerId);
+>>>>>>> :bug: Fix Wrong Parameters
 
       response.processInstanceId = startResult.processInstanceId;
 
