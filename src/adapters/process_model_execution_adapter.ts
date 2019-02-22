@@ -42,7 +42,6 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
     }
 
     if (!Object.values(DataModels.ProcessModels.StartCallbackType).includes(startCallbackType)) {
-      console.log(JSON.stringify(startCallbackType));
       throw new EssentialProjectErrors.BadRequestError(`${startCallbackType} is not a valid return option!`);
     }
 
