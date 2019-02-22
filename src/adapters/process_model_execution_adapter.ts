@@ -11,12 +11,13 @@ import {
 import * as uuid from 'node-uuid';
 
 export interface IProcessModelExecutionAdapter {
-  startProcessInstance(identity: IIdentity,
-                       processModelId: string,
-                       payload: DataModels.ProcessModels.ProcessStartRequestPayload,
-                       startCallbackType: DataModels.ProcessModels.StartCallbackType,
-                       startEventId?: string,
-                       endEventId?: string): Promise<DataModels.ProcessModels.ProcessStartResponsePayload>;
+  startProcessInstance(
+    identity: IIdentity,
+    processModelId: string,
+    payload: DataModels.ProcessModels.ProcessStartRequestPayload,
+    startCallbackType: DataModels.ProcessModels.StartCallbackType,
+    startEventId?: string,
+    endEventId?: string): Promise<DataModels.ProcessModels.ProcessStartResponsePayload>;
 }
 
 export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapter {
