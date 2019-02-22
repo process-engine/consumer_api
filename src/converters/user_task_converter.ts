@@ -76,7 +76,7 @@ export class UserTaskConverter {
     flowNodeInstance: FlowNodeInstance,
   ): Promise<IProcessModelFacade> {
 
-    let processModel: Model.Types.Process;
+    let processModel: Model.Process;
 
     // We must store the ProcessModel for each user, to account for lane-restrictions.
     // Some users may not be able to see some lanes that are visible to others.
@@ -113,9 +113,10 @@ export class UserTaskConverter {
 
     const userTaskTokenOldFormat: any = await this._getUserTaskTokenInOldFormat(currentUserTaskToken);
 
-    const userTaskFormFields: Array<DataModels.UserTasks.UserTaskFormField> = userTaskModel.formFields.map((formField: Model.Types.FormField) => {
-      return this.convertToConsumerApiFormField(formField, userTaskTokenOldFormat);
-    });
+    const userTaskFormFields: Array<DataModels.UserTasks.UserTaskFormField> =
+      userTaskModel.formFields.map((formField: Model.Activities.Types.UserTaskFormField) => {
+        return this.convertToConsumerApiFormField(formField, userTaskTokenOldFormat);
+      });
 
     const userTaskConfig: DataModels.UserTasks.UserTaskConfig = {
       formFields: userTaskFormFields,
@@ -138,7 +139,10 @@ export class UserTaskConverter {
     return consumerApiUserTask;
   }
 
-  private convertToConsumerApiFormField(formField: Model.Types.FormField, oldTokenFormat: any): DataModels.UserTasks.UserTaskFormField {
+  private convertToConsumerApiFormField(
+    formField: Model.Activities.Types.UserTaskFormField,
+    oldTokenFormat: any,
+  ): DataModels.UserTasks.UserTaskFormField {
 
     const userTaskFormField: DataModels.UserTasks.UserTaskFormField = new DataModels.UserTasks.UserTaskFormField();
     userTaskFormField.id = formField.id;

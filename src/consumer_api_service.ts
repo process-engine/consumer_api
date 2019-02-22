@@ -206,8 +206,8 @@ export class ConsumerApiService implements IConsumerApi {
   // Process models and instances
   public async getProcessModels(identity: IIdentity): Promise<DataModels.ProcessModels.ProcessModelList> {
 
-    const processModels: Array<Model.Types.Process> = await this._processModelUseCase.getProcessModels(identity);
-    const consumerApiProcessModels: Array<DataModels.ProcessModels.ProcessModel> = processModels.map((processModel: Model.Types.Process) => {
+    const processModels: Array<Model.Process> = await this._processModelUseCase.getProcessModels(identity);
+    const consumerApiProcessModels: Array<DataModels.ProcessModels.ProcessModel> = processModels.map((processModel: Model.Process) => {
       return this._processModelConverter.convertProcessModel(processModel);
     });
 
@@ -218,7 +218,7 @@ export class ConsumerApiService implements IConsumerApi {
 
   public async getProcessModelById(identity: IIdentity, processModelId: string): Promise<DataModels.ProcessModels.ProcessModel> {
 
-    const processModel: Model.Types.Process = await this._processModelUseCase.getProcessModelById(identity, processModelId);
+    const processModel: Model.Process = await this._processModelUseCase.getProcessModelById(identity, processModelId);
     const consumerApiProcessModel: DataModels.ProcessModels.ProcessModel = this._processModelConverter.convertProcessModel(processModel);
 
     return consumerApiProcessModel;
@@ -226,7 +226,7 @@ export class ConsumerApiService implements IConsumerApi {
 
   public async getProcessModelByProcessInstanceId(identity: IIdentity, processInstanceId: string): Promise<DataModels.ProcessModels.ProcessModel> {
 
-    const processModel: Model.Types.Process = await this._processModelUseCase.getProcessModelByProcessInstanceId(identity, processInstanceId);
+    const processModel: Model.Process = await this._processModelUseCase.getProcessModelByProcessInstanceId(identity, processInstanceId);
     const consumerApiProcessModel: DataModels.ProcessModels.ProcessModel = this._processModelConverter.convertProcessModel(processModel);
 
     return consumerApiProcessModel;
@@ -252,7 +252,7 @@ export class ConsumerApiService implements IConsumerApi {
     processModelId: string,
   ): Promise<Array<DataModels.CorrelationResult>> {
 
-    const processModel: Model.Types.Process =
+    const processModel: Model.Process =
       await this._processModelUseCase.getProcessModelById(identity, processModelId);
 
     // First retreive all EndEvents the user can access.
