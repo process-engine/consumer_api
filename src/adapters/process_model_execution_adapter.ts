@@ -42,6 +42,7 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
     }
 
     if (!Object.values(DataModels.ProcessModels.StartCallbackType).includes(startCallbackType)) {
+      console.log(JSON.stringify(startCallbackType));
       throw new EssentialProjectErrors.BadRequestError(`${startCallbackType} is not a valid return option!`);
     }
 
@@ -88,7 +89,7 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
 
       processEndedMessage = await this
         ._executeProcessService
-        .startAndAwaitSpecificEndEvent(identity, processModelId, correlationId, endEventId, payload.inputValues, startEventId, payload.callerId);
+        .startAndAwaitSpecificEndEvent(identity, processModelId, correlationId, endEventId, startEventId, payload.inputValues, payload.callerId);
 
       response.endEventId = processEndedMessage.flowNodeId;
       response.tokenPayload = processEndedMessage.currentToken;
