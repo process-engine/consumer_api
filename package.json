@@ -1,6 +1,6 @@
 {
   "name": "@process-engine/consumer_api_core",
-  "version": "4.1.1",
+  "version": "4.2.0",
   "description": "the api-package for process-engine-consumer",
   "main": "dist/commonjs/index.js",
   "typings": "dist/index.d.ts",
@@ -23,8 +23,8 @@
     "@process-engine/consumer_api_contracts": "^4.1.0",
     "@process-engine/correlation.contracts": "^1.0.0",
     "@process-engine/flow_node_instance.contracts": "^1.0.0",
-    "@process-engine/process_engine_contracts": "^40.1.0",
-    "@process-engine/process_model.contracts": "^1.0.0",
+    "@process-engine/process_engine_contracts": "^40.2.0",
+    "@process-engine/process_model.contracts": "^2.0.0",
     "bluebird": "~3.5.2",
     "bluebird-global": "~1.0.1",
     "loggerhythm": "~3.0.3",
@@ -37,7 +37,7 @@
     "@types/node": "^10.12.2",
     "gulp": "^4.0.0",
     "gulptraum": "^3.0.0",
-    "gulptraum-typescript": "^2.0.0",
+    "gulptraum-typescript": "^3.0.0",
     "tsconfig": "^7.0.0",
     "tslint": "^5.11.0",
     "typescript": "^3.1.6"

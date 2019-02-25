@@ -59,7 +59,7 @@ export class ManualTaskConverter {
     flowNodeInstance: FlowNodeInstance,
   ): Promise<IProcessModelFacade> {
 
-    let processModel: Model.Types.Process;
+    let processModel: Model.Process;
 
     // We must store the ProcessModel for each user, to account for lane-restrictions.
     // Some users may not be able to see some lanes that are visible to others.

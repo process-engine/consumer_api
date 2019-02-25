@@ -10,7 +10,7 @@ export class ProcessModelConverter {
     this._processModelFacadeFactory = processModelFacadeFactory;
   }
 
-  public convertProcessModel(processModel: Model.Types.Process): DataModels.ProcessModels.ProcessModel {
+  public convertProcessModel(processModel: Model.Process): DataModels.ProcessModels.ProcessModel {
 
     const processModelFacade: IProcessModelFacade = this._processModelFacadeFactory.create(processModel);
 
