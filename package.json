@@ -1,6 +1,6 @@
 {
   "name": "@process-engine/consumer_api_core",
-  "version": "4.2.0",
+  "version": "5.0.0",
   "description": "the api-package for process-engine-consumer",
   "main": "dist/commonjs/index.js",
   "typings": "dist/index.d.ts",
@@ -20,10 +20,10 @@
   "homepage": "https://github.com/process-engine/consumer_api#readme",
   "dependencies": {
     "@essential-projects/errors_ts": "^1.4.0",
-    "@process-engine/consumer_api_contracts": "^4.1.0",
+    "@process-engine/consumer_api_contracts": "^5.0.0",
     "@process-engine/correlation.contracts": "^1.0.0",
     "@process-engine/flow_node_instance.contracts": "^1.0.0",
-    "@process-engine/process_engine_contracts": "^40.2.0",
+    "@process-engine/process_engine_contracts": "^41.0.0",
     "@process-engine/process_model.contracts": "^2.0.0",
     "bluebird": "~3.5.2",
     "bluebird-global": "~1.0.1",
