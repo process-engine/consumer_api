@@ -20,10 +20,10 @@
   "homepage": "https://github.com/process-engine/consumer_api#readme",
   "dependencies": {
     "@essential-projects/errors_ts": "^1.4.0",
-    "@process-engine/consumer_api_contracts": "feature~optional_start_event_id",
+    "@process-engine/consumer_api_contracts": "^5.0.0",
     "@process-engine/correlation.contracts": "^1.0.0",
     "@process-engine/flow_node_instance.contracts": "^1.0.0",
-    "@process-engine/process_engine_contracts": "feature~optional_start_event_id",
+    "@process-engine/process_engine_contracts": "^41.0.0",
     "@process-engine/process_model.contracts": "^2.0.0",
     "bluebird": "~3.5.2",
     "bluebird-global": "~1.0.1",
