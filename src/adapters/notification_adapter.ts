@@ -3,6 +3,8 @@ import {IIdentity} from '@essential-projects/iam_contracts';
 import {Messages} from '@process-engine/consumer_api_contracts';
 
 import {
+  EmptyActivityFinishedMessage,
+  EmptyActivityReachedMessage,
   EndEventReachedMessage,
   ManualTaskFinishedMessage,
   ManualTaskReachedMessage,
@@ -18,6 +20,78 @@ export class NotificationAdapter {
 
   constructor(eventAggregator: IEventAggregator) {
     this._eventAggregator = eventAggregator;
+  }
+
+  public onEmptyActivityWaiting(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnEmptyActivityWaitingCallback,
+    subscribeOnce: boolean,
+  ): Subscription {
+
+    const eventName: string = Messages.EventAggregatorSettings.messagePaths.emptyActivityReached;
+
+    const sanitationCallback: EventReceivedCallback = (message: EmptyActivityReachedMessage): void => {
+      const sanitizedMessage: Messages.SystemEvents.EmptyActivityReachedMessage = this._sanitizeInternalMessageForPublicNotification(message);
+      callback(sanitizedMessage);
+    };
+
+    return this._createSubscription(eventName, sanitationCallback, subscribeOnce);
+  }
+
+  public onEmptyActivityFinished(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnEmptyActivityFinishedCallback,
+    subscribeOnce: boolean,
+  ): Subscription {
+
+    const eventName: string = Messages.EventAggregatorSettings.messagePaths.emptyActivityFinished;
+
+    const sanitationCallback: EventReceivedCallback = (message: EmptyActivityFinishedMessage): void => {
+      const sanitizedMessage: Messages.SystemEvents.EmptyActivityFinishedMessage = this._sanitizeInternalMessageForPublicNotification(message);
+      callback(sanitizedMessage);
+    };
+
+    return this._createSubscription(eventName, sanitationCallback, subscribeOnce);
+  }
+
+  public onEmptyActivityForIdentityWaiting(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnEmptyActivityWaitingCallback,
+    subscribeOnce: boolean,
+  ): Subscription {
+
+    const eventName: string = Messages.EventAggregatorSettings.messagePaths.emptyActivityReached;
+
+    const sanitationCallback: EventReceivedCallback = (message: EmptyActivityReachedMessage): void => {
+
+      const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
+      if (identitiesMatch) {
+        const sanitizedMessage: Messages.SystemEvents.EmptyActivityReachedMessage = this._sanitizeInternalMessageForPublicNotification(message);
+        callback(sanitizedMessage);
+      }
+    };
+
+    return this._createSubscription(eventName, sanitationCallback, subscribeOnce);
+  }
+
+  public onEmptyActivityForIdentityFinished(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnEmptyActivityFinishedCallback,
+    subscribeOnce: boolean,
+  ): Subscription {
+
+    const eventName: string = Messages.EventAggregatorSettings.messagePaths.emptyActivityFinished;
+
+    const sanitationCallback: EventReceivedCallback = (message: EmptyActivityFinishedMessage): void => {
+
+      const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
+      if (identitiesMatch) {
+        const sanitizedMessage: Messages.SystemEvents.EmptyActivityReachedMessage = this._sanitizeInternalMessageForPublicNotification(message);
+        callback(sanitizedMessage);
+      }
+    };
+
+    return this._createSubscription(eventName, sanitationCallback, subscribeOnce);
   }
 
   public onUserTaskWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskWaitingCallback, subscribeOnce: boolean): Subscription {

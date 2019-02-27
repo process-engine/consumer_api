@@ -89,6 +89,43 @@ export class ConsumerApiService implements IConsumerApi {
   }
 
   // Notifications
+  public async onEmptyActivityWaiting(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnEmptyActivityWaitingCallback,
+    subscribeOnce?: boolean,
+  ): Promise<Subscription> {
+    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
+
+    return this._notificationAdapter.onEmptyActivityWaiting(identity, callback, subscribeOnce);
+  }
+  public async onEmptyActivityFinished(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnEmptyActivityFinishedCallback,
+    subscribeOnce?: boolean,
+  ): Promise<Subscription> {
+    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
+
+    return this._notificationAdapter.onEmptyActivityFinished(identity, callback, subscribeOnce);
+  }
+  public async onEmptyActivityForIdentityWaiting(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnEmptyActivityWaitingCallback,
+    subscribeOnce?: boolean,
+  ): Promise<Subscription> {
+    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
+
+    return this._notificationAdapter.onEmptyActivityForIdentityWaiting(identity, callback, subscribeOnce);
+  }
+  public async onEmptyActivityForIdentityFinished(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnEmptyActivityFinishedCallback,
+    subscribeOnce?: boolean,
+  ): Promise<Subscription> {
+    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
+
+    return this._notificationAdapter.onEmptyActivityForIdentityFinished(identity, callback, subscribeOnce);
+  }
+
   public async onUserTaskWaiting(
     identity: IIdentity,
     callback: Messages.CallbackTypes.OnUserTaskWaitingCallback,
