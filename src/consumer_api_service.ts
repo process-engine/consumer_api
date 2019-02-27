@@ -11,7 +11,14 @@ import {
   ProcessToken,
   ProcessTokenType,
 } from '@process-engine/flow_node_instance.contracts';
-import {IProcessModelFacade, IProcessModelFacadeFactory} from '@process-engine/process_engine_contracts';
+import {
+  FinishManualTaskMessage as InternalFinishManualTaskMessage,
+  FinishUserTaskMessage as InternalFinishUserTaskMessage,
+  IProcessModelFacade,
+  IProcessModelFacadeFactory,
+  ManualTaskFinishedMessage as InternalManualTaskFinishedMessage,
+  UserTaskFinishedMessage as InternalUserTaskFinishedMessage,
+} from '@process-engine/process_engine_contracts';
 import {IProcessModelUseCases, Model} from '@process-engine/process_model.contracts';
 
 import {IProcessModelExecutionAdapter, NotificationAdapter} from './adapters/index';
@@ -484,7 +491,7 @@ export class ConsumerApiService implements IConsumerApi {
         .replace(Messages.EventAggregatorSettings.messageParams.processInstanceId, processInstanceId)
         .replace(Messages.EventAggregatorSettings.messageParams.flowNodeInstanceId, userTaskInstanceId);
 
-      this._eventAggregator.subscribeOnce(userTaskFinishedEvent, (message: Messages.Internal.SystemEvents.UserTaskFinishedMessage) => {
+      this._eventAggregator.subscribeOnce(userTaskFinishedEvent, (message: InternalUserTaskFinishedMessage) => {
         resolve();
       });
 
@@ -574,12 +581,12 @@ export class ConsumerApiService implements IConsumerApi {
           .replace(routePrameter.processInstanceId, processInstanceId)
           .replace(routePrameter.flowNodeInstanceId, manualTaskInstanceId);
 
-      this._eventAggregator.subscribeOnce(manualTaskFinishedEvent, (message: Messages.Internal.SystemEvents.ManualTaskFinishedMessage) => {
+      this._eventAggregator.subscribeOnce(manualTaskFinishedEvent, (message: InternalManualTaskFinishedMessage) => {
         resolve();
       });
 
-      const finishManualTaskMessage: Messages.Internal.SystemEvents.FinishManualTaskMessage =
-        new Messages.Internal.SystemEvents.FinishManualTaskMessage(
+      const finishManualTaskMessage: InternalFinishManualTaskMessage =
+        new InternalFinishManualTaskMessage(
           matchingFlowNodeInstance.correlationId,
           matchingFlowNodeInstance.processModelId,
           matchingFlowNodeInstance.processInstanceId,
@@ -704,8 +711,8 @@ export class ConsumerApiService implements IConsumerApi {
     userTaskResult: any,
   ): Promise<void> {
 
-    const finishUserTaskMessage: Messages.Internal.SystemEvents.FinishUserTaskMessage =
-      new Messages.Internal.SystemEvents.FinishUserTaskMessage(
+    const finishUserTaskMessage: InternalFinishUserTaskMessage =
+      new InternalFinishUserTaskMessage(
         userTaskResult,
         userTaskInstance.correlationId,
         userTaskInstance.processModelId,
