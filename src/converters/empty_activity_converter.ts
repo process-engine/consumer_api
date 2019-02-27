@@ -94,10 +94,7 @@ export class EmptyActivityConverter {
 
     const emptyActivityModel: Model.Base.FlowNode = processModelFacade.getFlowNodeById(emptyActivityInstance.flowNodeId);
 
-    const currentProcessToken: ProcessToken =
-      emptyActivityInstance.tokens.find((token: ProcessToken): boolean => {
-        return token.type === ProcessTokenType.onSuspend;
-      });
+    const onSuspendToken: ProcessToken = emptyActivityInstance.getTokenByType(ProcessTokenType.onSuspend);
 
     const consumerApiManualTask: DataModels.EmptyActivities.EmptyActivity = {
       id: emptyActivityInstance.flowNodeId,
@@ -106,7 +103,7 @@ export class EmptyActivityConverter {
       correlationId: emptyActivityInstance.correlationId,
       processModelId: emptyActivityInstance.processModelId,
       processInstanceId: emptyActivityInstance.processInstanceId,
-      tokenPayload: currentProcessToken.payload,
+      tokenPayload: onSuspendToken.payload,
     };
 
     return consumerApiManualTask;

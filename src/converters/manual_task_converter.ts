@@ -4,7 +4,7 @@ import {DataModels} from '@process-engine/consumer_api_contracts';
 import {Correlation, ICorrelationService} from '@process-engine/correlation.contracts';
 import {FlowNodeInstance, ProcessToken, ProcessTokenType} from '@process-engine/flow_node_instance.contracts';
 import {IProcessModelFacade, IProcessModelFacadeFactory} from '@process-engine/process_engine_contracts';
-import {IProcessModelUseCases, Model} from '@process-engine/process_model.contracts';
+import {BpmnType, IProcessModelUseCases, Model} from '@process-engine/process_model.contracts';
 
 import * as ProcessModelCache from './process_model_cache';
 
@@ -33,16 +33,16 @@ export class ManualTaskConverter {
 
     for (const suspendedFlowNode of suspendedFlowNodes) {
 
+      const taskIsNotAManualTask: boolean = suspendedFlowNode.flowNodeType !== BpmnType.manualTask;
+      if (taskIsNotAManualTask) {
+        continue;
+      }
+
       const processModelFacade: IProcessModelFacade =
         await this.getProcessModelForFlowNodeInstance(identity, suspendedFlowNode);
 
       const manualTask: DataModels.ManualTasks.ManualTask =
         await this._convertSuspendedFlowNodeToManualTask(suspendedFlowNode, processModelFacade);
-
-      const taskIsNotAManualTask: boolean = manualTask === undefined;
-      if (taskIsNotAManualTask) {
-        continue;
-      }
 
       suspendedManualTasks.push(manualTask);
     }
@@ -88,43 +88,25 @@ export class ManualTaskConverter {
   }
 
   private async _convertSuspendedFlowNodeToManualTask(
-    flowNodeInstance: FlowNodeInstance,
+    manualTaskInstance: FlowNodeInstance,
     processModelFacade: IProcessModelFacade,
   ): Promise<DataModels.ManualTasks.ManualTask> {
 
-    const flowNodeModel: Model.Base.FlowNode = processModelFacade.getFlowNodeById(flowNodeInstance.flowNodeId);
+    const manualTaskModel: Model.Base.FlowNode = processModelFacade.getFlowNodeById(manualTaskInstance.flowNodeId);
 
-    // Note that ManualTasks are not the only types of FlowNodes that can be suspended.
-    // So we must make sure that what we have here is actually a ManualTask and not, for example, a TimerEvent.
-    const flowNodeIsNotAManualTask: boolean = flowNodeModel.constructor.name !== 'ManualTask';
-
-    if (flowNodeIsNotAManualTask) {
-      return undefined;
-    }
-
-    return this._convertToConsumerApiManualTask(flowNodeModel as Model.Activities.ManualTask, flowNodeInstance);
-  }
-
-  private async _convertToConsumerApiManualTask(
-    manualTask: Model.Activities.ManualTask,
-    flowNodeInstance: FlowNodeInstance,
-  ): Promise<DataModels.ManualTasks.ManualTask> {
-
-    const currentProcessToken: ProcessToken =
-      flowNodeInstance.tokens.find((token: ProcessToken): boolean => {
-        return token.type === ProcessTokenType.onSuspend;
-      });
+    const onSuspendToken: ProcessToken = manualTaskInstance.getTokenByType(ProcessTokenType.onSuspend);
 
     const consumerApiManualTask: DataModels.ManualTasks.ManualTask = {
-      id: flowNodeInstance.flowNodeId,
-      flowNodeInstanceId: flowNodeInstance.id,
-      name: manualTask.name,
-      correlationId: flowNodeInstance.correlationId,
-      processModelId: flowNodeInstance.processModelId,
-      processInstanceId: flowNodeInstance.processInstanceId,
-      tokenPayload: currentProcessToken.payload,
+      id: manualTaskInstance.flowNodeId,
+      flowNodeInstanceId: manualTaskInstance.id,
+      name: manualTaskModel.name,
+      correlationId: manualTaskInstance.correlationId,
+      processModelId: manualTaskInstance.processModelId,
+      processInstanceId: manualTaskInstance.processInstanceId,
+      tokenPayload: onSuspendToken.payload,
     };
 
     return consumerApiManualTask;
+
   }
 }

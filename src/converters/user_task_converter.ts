@@ -10,7 +10,7 @@ import {
   IProcessTokenFacade,
   IProcessTokenFacadeFactory,
 } from '@process-engine/process_engine_contracts';
-import {IProcessModelUseCases, Model} from '@process-engine/process_model.contracts';
+import {BpmnType, IProcessModelUseCases, Model} from '@process-engine/process_model.contracts';
 
 import * as ProcessModelCache from './process_model_cache';
 
@@ -45,18 +45,17 @@ export class UserTaskConverter {
 
     for (const suspendedFlowNode of suspendedFlowNodes) {
 
+      // Note that UserTasks are not the only types of FlowNodes that can be suspended.
+      // So we must make sure that what we have here is actually a UserTask and not, for example, a TimerEvent.
+      const flowNodeIsNotAUserTask: boolean = suspendedFlowNode.flowNodeType !== BpmnType.userTask;
+      if (flowNodeIsNotAUserTask) {
+        continue;
+      }
+
       const processModelFacade: IProcessModelFacade =
         await this.getProcessModelForFlowNodeInstance(identity, suspendedFlowNode);
 
       const flowNodeModel: Model.Base.FlowNode = processModelFacade.getFlowNodeById(suspendedFlowNode.flowNodeId);
-
-      // Note that UserTasks are not the only types of FlowNodes that can be suspended.
-      // So we must make sure that what we have here is actually a UserTask and not, for example, a TimerEvent.
-      const flowNodeIsNotAUserTask: boolean = flowNodeModel.constructor.name !== 'UserTask';
-
-      if (flowNodeIsNotAUserTask) {
-        continue;
-      }
 
       const userTask: DataModels.UserTasks.UserTask =
         await this.convertToConsumerApiUserTask(flowNodeModel as Model.Activities.UserTask, suspendedFlowNode);
