@@ -521,7 +521,7 @@ export class ConsumerApiService implements IConsumerApi {
   ): Promise<void> {
 
     const matchingFlowNodeInstance: FlowNodeInstance =
-      await this._getFlowNodeInstanceById(processInstanceId, emptyActivityInstanceId);
+      await this._getFlowNodeInstanceForCorrelationInProcessInstance(correlationId, processInstanceId, emptyActivityInstanceId);
 
     const noMatchingInstanceFound: boolean = matchingFlowNodeInstance === undefined;
     if (noMatchingInstanceFound) {
@@ -628,7 +628,7 @@ export class ConsumerApiService implements IConsumerApi {
   ): Promise<void> {
 
     const matchingFlowNodeInstance: FlowNodeInstance =
-      await this._getFlowNodeInstanceById(processInstanceId, manualTaskInstanceId);
+      await this._getFlowNodeInstanceForCorrelationInProcessInstance(correlationId, processInstanceId, manualTaskInstanceId);
 
     const noMatchingInstanceFound: boolean = matchingFlowNodeInstance === undefined;
     if (noMatchingInstanceFound) {
@@ -744,7 +744,7 @@ export class ConsumerApiService implements IConsumerApi {
     const resultForProcessEngine: any = this._createUserTaskResultForProcessEngine(userTaskResult);
 
     const matchingFlowNodeInstance: FlowNodeInstance =
-      await this._getFlowNodeInstanceById(processInstanceId, userTaskInstanceId);
+      await this._getFlowNodeInstanceForCorrelationInProcessInstance(correlationId, processInstanceId, userTaskInstanceId);
 
     const noMatchingInstanceFound: boolean = matchingFlowNodeInstance === undefined;
     if (noMatchingInstanceFound) {
@@ -773,7 +773,8 @@ export class ConsumerApiService implements IConsumerApi {
     });
   }
 
-  private async _getFlowNodeInstanceById(
+  private async _getFlowNodeInstanceForCorrelationInProcessInstance(
+    correlationId: string,
     processInstanceId: string,
     instanceId: string,
   ): Promise<FlowNodeInstance> {
@@ -781,7 +782,10 @@ export class ConsumerApiService implements IConsumerApi {
     const suspendedFlowNodeInstances: Array<FlowNodeInstance> =
       await this._flowNodeInstanceService.querySuspendedByProcessInstance(processInstanceId);
 
-    const matchingInstance: FlowNodeInstance = suspendedFlowNodeInstances.find((instance: FlowNodeInstance) => instance.id === instanceId);
+    const matchingInstance: FlowNodeInstance = suspendedFlowNodeInstances.find((instance: FlowNodeInstance) => {
+      return instance.id === instanceId &&
+             instance.correlationId === correlationId;
+    });
 
     return matchingInstance;
   }
