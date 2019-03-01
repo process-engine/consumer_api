@@ -8,7 +8,7 @@ import {BpmnType, IProcessModelUseCases, Model} from '@process-engine/process_mo
 
 import * as ProcessModelCache from './process_model_cache';
 
-export class ManualTaskConverter {
+export class EmptyActivityConverter {
 
   private readonly _correlationService: ICorrelationService;
   private readonly _processModelUseCase: IProcessModelUseCases;
@@ -27,31 +27,31 @@ export class ManualTaskConverter {
   public async convert(
     identity: IIdentity,
     suspendedFlowNodes: Array<FlowNodeInstance>,
-  ): Promise<DataModels.ManualTasks.ManualTaskList> {
+  ): Promise<DataModels.EmptyActivities.EmptyActivityList> {
 
-    const suspendedManualTasks: Array<DataModels.ManualTasks.ManualTask> = [];
+    const suspendedEmptyActivities: Array<DataModels.EmptyActivities.EmptyActivity> = [];
 
     for (const suspendedFlowNode of suspendedFlowNodes) {
 
-      const taskIsNotAManualTask: boolean = suspendedFlowNode.flowNodeType !== BpmnType.manualTask;
-      if (taskIsNotAManualTask) {
+      const taskIsNotAnEmptyActivity: boolean = suspendedFlowNode.flowNodeType !== BpmnType.emptyActivity;
+      if (taskIsNotAnEmptyActivity) {
         continue;
       }
 
       const processModelFacade: IProcessModelFacade =
         await this.getProcessModelForFlowNodeInstance(identity, suspendedFlowNode);
 
-      const manualTask: DataModels.ManualTasks.ManualTask =
-        await this._convertSuspendedFlowNodeToManualTask(suspendedFlowNode, processModelFacade);
+      const emptyActivity: DataModels.EmptyActivities.EmptyActivity =
+        await this._convertSuspendedFlowNodeToEmptyActivity(suspendedFlowNode, processModelFacade);
 
-      suspendedManualTasks.push(manualTask);
+      suspendedEmptyActivities.push(emptyActivity);
     }
 
-    const manualTaskList: DataModels.ManualTasks.ManualTaskList = {
-      manualTasks: suspendedManualTasks,
+    const emptyActivityList: DataModels.EmptyActivities.EmptyActivityList = {
+      emptyActivities: suspendedEmptyActivities,
     };
 
-    return manualTaskList;
+    return emptyActivityList;
   }
 
   private async getProcessModelForFlowNodeInstance(
@@ -87,22 +87,22 @@ export class ManualTaskConverter {
     return correlationForProcessInstance.processModels[0].hash;
   }
 
-  private async _convertSuspendedFlowNodeToManualTask(
-    manualTaskInstance: FlowNodeInstance,
+  private async _convertSuspendedFlowNodeToEmptyActivity(
+    emptyActivityInstance: FlowNodeInstance,
     processModelFacade: IProcessModelFacade,
-  ): Promise<DataModels.ManualTasks.ManualTask> {
+  ): Promise<DataModels.EmptyActivities.EmptyActivity> {
 
-    const manualTaskModel: Model.Base.FlowNode = processModelFacade.getFlowNodeById(manualTaskInstance.flowNodeId);
+    const emptyActivityModel: Model.Base.FlowNode = processModelFacade.getFlowNodeById(emptyActivityInstance.flowNodeId);
 
-    const onSuspendToken: ProcessToken = manualTaskInstance.getTokenByType(ProcessTokenType.onSuspend);
+    const onSuspendToken: ProcessToken = emptyActivityInstance.getTokenByType(ProcessTokenType.onSuspend);
 
-    const consumerApiManualTask: DataModels.ManualTasks.ManualTask = {
-      id: manualTaskInstance.flowNodeId,
-      flowNodeInstanceId: manualTaskInstance.id,
-      name: manualTaskModel.name,
-      correlationId: manualTaskInstance.correlationId,
-      processModelId: manualTaskInstance.processModelId,
-      processInstanceId: manualTaskInstance.processInstanceId,
+    const consumerApiManualTask: DataModels.EmptyActivities.EmptyActivity = {
+      id: emptyActivityInstance.flowNodeId,
+      flowNodeInstanceId: emptyActivityInstance.id,
+      name: emptyActivityModel.name,
+      correlationId: emptyActivityInstance.correlationId,
+      processModelId: emptyActivityInstance.processModelId,
+      processInstanceId: emptyActivityInstance.processInstanceId,
       tokenPayload: onSuspendToken.payload,
     };
 

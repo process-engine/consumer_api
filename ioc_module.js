@@ -2,6 +2,7 @@
 
 const {
   ConsumerApiService,
+  EmptyActivityConverter,
   EventConverter,
   ManualTaskConverter,
   NotificationAdapter,
@@ -21,6 +22,11 @@ function registerInContainer(container) {
   container
     .register('ConsumerApiNotificationAdapter', NotificationAdapter)
     .dependencies('EventAggregator')
+    .singleton();
+
+  container
+    .register('ConsumerApiEmptyActivityConverter', EmptyActivityConverter)
+    .dependencies('CorrelationService', 'ProcessModelFacadeFactory', 'ProcessModelUseCases')
     .singleton();
 
   container
@@ -57,6 +63,7 @@ function registerInContainer(container) {
       'ProcessModelFacadeFactory',
       'ProcessModelUseCases',
       'ConsumerApiNotificationAdapter',
+      'ConsumerApiEmptyActivityConverter',
       'ConsumerApiEventConverter',
       'ConsumerApiUserTaskConverter',
       'ConsumerApiManualTaskConverter',

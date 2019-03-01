@@ -11,11 +11,21 @@ import {
   ProcessToken,
   ProcessTokenType,
 } from '@process-engine/flow_node_instance.contracts';
-import {IProcessModelFacade, IProcessModelFacadeFactory} from '@process-engine/process_engine_contracts';
+import {
+  EmptyActivityFinishedMessage as InternalEmptyActivityFinishedMessage,
+  FinishEmptyActivityMessage as InternalFinishEmptyActivityMessage,
+  FinishManualTaskMessage as InternalFinishManualTaskMessage,
+  FinishUserTaskMessage as InternalFinishUserTaskMessage,
+  IProcessModelFacade,
+  IProcessModelFacadeFactory,
+  ManualTaskFinishedMessage as InternalManualTaskFinishedMessage,
+  UserTaskFinishedMessage as InternalUserTaskFinishedMessage,
+} from '@process-engine/process_engine_contracts';
 import {IProcessModelUseCases, Model} from '@process-engine/process_model.contracts';
 
 import {IProcessModelExecutionAdapter, NotificationAdapter} from './adapters/index';
 import {
+  EmptyActivityConverter,
   EventConverter,
   ManualTaskConverter,
   ProcessInstanceConverter,
@@ -36,6 +46,7 @@ export class ConsumerApiService implements IConsumerApi {
 
   private readonly _notificationAdapter: NotificationAdapter;
 
+  private readonly _emptyActivityConverter: EmptyActivityConverter;
   private readonly _userTaskConverter: UserTaskConverter;
   private readonly _manualTaskConverter: ManualTaskConverter;
   private readonly _processInstanceConverter: ProcessInstanceConverter;
@@ -53,6 +64,7 @@ export class ConsumerApiService implements IConsumerApi {
     processModelFacadeFactory: IProcessModelFacadeFactory,
     processModelUseCase: IProcessModelUseCases,
     notificationAdapter: NotificationAdapter,
+    emptyActivityConverter: EmptyActivityConverter,
     eventConverter: EventConverter,
     userTaskConverter: UserTaskConverter,
     manualTaskConverter: ManualTaskConverter,
@@ -68,6 +80,7 @@ export class ConsumerApiService implements IConsumerApi {
 
     this._notificationAdapter = notificationAdapter;
 
+    this._emptyActivityConverter = emptyActivityConverter;
     this._eventConverter = eventConverter;
     this._userTaskConverter = userTaskConverter;
     this._manualTaskConverter = manualTaskConverter;
@@ -76,6 +89,43 @@ export class ConsumerApiService implements IConsumerApi {
   }
 
   // Notifications
+  public async onEmptyActivityWaiting(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnEmptyActivityWaitingCallback,
+    subscribeOnce?: boolean,
+  ): Promise<Subscription> {
+    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
+
+    return this._notificationAdapter.onEmptyActivityWaiting(identity, callback, subscribeOnce);
+  }
+  public async onEmptyActivityFinished(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnEmptyActivityFinishedCallback,
+    subscribeOnce?: boolean,
+  ): Promise<Subscription> {
+    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
+
+    return this._notificationAdapter.onEmptyActivityFinished(identity, callback, subscribeOnce);
+  }
+  public async onEmptyActivityForIdentityWaiting(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnEmptyActivityWaitingCallback,
+    subscribeOnce?: boolean,
+  ): Promise<Subscription> {
+    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
+
+    return this._notificationAdapter.onEmptyActivityForIdentityWaiting(identity, callback, subscribeOnce);
+  }
+  public async onEmptyActivityForIdentityFinished(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnEmptyActivityFinishedCallback,
+    subscribeOnce?: boolean,
+  ): Promise<Subscription> {
+    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
+
+    return this._notificationAdapter.onEmptyActivityForIdentityFinished(identity, callback, subscribeOnce);
+  }
+
   public async onUserTaskWaiting(
     identity: IIdentity,
     callback: Messages.CallbackTypes.OnUserTaskWaitingCallback,
@@ -393,63 +443,61 @@ export class ConsumerApiService implements IConsumerApi {
     this._eventAggregator.publish(signalEventName, payload);
   }
 
-  // UserTasks
-  public async getUserTasksForProcessModel(identity: IIdentity, processModelId: string): Promise<DataModels.UserTasks.UserTaskList> {
+  // EmptyActivities
+  public async getEmptyActivitiesForProcessModel(identity: IIdentity, processModelId: string): Promise<DataModels.EmptyActivities.EmptyActivityList> {
 
     const suspendedFlowNodes: Array<FlowNodeInstance> =
       await this._flowNodeInstanceService.querySuspendedByProcessModel(processModelId);
 
-    const userTaskList: DataModels.UserTasks.UserTaskList = await this._userTaskConverter.convertUserTasks(identity, suspendedFlowNodes);
+    const emptyActivityList: DataModels.EmptyActivities.EmptyActivityList = await this._emptyActivityConverter.convert(identity, suspendedFlowNodes);
 
-    return userTaskList;
+    return emptyActivityList;
   }
 
-  public async getUserTasksForProcessInstance(identity: IIdentity, processInstanceId: string): Promise<DataModels.UserTasks.UserTaskList> {
+  public async getEmptyActivitiesForProcessInstance(
+    identity: IIdentity,
+    processInstanceId: string,
+  ): Promise<DataModels.EmptyActivities.EmptyActivityList> {
 
     const suspendedFlowNodes: Array<FlowNodeInstance> =
       await this._flowNodeInstanceService.querySuspendedByProcessInstance(processInstanceId);
 
-    const userTaskList: DataModels.UserTasks.UserTaskList = await this._userTaskConverter.convertUserTasks(identity, suspendedFlowNodes);
+    const emptyActivityList: DataModels.EmptyActivities.EmptyActivityList = await this._emptyActivityConverter.convert(identity, suspendedFlowNodes);
 
-    return userTaskList;
+    return emptyActivityList;
   }
 
-  public async getUserTasksForCorrelation(identity: IIdentity, correlationId: string): Promise<DataModels.UserTasks.UserTaskList> {
+  public async getEmptyActivitiesForCorrelation(identity: IIdentity, correlationId: string): Promise<DataModels.EmptyActivities.EmptyActivityList> {
 
     const suspendedFlowNodes: Array<FlowNodeInstance> =
       await this._flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
-    const userTaskList: DataModels.UserTasks.UserTaskList = await this._userTaskConverter.convertUserTasks(identity, suspendedFlowNodes);
+    const emptyActivityList: DataModels.EmptyActivities.EmptyActivityList = await this._emptyActivityConverter.convert(identity, suspendedFlowNodes);
 
-    return userTaskList;
+    return emptyActivityList;
   }
 
-  public async getUserTasksForProcessModelInCorrelation(identity: IIdentity,
-                                                        processModelId: string,
-                                                        correlationId: string): Promise<DataModels.UserTasks.UserTaskList> {
+  public async getEmptyActivitiesForProcessModelInCorrelation(
+    identity: IIdentity,
+    processModelId: string,
+    correlationId: string,
+  ): Promise<DataModels.EmptyActivities.EmptyActivityList> {
 
     const suspendedFlowNodes: Array<FlowNodeInstance> =
       await this._flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
     const suspendedProcessModelFlowNodes: Array<FlowNodeInstance> =
       suspendedFlowNodes.filter((flowNodeInstance: FlowNodeInstance) => {
-        return flowNodeInstance.processModelId === processModelId;
+        return flowNodeInstance.tokens[0].processModelId === processModelId;
       });
 
-    const noSuspendedFlowNodesFound: boolean = !suspendedFlowNodes || suspendedFlowNodes.length === 0;
-    if (noSuspendedFlowNodesFound) {
-      return <DataModels.UserTasks.UserTaskList> {
-        userTasks: [],
-      };
-    }
+    const emptyActivityList: DataModels.EmptyActivities.EmptyActivityList =
+      await this._emptyActivityConverter.convert(identity, suspendedProcessModelFlowNodes);
 
-    const userTaskList: DataModels.UserTasks.UserTaskList =
-      await this._userTaskConverter.convertUserTasks(identity, suspendedProcessModelFlowNodes);
-
-    return userTaskList;
+    return emptyActivityList;
   }
 
-  public async getWaitingUserTasksByIdentity(identity: IIdentity): Promise<DataModels.UserTasks.UserTaskList> {
+  public async getWaitingEmptyActivitiesByIdentity(identity: IIdentity): Promise<DataModels.EmptyActivities.EmptyActivityList> {
 
     const suspendedFlowNodeInstances: Array<FlowNodeInstance> =
       await this._flowNodeInstanceService.queryByState(FlowNodeInstanceState.suspended);
@@ -459,36 +507,49 @@ export class ConsumerApiService implements IConsumerApi {
         return this._checkIfIdentityUserIDsMatch(identity, flowNodeInstance.owner);
       });
 
-    const userTaskList: DataModels.UserTasks.UserTaskList =
-      await this._userTaskConverter.convertUserTasks(identity, flowNodeInstancesOwnedByUser);
+    const emptyActivityList: DataModels.EmptyActivities.EmptyActivityList =
+      await this._emptyActivityConverter.convert(identity, flowNodeInstancesOwnedByUser);
 
-    return userTaskList;
+    return emptyActivityList;
   }
 
-  public async finishUserTask(identity: IIdentity,
-                              processInstanceId: string,
-                              correlationId: string,
-                              userTaskInstanceId: string,
-                              userTaskResult?: DataModels.UserTasks.UserTaskResult): Promise<void> {
+  public async finishEmptyActivity(
+    identity: IIdentity,
+    processInstanceId: string,
+    correlationId: string,
+    emptyActivityInstanceId: string,
+  ): Promise<void> {
 
-    // Do this first in order to avoid unnecessary database requests, in case the provided result is invalid.
-    const resultForProcessEngine: any = this._createUserTaskResultForProcessEngine(userTaskResult);
+    const matchingFlowNodeInstance: FlowNodeInstance =
+      await this._getFlowNodeInstanceForCorrelationInProcessInstance(correlationId, processInstanceId, emptyActivityInstanceId);
 
-    const matchingFlowNodeInstance: DataModels.UserTasks.UserTask =
-      await this._getSuspendedUserTask(identity, correlationId, processInstanceId, userTaskInstanceId);
+    const noMatchingInstanceFound: boolean = matchingFlowNodeInstance === undefined;
+    if (noMatchingInstanceFound) {
+      const errorMessage: string =
+        // tslint:disable-next-line:max-line-length
+        `ProcessInstance '${processInstanceId}' in Correlation '${correlationId}' does not have an EmptyActivity with id '${emptyActivityInstanceId}'`;
+      throw new EssentialProjectErrors.NotFoundError(errorMessage);
+    }
 
-    return new Promise<void>(async(resolve: Function, reject: Function): Promise<void> => {
+    const convertedEmptyActivityList: DataModels.EmptyActivities.EmptyActivityList =
+      await this._emptyActivityConverter.convert(identity, [matchingFlowNodeInstance]);
 
-      const userTaskFinishedEvent: string = Messages.EventAggregatorSettings.messagePaths.userTaskWithInstanceIdFinished
-        .replace(Messages.EventAggregatorSettings.messageParams.correlationId, correlationId)
-        .replace(Messages.EventAggregatorSettings.messageParams.processInstanceId, processInstanceId)
-        .replace(Messages.EventAggregatorSettings.messageParams.flowNodeInstanceId, userTaskInstanceId);
+    const matchingEmptyActivity: DataModels.EmptyActivities.EmptyActivity = convertedEmptyActivityList.emptyActivities[0];
 
-      this._eventAggregator.subscribeOnce(userTaskFinishedEvent, (message: Messages.Internal.SystemEvents.UserTaskFinishedMessage) => {
+    return new Promise<void>((resolve: Function, reject: Function): void => {
+      const routePrameter: {[name: string]: string} = Messages.EventAggregatorSettings.messageParams;
+
+      const emptyActivityFinishedEvent: string = Messages.EventAggregatorSettings
+          .messagePaths.emptyActivityWithInstanceIdFinished
+          .replace(routePrameter.correlationId, correlationId)
+          .replace(routePrameter.processInstanceId, processInstanceId)
+          .replace(routePrameter.flowNodeInstanceId, emptyActivityInstanceId);
+
+      this._eventAggregator.subscribeOnce(emptyActivityFinishedEvent, (message: InternalEmptyActivityFinishedMessage) => {
         resolve();
       });
 
-      await this._sendUserTaskResultToProcessEngine(identity, matchingFlowNodeInstance, resultForProcessEngine);
+      this._publishFinishEmptyActivityEvent(identity, matchingEmptyActivity);
     });
   }
 
@@ -523,20 +584,22 @@ export class ConsumerApiService implements IConsumerApi {
     return manualTaskList;
   }
 
-  public async getManualTasksForProcessModelInCorrelation(identity: IIdentity,
-                                                          processModelId: string,
-                                                          correlationId: string): Promise<DataModels.ManualTasks.ManualTaskList> {
+  public async getManualTasksForProcessModelInCorrelation(
+    identity: IIdentity,
+    processModelId: string,
+    correlationId: string,
+  ): Promise<DataModels.ManualTasks.ManualTaskList> {
 
-    const suspendedFlowNodes: Array<FlowNodeInstance> =
-      await this._flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
+    const flowNodeInstances: Array<FlowNodeInstance> =
+      await this._flowNodeInstanceService.queryActiveByCorrelationAndProcessModel(correlationId, processModelId);
 
-    const suspendedProcessModelFlowNodes: Array<FlowNodeInstance> =
-      suspendedFlowNodes.filter((flowNodeInstance: FlowNodeInstance) => {
-        return flowNodeInstance.tokens[0].processModelId === processModelId;
+    const suspendedFlowNodeInstances: Array<FlowNodeInstance> =
+      flowNodeInstances.filter((flowNodeInstance: FlowNodeInstance) => {
+        return flowNodeInstance.state === FlowNodeInstanceState.suspended;
       });
 
     const manualTaskList: DataModels.ManualTasks.ManualTaskList =
-      await this._manualTaskConverter.convert(identity, suspendedProcessModelFlowNodes);
+      await this._manualTaskConverter.convert(identity, suspendedFlowNodeInstances);
 
     return manualTaskList;
   }
@@ -557,13 +620,27 @@ export class ConsumerApiService implements IConsumerApi {
     return manualTaskList;
   }
 
-  public async finishManualTask(identity: IIdentity,
-                                processInstanceId: string,
-                                correlationId: string,
-                                manualTaskInstanceId: string): Promise<void> {
+  public async finishManualTask(
+    identity: IIdentity,
+    processInstanceId: string,
+    correlationId: string,
+    manualTaskInstanceId: string,
+  ): Promise<void> {
 
-    const matchingFlowNodeInstance: DataModels.ManualTasks.ManualTask =
-      await this._getSuspendedManualTask(identity, correlationId, processInstanceId, manualTaskInstanceId);
+    const matchingFlowNodeInstance: FlowNodeInstance =
+      await this._getFlowNodeInstanceForCorrelationInProcessInstance(correlationId, processInstanceId, manualTaskInstanceId);
+
+    const noMatchingInstanceFound: boolean = matchingFlowNodeInstance === undefined;
+    if (noMatchingInstanceFound) {
+      const errorMessage: string =
+        `ProcessInstance '${processInstanceId}' in Correlation '${correlationId}' does not have a ManualTask with id '${manualTaskInstanceId}'`;
+      throw new EssentialProjectErrors.NotFoundError(errorMessage);
+    }
+
+    const convertedUserTaskList: DataModels.ManualTasks.ManualTaskList =
+      await this._manualTaskConverter.convert(identity, [matchingFlowNodeInstance]);
+
+    const matchingManualTask: DataModels.ManualTasks.ManualTask = convertedUserTaskList.manualTasks[0];
 
     return new Promise<void>((resolve: Function, reject: Function): void => {
       const routePrameter: {[name: string]: string} = Messages.EventAggregatorSettings.messageParams;
@@ -574,29 +651,143 @@ export class ConsumerApiService implements IConsumerApi {
           .replace(routePrameter.processInstanceId, processInstanceId)
           .replace(routePrameter.flowNodeInstanceId, manualTaskInstanceId);
 
-      this._eventAggregator.subscribeOnce(manualTaskFinishedEvent, (message: Messages.Internal.SystemEvents.ManualTaskFinishedMessage) => {
+      this._eventAggregator.subscribeOnce(manualTaskFinishedEvent, (message: InternalManualTaskFinishedMessage) => {
         resolve();
       });
 
-      const finishManualTaskMessage: Messages.Internal.SystemEvents.FinishManualTaskMessage =
-        new Messages.Internal.SystemEvents.FinishManualTaskMessage(
-          matchingFlowNodeInstance.correlationId,
-          matchingFlowNodeInstance.processModelId,
-          matchingFlowNodeInstance.processInstanceId,
-          matchingFlowNodeInstance.id,
-          matchingFlowNodeInstance.flowNodeInstanceId,
-          identity,
-          matchingFlowNodeInstance.tokenPayload,
-        );
-
-      const finishManualTaskEvent: string = Messages.EventAggregatorSettings
-          .messagePaths.finishManualTask
-          .replace(routePrameter.correlationId, correlationId)
-          .replace(routePrameter.processInstanceId, processInstanceId)
-          .replace(routePrameter.flowNodeInstanceId, manualTaskInstanceId);
-
-      this._eventAggregator.publish(finishManualTaskEvent, finishManualTaskMessage);
+      this._publishFinishManualTaskEvent(identity, matchingManualTask);
     });
+  }
+
+  // UserTasks
+  public async getUserTasksForProcessModel(identity: IIdentity, processModelId: string): Promise<DataModels.UserTasks.UserTaskList> {
+
+    const suspendedFlowNodes: Array<FlowNodeInstance> =
+      await this._flowNodeInstanceService.querySuspendedByProcessModel(processModelId);
+
+    const userTaskList: DataModels.UserTasks.UserTaskList = await this._userTaskConverter.convertUserTasks(identity, suspendedFlowNodes);
+
+    return userTaskList;
+  }
+
+  public async getUserTasksForProcessInstance(identity: IIdentity, processInstanceId: string): Promise<DataModels.UserTasks.UserTaskList> {
+
+    const suspendedFlowNodes: Array<FlowNodeInstance> =
+      await this._flowNodeInstanceService.querySuspendedByProcessInstance(processInstanceId);
+
+    const userTaskList: DataModels.UserTasks.UserTaskList = await this._userTaskConverter.convertUserTasks(identity, suspendedFlowNodes);
+
+    return userTaskList;
+  }
+
+  public async getUserTasksForCorrelation(identity: IIdentity, correlationId: string): Promise<DataModels.UserTasks.UserTaskList> {
+
+    const suspendedFlowNodes: Array<FlowNodeInstance> =
+      await this._flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
+
+    const userTaskList: DataModels.UserTasks.UserTaskList = await this._userTaskConverter.convertUserTasks(identity, suspendedFlowNodes);
+
+    return userTaskList;
+  }
+
+  public async getUserTasksForProcessModelInCorrelation(
+    identity: IIdentity,
+    processModelId: string,
+    correlationId: string,
+  ): Promise<DataModels.UserTasks.UserTaskList> {
+
+    const flowNodeInstances: Array<FlowNodeInstance> =
+      await this._flowNodeInstanceService.queryActiveByCorrelationAndProcessModel(correlationId, processModelId);
+
+    const suspendedFlowNodeInstances: Array<FlowNodeInstance> =
+      flowNodeInstances.filter((flowNodeInstance: FlowNodeInstance) => {
+        return flowNodeInstance.state === FlowNodeInstanceState.suspended;
+      });
+
+    const noSuspendedFlowNodesFound: boolean = !suspendedFlowNodeInstances || suspendedFlowNodeInstances.length === 0;
+    if (noSuspendedFlowNodesFound) {
+      return <DataModels.UserTasks.UserTaskList> {
+        userTasks: [],
+      };
+    }
+
+    const userTaskList: DataModels.UserTasks.UserTaskList =
+      await this._userTaskConverter.convertUserTasks(identity, suspendedFlowNodeInstances);
+
+    return userTaskList;
+  }
+
+  public async getWaitingUserTasksByIdentity(identity: IIdentity): Promise<DataModels.UserTasks.UserTaskList> {
+
+    const suspendedFlowNodeInstances: Array<FlowNodeInstance> =
+      await this._flowNodeInstanceService.queryByState(FlowNodeInstanceState.suspended);
+
+    const flowNodeInstancesOwnedByUser: Array<FlowNodeInstance> =
+      suspendedFlowNodeInstances.filter((flowNodeInstance: FlowNodeInstance): boolean => {
+        return this._checkIfIdentityUserIDsMatch(identity, flowNodeInstance.owner);
+      });
+
+    const userTaskList: DataModels.UserTasks.UserTaskList =
+      await this._userTaskConverter.convertUserTasks(identity, flowNodeInstancesOwnedByUser);
+
+    return userTaskList;
+  }
+
+  public async finishUserTask(
+    identity: IIdentity,
+    processInstanceId: string,
+    correlationId: string,
+    userTaskInstanceId: string,
+    userTaskResult?: DataModels.UserTasks.UserTaskResult,
+  ): Promise<void> {
+
+    const resultForProcessEngine: any = this._createUserTaskResultForProcessEngine(userTaskResult);
+
+    const matchingFlowNodeInstance: FlowNodeInstance =
+      await this._getFlowNodeInstanceForCorrelationInProcessInstance(correlationId, processInstanceId, userTaskInstanceId);
+
+    const noMatchingInstanceFound: boolean = matchingFlowNodeInstance === undefined;
+    if (noMatchingInstanceFound) {
+      const errorMessage: string =
+        `ProcessInstance '${processInstanceId}' in Correlation '${correlationId}' does not have a UserTask with id '${userTaskInstanceId}'`;
+      throw new EssentialProjectErrors.NotFoundError(errorMessage);
+    }
+
+    const convertedUserTaskList: DataModels.UserTasks.UserTaskList =
+      await this._userTaskConverter.convertUserTasks(identity, [matchingFlowNodeInstance]);
+
+    const matchingUserTask: DataModels.UserTasks.UserTask = convertedUserTaskList.userTasks[0];
+
+    return new Promise<void>((resolve: Function, reject: Function): void => {
+
+      const userTaskFinishedEvent: string = Messages.EventAggregatorSettings.messagePaths.userTaskWithInstanceIdFinished
+        .replace(Messages.EventAggregatorSettings.messageParams.correlationId, correlationId)
+        .replace(Messages.EventAggregatorSettings.messageParams.processInstanceId, processInstanceId)
+        .replace(Messages.EventAggregatorSettings.messageParams.flowNodeInstanceId, userTaskInstanceId);
+
+      this._eventAggregator.subscribeOnce(userTaskFinishedEvent, (message: InternalUserTaskFinishedMessage) => {
+        resolve();
+      });
+
+      this._publishFinishUserTaskEvent(identity, matchingUserTask, resultForProcessEngine);
+    });
+  }
+
+  private async _getFlowNodeInstanceForCorrelationInProcessInstance(
+    correlationId: string,
+    processInstanceId: string,
+    instanceId: string,
+  ): Promise<FlowNodeInstance> {
+
+    const suspendedFlowNodeInstances: Array<FlowNodeInstance> =
+      await this._flowNodeInstanceService.querySuspendedByProcessInstance(processInstanceId);
+
+    const matchingInstance: FlowNodeInstance = suspendedFlowNodeInstances.find((instance: FlowNodeInstance) => {
+      return instance.id === instanceId &&
+             instance.correlationId === correlationId;
+    });
+
+    return matchingInstance;
   }
 
   private _createCorrelationResultFromEndEventInstance(endEventInstance: FlowNodeInstance): DataModels.CorrelationResult {
@@ -621,64 +812,6 @@ export class ConsumerApiService implements IConsumerApi {
     return flowNodeIsEvent;
   }
 
-  private async _getSuspendedUserTask(
-    identity: IIdentity,
-    correlationId: string,
-    processInstanceId: string,
-    userTaskInstanceId: string,
-  ): Promise<DataModels.UserTasks.UserTask> {
-
-    const suspendedFlowNodeInstances: Array<FlowNodeInstance> =
-      await this._flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
-
-    const userTaskList: DataModels.UserTasks.UserTaskList =
-      await this._userTaskConverter.convertUserTasks(identity, suspendedFlowNodeInstances);
-
-    const matchingUserTask: DataModels.UserTasks.UserTask =
-      userTaskList.userTasks.find((userTask: DataModels.UserTasks.UserTask): boolean => {
-        return userTask.flowNodeInstanceId === userTaskInstanceId
-          && userTask.processInstanceId === processInstanceId;
-      });
-
-    const noMatchingUserTaskFound: boolean = matchingUserTask === undefined;
-    if (noMatchingUserTaskFound) {
-      const errorMessage: string =
-        `ProcessInstance '${processInstanceId}' in Correlation '${correlationId}' does not have a UserTask with id '${userTaskInstanceId}'`;
-      throw new EssentialProjectErrors.NotFoundError(errorMessage);
-    }
-
-    return matchingUserTask;
-  }
-
-  private async _getSuspendedManualTask(
-    identity: IIdentity,
-    correlationId: string,
-    processInstanceId: string,
-    manualTaskInstanceId: string,
-  ): Promise<DataModels.ManualTasks.ManualTask> {
-
-    const suspendedFlowNodeInstances: Array<FlowNodeInstance> =
-      await this._flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
-
-    const manualTaskList: DataModels.ManualTasks.ManualTaskList =
-      await this._manualTaskConverter.convert(identity, suspendedFlowNodeInstances);
-
-    const matchingManualTask: DataModels.ManualTasks.ManualTask =
-    manualTaskList.manualTasks.find((manualTask: DataModels.ManualTasks.ManualTask): boolean => {
-        return manualTask.flowNodeInstanceId === manualTaskInstanceId
-          && manualTask.processInstanceId === processInstanceId;
-      });
-
-    const noMatchingManualTaskFound: boolean = matchingManualTask === undefined;
-    if (noMatchingManualTaskFound) {
-      const errorMessage: string =
-        `ProcessInstance '${processInstanceId}' in Correlation '${correlationId}' does not have a ManualTask with id '${manualTaskInstanceId}'`;
-      throw new EssentialProjectErrors.NotFoundError(errorMessage);
-    }
-
-    return matchingManualTask;
-  }
-
   private _createUserTaskResultForProcessEngine(finishedTask: DataModels.UserTasks.UserTaskResult): any {
 
     const noResultsProvided: boolean = !finishedTask || !finishedTask.formFields;
@@ -698,14 +831,68 @@ export class ConsumerApiService implements IConsumerApi {
     return finishedTask.formFields;
   }
 
-  private async _sendUserTaskResultToProcessEngine(
+  private _checkIfIdentityUserIDsMatch(identityA: IIdentity, identityB: IIdentity): boolean {
+    return identityA.userId === identityB.userId;
+  }
+
+  private _publishFinishEmptyActivityEvent(
+    identity: IIdentity,
+    emptyActivityInstance: DataModels.EmptyActivities.EmptyActivity,
+  ): void {
+
+    const finishEmptyActivityMessage: InternalFinishEmptyActivityMessage =
+      new InternalFinishEmptyActivityMessage(
+        emptyActivityInstance.correlationId,
+        emptyActivityInstance.processModelId,
+        emptyActivityInstance.processInstanceId,
+        emptyActivityInstance.id,
+        emptyActivityInstance.flowNodeInstanceId,
+        identity,
+        emptyActivityInstance.tokenPayload,
+      );
+
+    const finishEmptyActivityEvent: string = Messages.EventAggregatorSettings.messagePaths.finishEmptyActivity
+      .replace(Messages.EventAggregatorSettings.messageParams.correlationId, emptyActivityInstance.correlationId)
+      .replace(Messages.EventAggregatorSettings.messageParams.processInstanceId, emptyActivityInstance.processInstanceId)
+      .replace(Messages.EventAggregatorSettings.messageParams.flowNodeInstanceId, emptyActivityInstance.flowNodeInstanceId);
+
+    this._eventAggregator.publish(finishEmptyActivityEvent, finishEmptyActivityMessage);
+  }
+
+  private _publishFinishManualTaskEvent(
+    identity: IIdentity,
+    manualTaskInstance: DataModels.ManualTasks.ManualTask,
+  ): void {
+
+    // ManualTasks do not produce results.
+    const emptyPayload: any = {};
+    const finishManualTaskMessage: InternalFinishManualTaskMessage =
+      new InternalFinishManualTaskMessage(
+        manualTaskInstance.correlationId,
+        manualTaskInstance.processModelId,
+        manualTaskInstance.processInstanceId,
+        manualTaskInstance.id,
+        manualTaskInstance.flowNodeInstanceId,
+        identity,
+        emptyPayload,
+      );
+
+    const finishManualTaskEvent: string = Messages.EventAggregatorSettings.messagePaths.finishManualTask
+      .replace(Messages.EventAggregatorSettings.messageParams.correlationId, manualTaskInstance.correlationId)
+      .replace(Messages.EventAggregatorSettings.messageParams.processInstanceId, manualTaskInstance.processInstanceId)
+      .replace(Messages.EventAggregatorSettings.messageParams.flowNodeInstanceId, manualTaskInstance.flowNodeInstanceId);
+
+    this._eventAggregator.publish(finishManualTaskEvent, finishManualTaskMessage);
+  }
+
+  private _publishFinishUserTaskEvent(
     identity: IIdentity,
     userTaskInstance: DataModels.UserTasks.UserTask,
     userTaskResult: any,
-  ): Promise<void> {
+  ): void {
 
-    const finishUserTaskMessage: Messages.Internal.SystemEvents.FinishUserTaskMessage =
-      new Messages.Internal.SystemEvents.FinishUserTaskMessage(
+    const finishUserTaskMessage: InternalFinishUserTaskMessage =
+      new InternalFinishUserTaskMessage(
         userTaskResult,
         userTaskInstance.correlationId,
         userTaskInstance.processModelId,
@@ -722,9 +909,5 @@ export class ConsumerApiService implements IConsumerApi {
       .replace(Messages.EventAggregatorSettings.messageParams.flowNodeInstanceId, userTaskInstance.flowNodeInstanceId);
 
     this._eventAggregator.publish(finishUserTaskEvent, finishUserTaskMessage);
-  }
-
-  private _checkIfIdentityUserIDsMatch(identityA: IIdentity, identityB: IIdentity): boolean {
-    return identityA.userId === identityB.userId;
   }
 }
