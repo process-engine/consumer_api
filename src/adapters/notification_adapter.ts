@@ -100,7 +100,6 @@ export class NotificationAdapter {
 
     const sanitationCallback: EventReceivedCallback = (message: UserTaskReachedMessage): void => {
       const sanitizedMessage: Messages.SystemEvents.UserTaskReachedMessage = this._sanitizeInternalMessageForPublicNotification(message);
-      sanitizedMessage.userTaskResult = message.userTaskResult;
       callback(sanitizedMessage);
     };
 
@@ -133,7 +132,6 @@ export class NotificationAdapter {
       const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
       if (identitiesMatch) {
         const sanitizedMessage: Messages.SystemEvents.UserTaskReachedMessage = this._sanitizeInternalMessageForPublicNotification(message);
-        sanitizedMessage.userTaskResult = message.userTaskResult;
         callback(sanitizedMessage);
       }
     };
