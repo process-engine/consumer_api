@@ -23,7 +23,7 @@
     "@process-engine/consumer_api_contracts": "^5.1.0",
     "@process-engine/correlation.contracts": "^1.0.0",
     "@process-engine/flow_node_instance.contracts": "^1.1.0",
-    "@process-engine/process_engine_contracts": "^42.0.0",
+    "@process-engine/process_engine_contracts": "^43.0.0",
     "@process-engine/process_model.contracts": "^2.1.0",
     "bluebird": "~3.5.2",
     "bluebird-global": "~1.0.1",
