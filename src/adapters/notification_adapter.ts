@@ -4,6 +4,8 @@ import {Messages} from '@process-engine/consumer_api_contracts';
 
 import {
   BaseSystemEventMessage,
+  CallActivityFinishedMessage,
+  CallActivityReachedMessage,
   EmptyActivityFinishedMessage,
   EmptyActivityReachedMessage,
   EndEventReachedMessage,
@@ -228,6 +230,38 @@ export class NotificationAdapter {
         const sanitizedMessage = this.sanitizeMessage(message);
         callback(sanitizedMessage);
       }
+    };
+
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
+  }
+
+  public onCallActivityWaiting(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnCallActivityWaitingCallback,
+    subscribeOnce: boolean,
+  ): Subscription {
+
+    const eventName: string = Messages.EventAggregatorSettings.messagePaths.callActivityReached;
+
+    const sanitationCallback: EventReceivedCallback = (message: CallActivityReachedMessage): void => {
+      const sanitizedMessage = this.sanitizeMessage(message);
+      callback(sanitizedMessage);
+    };
+
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
+  }
+
+  public onCallActivityFinished(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnCallActivityFinishedCallback,
+    subscribeOnce: boolean,
+  ): Subscription {
+
+    const eventName: string = Messages.EventAggregatorSettings.messagePaths.callActivityFinished;
+
+    const sanitationCallback: EventReceivedCallback = (message: CallActivityFinishedMessage): void => {
+      const sanitizedMessage = this.sanitizeMessage(message);
+      callback(sanitizedMessage);
     };
 
     return this.createSubscription(eventName, sanitationCallback, subscribeOnce);

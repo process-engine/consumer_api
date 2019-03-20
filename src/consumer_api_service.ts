@@ -166,6 +166,26 @@ export class ConsumerApiService implements IConsumerApi {
     return this.notificationAdapter.onUserTaskForIdentityFinished(identity, callback, subscribeOnce);
   }
 
+  public async onCallActivityWaiting(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnCallActivityWaitingCallback,
+    subscribeOnce: boolean = false,
+  ): Promise<Subscription> {
+    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
+
+    return this._notificationAdapter.onCallActivityWaiting(identity, callback, subscribeOnce);
+  }
+
+  public async onCallActivityFinished(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnCallActivityFinishedCallback,
+    subscribeOnce: boolean = false,
+  ): Promise<Subscription> {
+    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
+
+    return this._notificationAdapter.onCallActivityFinished(identity, callback, subscribeOnce);
+  }
+
   public async onManualTaskWaiting(
     identity: IIdentity,
     callback: Messages.CallbackTypes.OnManualTaskWaitingCallback,
