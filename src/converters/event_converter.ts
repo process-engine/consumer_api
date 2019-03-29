@@ -86,7 +86,7 @@ export class EventConverter {
     const correlationForProcessInstance: Correlation = await this._correlationService.getByProcessInstanceId(identity, processInstanceId);
 
     // Note that ProcessInstances will only ever have one processModel and therefore only one hash attached to them.
-    return correlationForProcessInstance.processModels[0].hash;
+    return correlationForProcessInstance.processInstances[0].hash;
   }
 
   private _convertToConsumerApiEvent(flowNodeModel: Model.Events.Event, suspendedFlowNode: FlowNodeInstance): DataModels.Events.Event {
