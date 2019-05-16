@@ -20,7 +20,7 @@
   "homepage": "https://github.com/process-engine/consumer_api#readme",
   "dependencies": {
     "@essential-projects/errors_ts": "^1.4.0",
-    "@process-engine/consumer_api_contracts": "^5.1.0",
+    "@process-engine/consumer_api_contracts": "feature~change_to_eslint_and_tsc",
     "@process-engine/correlation.contracts": "^2.0.0",
     "@process-engine/flow_node_instance.contracts": "^1.1.0",
     "@process-engine/process_engine_contracts": "^43.0.0",
