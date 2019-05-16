@@ -11,6 +11,8 @@ import {
   EmptyActivityFinishedMessage,
   EmptyActivityReachedMessage,
   EndEventReachedMessage,
+  IntermediateEventFinishedMessage,
+  IntermediateEventReachedMessage,
   ManualTaskFinishedMessage,
   ManualTaskReachedMessage,
   ProcessStartedMessage,
@@ -295,6 +297,38 @@ export class NotificationAdapter {
 
     const sanitationCallback: EventReceivedCallback = (message: BoundaryEventFinishedMessage): void => {
       const sanitizedMessage: Messages.SystemEvents.BoundaryEventFinishedMessage = this._sanitizeInternalMessageForPublicNotification(message);
+      callback(sanitizedMessage);
+    };
+
+    return this._createSubscription(eventName, sanitationCallback, subscribeOnce);
+  }
+
+  public onIntermediateEventWaiting(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnIntermediateEventWaitingCallback,
+    subscribeOnce: boolean,
+  ): Subscription {
+
+    const eventName: string = Messages.EventAggregatorSettings.messagePaths.intermediateEventReached;
+
+    const sanitationCallback: EventReceivedCallback = (message: IntermediateEventReachedMessage): void => {
+      const sanitizedMessage: Messages.SystemEvents.IntermediateEventReachedMessage = this._sanitizeInternalMessageForPublicNotification(message);
+      callback(sanitizedMessage);
+    };
+
+    return this._createSubscription(eventName, sanitationCallback, subscribeOnce);
+  }
+
+  public onIntermediateEventFinished(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnIntermediateEventFinishedCallback,
+    subscribeOnce: boolean,
+  ): Subscription {
+
+    const eventName: string = Messages.EventAggregatorSettings.messagePaths.intermediateEventFinished;
+
+    const sanitationCallback: EventReceivedCallback = (message: IntermediateEventFinishedMessage): void => {
+      const sanitizedMessage: Messages.SystemEvents.IntermediateEventFinishedMessage = this._sanitizeInternalMessageForPublicNotification(message);
       callback(sanitizedMessage);
     };
 

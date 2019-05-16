@@ -186,6 +186,26 @@ export class ConsumerApiService implements IConsumerApi {
     return this._notificationAdapter.onBoundaryEventWaiting(identity, callback, subscribeOnce);
   }
 
+  public async onIntermediateEventFinished(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnIntermediateEventFinishedCallback,
+    subscribeOnce: boolean = false,
+  ): Promise<Subscription> {
+    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
+
+    return this._notificationAdapter.onIntermediateEventFinished(identity, callback, subscribeOnce);
+  }
+
+  public async onIntermediateEventWaiting(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnIntermediateEventWaitingCallback,
+    subscribeOnce: boolean = false,
+  ): Promise<Subscription> {
+    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
+
+    return this._notificationAdapter.onIntermediateEventWaiting(identity, callback, subscribeOnce);
+  }
+
   public async onCallActivityWaiting(
     identity: IIdentity,
     callback: Messages.CallbackTypes.OnCallActivityWaitingCallback,
