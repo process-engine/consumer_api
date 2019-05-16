@@ -22,10 +22,10 @@ export interface IProcessModelExecutionAdapter {
 
 export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapter {
 
-  private readonly _executeProcessService: IExecuteProcessService;
+  private readonly executeProcessService: IExecuteProcessService;
 
   constructor(executeProcessService: IExecuteProcessService) {
-    this._executeProcessService = executeProcessService;
+    this.executeProcessService = executeProcessService;
   }
 
   public async startProcessInstance(
@@ -37,25 +37,27 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
     endEventId?: string,
   ): Promise<DataModels.ProcessModels.ProcessStartResponsePayload> {
 
-    const useDefaultStartCallbackType: boolean = startCallbackType === undefined;
+    let startCallbackTypeToUse = startCallbackType;
+
+    const useDefaultStartCallbackType: boolean = startCallbackTypeToUse === undefined;
     if (useDefaultStartCallbackType) {
-      startCallbackType = DataModels.ProcessModels.StartCallbackType.CallbackOnProcessInstanceCreated;
+      startCallbackTypeToUse = DataModels.ProcessModels.StartCallbackType.CallbackOnProcessInstanceCreated;
     }
 
-    if (!Object.values(DataModels.ProcessModels.StartCallbackType).includes(startCallbackType)) {
-      throw new EssentialProjectErrors.BadRequestError(`${startCallbackType} is not a valid return option!`);
+    if (!Object.values(DataModels.ProcessModels.StartCallbackType).includes(startCallbackTypeToUse)) {
+      throw new EssentialProjectErrors.BadRequestError(`${startCallbackTypeToUse} is not a valid return option!`);
     }
 
     const correlationId: string = payload.correlationId || uuid.v4();
 
     // Execution of the ProcessModel will still be done with the requesting users identity.
     const response: DataModels.ProcessModels.ProcessStartResponsePayload =
-      await this._startProcessInstance(identity, correlationId, processModelId, startEventId, payload, startCallbackType, endEventId);
+      await this.executeProcessInstance(identity, correlationId, processModelId, startEventId, payload, startCallbackTypeToUse, endEventId);
 
     return response;
   }
 
-  private async _startProcessInstance(
+  private async executeProcessInstance(
     identity: IIdentity,
     correlationId: string,
     processModelId: string,
@@ -74,7 +76,7 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
     const resolveImmediatelyAfterStart: boolean = startCallbackType === DataModels.ProcessModels.StartCallbackType.CallbackOnProcessInstanceCreated;
     if (resolveImmediatelyAfterStart) {
       const startResult: ProcessStartedMessage =
-        await this._executeProcessService.start(identity, processModelId, correlationId, startEventId, payload.inputValues, payload.callerId);
+        await this.executeProcessService.start(identity, processModelId, correlationId, startEventId, payload.inputValues, payload.callerId);
 
       response.processInstanceId = startResult.processInstanceId;
 
@@ -88,7 +90,7 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
     if (resolveAfterReachingSpecificEndEvent) {
 
       processEndedMessage = await this
-        ._executeProcessService
+        .executeProcessService
         .startAndAwaitSpecificEndEvent(identity, processModelId, correlationId, endEventId, startEventId, payload.inputValues, payload.callerId);
 
       response.endEventId = processEndedMessage.flowNodeId;
@@ -100,7 +102,7 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
 
     // Start the process instance and wait for the first end event result
     processEndedMessage = await this
-      ._executeProcessService
+      .executeProcessService
       .startAndAwaitEndEvent(identity, processModelId, correlationId, startEventId, payload.inputValues, payload.callerId);
 
     response.endEventId = processEndedMessage.flowNodeId;
@@ -109,4 +111,5 @@ export class ProcessModelExecutionAdapter implements IProcessModelExecutionAdapt
 
     return response;
   }
+
 }
