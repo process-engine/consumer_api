@@ -4,6 +4,8 @@ import {Messages} from '@process-engine/consumer_api_contracts';
 
 import {
   BaseSystemEventMessage,
+  BoundaryEventFinishedMessage,
+  BoundaryEventReachedMessage,
   CallActivityFinishedMessage,
   CallActivityReachedMessage,
   EmptyActivityFinishedMessage,
@@ -265,6 +267,38 @@ export class NotificationAdapter {
     };
 
     return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
+  }
+
+  public onBoundaryEventWaiting(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnBoundaryEventWaitingCallback,
+    subscribeOnce: boolean,
+  ): Subscription {
+
+    const eventName: string = Messages.EventAggregatorSettings.messagePaths.boundaryEventReached;
+
+    const sanitationCallback: EventReceivedCallback = (message: BoundaryEventReachedMessage): void => {
+      const sanitizedMessage: Messages.SystemEvents.BoundaryEventReachedMessage = this._sanitizeInternalMessageForPublicNotification(message);
+      callback(sanitizedMessage);
+    };
+
+    return this._createSubscription(eventName, sanitationCallback, subscribeOnce);
+  }
+
+  public onBoundaryEventFinished(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnBoundaryEventFinishedCallback,
+    subscribeOnce: boolean,
+  ): Subscription {
+
+    const eventName: string = Messages.EventAggregatorSettings.messagePaths.boundaryEventFinished;
+
+    const sanitationCallback: EventReceivedCallback = (message: BoundaryEventFinishedMessage): void => {
+      const sanitizedMessage: Messages.SystemEvents.BoundaryEventFinishedMessage = this._sanitizeInternalMessageForPublicNotification(message);
+      callback(sanitizedMessage);
+    };
+
+    return this._createSubscription(eventName, sanitationCallback, subscribeOnce);
   }
 
   public onProcessStarted(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessStartedCallback, subscribeOnce: boolean): Subscription {
