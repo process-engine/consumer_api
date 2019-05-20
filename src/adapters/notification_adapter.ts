@@ -3,6 +3,7 @@ import {IIdentity} from '@essential-projects/iam_contracts';
 import {Messages} from '@process-engine/consumer_api_contracts';
 
 import {
+  BaseSystemEventMessage,
   EmptyActivityFinishedMessage,
   EmptyActivityReachedMessage,
   EndEventReachedMessage,
@@ -16,10 +17,10 @@ import {
 
 export class NotificationAdapter {
 
-  private readonly _eventAggregator: IEventAggregator;
+  private readonly eventAggregator: IEventAggregator;
 
   constructor(eventAggregator: IEventAggregator) {
-    this._eventAggregator = eventAggregator;
+    this.eventAggregator = eventAggregator;
   }
 
   public onEmptyActivityWaiting(
@@ -28,14 +29,14 @@ export class NotificationAdapter {
     subscribeOnce: boolean,
   ): Subscription {
 
-    const eventName: string = Messages.EventAggregatorSettings.messagePaths.emptyActivityReached;
+    const eventName = Messages.EventAggregatorSettings.messagePaths.emptyActivityReached;
 
-    const sanitationCallback: EventReceivedCallback = (message: EmptyActivityReachedMessage): void => {
-      const sanitizedMessage: Messages.SystemEvents.EmptyActivityReachedMessage = this._sanitizeInternalMessageForPublicNotification(message);
+    const sanitationCallback = (message: EmptyActivityReachedMessage): void => {
+      const sanitizedMessage = this.sanitizeMessage(message);
       callback(sanitizedMessage);
     };
 
-    return this._createSubscription(eventName, sanitationCallback, subscribeOnce);
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
   }
 
   public onEmptyActivityFinished(
@@ -44,14 +45,14 @@ export class NotificationAdapter {
     subscribeOnce: boolean,
   ): Subscription {
 
-    const eventName: string = Messages.EventAggregatorSettings.messagePaths.emptyActivityFinished;
+    const eventName = Messages.EventAggregatorSettings.messagePaths.emptyActivityFinished;
 
-    const sanitationCallback: EventReceivedCallback = (message: EmptyActivityFinishedMessage): void => {
-      const sanitizedMessage: Messages.SystemEvents.EmptyActivityFinishedMessage = this._sanitizeInternalMessageForPublicNotification(message);
+    const sanitationCallback = (message: EmptyActivityFinishedMessage): void => {
+      const sanitizedMessage = this.sanitizeMessage(message);
       callback(sanitizedMessage);
     };
 
-    return this._createSubscription(eventName, sanitationCallback, subscribeOnce);
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
   }
 
   public onEmptyActivityForIdentityWaiting(
@@ -60,18 +61,18 @@ export class NotificationAdapter {
     subscribeOnce: boolean,
   ): Subscription {
 
-    const eventName: string = Messages.EventAggregatorSettings.messagePaths.emptyActivityReached;
+    const eventName = Messages.EventAggregatorSettings.messagePaths.emptyActivityReached;
 
-    const sanitationCallback: EventReceivedCallback = (message: EmptyActivityReachedMessage): void => {
+    const sanitationCallback = (message: EmptyActivityReachedMessage): void => {
 
-      const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
+      const identitiesMatch = this.checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
       if (identitiesMatch) {
-        const sanitizedMessage: Messages.SystemEvents.EmptyActivityReachedMessage = this._sanitizeInternalMessageForPublicNotification(message);
+        const sanitizedMessage = this.sanitizeMessage(message);
         callback(sanitizedMessage);
       }
     };
 
-    return this._createSubscription(eventName, sanitationCallback, subscribeOnce);
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
   }
 
   public onEmptyActivityForIdentityFinished(
@@ -80,43 +81,43 @@ export class NotificationAdapter {
     subscribeOnce: boolean,
   ): Subscription {
 
-    const eventName: string = Messages.EventAggregatorSettings.messagePaths.emptyActivityFinished;
+    const eventName = Messages.EventAggregatorSettings.messagePaths.emptyActivityFinished;
 
-    const sanitationCallback: EventReceivedCallback = (message: EmptyActivityFinishedMessage): void => {
+    const sanitationCallback = (message: EmptyActivityFinishedMessage): void => {
 
-      const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
+      const identitiesMatch = this.checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
       if (identitiesMatch) {
-        const sanitizedMessage: Messages.SystemEvents.EmptyActivityReachedMessage = this._sanitizeInternalMessageForPublicNotification(message);
+        const sanitizedMessage = this.sanitizeMessage(message);
         callback(sanitizedMessage);
       }
     };
 
-    return this._createSubscription(eventName, sanitationCallback, subscribeOnce);
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
   }
 
   public onUserTaskWaiting(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskWaitingCallback, subscribeOnce: boolean): Subscription {
 
-    const eventName: string = Messages.EventAggregatorSettings.messagePaths.userTaskReached;
+    const eventName = Messages.EventAggregatorSettings.messagePaths.userTaskReached;
 
-    const sanitationCallback: EventReceivedCallback = (message: UserTaskReachedMessage): void => {
-      const sanitizedMessage: Messages.SystemEvents.UserTaskReachedMessage = this._sanitizeInternalMessageForPublicNotification(message);
+    const sanitationCallback = (message: UserTaskReachedMessage): void => {
+      const sanitizedMessage = this.sanitizeMessage(message);
       callback(sanitizedMessage);
     };
 
-    return this._createSubscription(eventName, sanitationCallback, subscribeOnce);
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
   }
 
   public onUserTaskFinished(identity: IIdentity, callback: Messages.CallbackTypes.OnUserTaskFinishedCallback, subscribeOnce: boolean): Subscription {
 
-    const eventName: string = Messages.EventAggregatorSettings.messagePaths.userTaskFinished;
+    const eventName = Messages.EventAggregatorSettings.messagePaths.userTaskFinished;
 
-    const sanitationCallback: EventReceivedCallback = (message: UserTaskFinishedMessage): void => {
-      const sanitizedMessage: Messages.SystemEvents.UserTaskFinishedMessage = this._sanitizeInternalMessageForPublicNotification(message);
+    const sanitationCallback = (message: UserTaskFinishedMessage): void => {
+      const sanitizedMessage = this.sanitizeMessage<Messages.SystemEvents.UserTaskFinishedMessage>(message);
       sanitizedMessage.userTaskResult = message.userTaskResult;
       callback(sanitizedMessage);
     };
 
-    return this._createSubscription(eventName, sanitationCallback, subscribeOnce);
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
   }
 
   public onUserTaskForIdentityWaiting(
@@ -125,18 +126,18 @@ export class NotificationAdapter {
     subscribeOnce: boolean,
   ): Subscription {
 
-    const eventName: string = Messages.EventAggregatorSettings.messagePaths.userTaskReached;
+    const eventName = Messages.EventAggregatorSettings.messagePaths.userTaskReached;
 
-    const sanitationCallback: EventReceivedCallback = (message: UserTaskReachedMessage): void => {
+    const sanitationCallback = (message: UserTaskReachedMessage): void => {
 
-      const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
+      const identitiesMatch = this.checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
       if (identitiesMatch) {
-        const sanitizedMessage: Messages.SystemEvents.UserTaskReachedMessage = this._sanitizeInternalMessageForPublicNotification(message);
+        const sanitizedMessage = this.sanitizeMessage(message);
         callback(sanitizedMessage);
       }
     };
 
-    return this._createSubscription(eventName, sanitationCallback, subscribeOnce);
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
   }
 
   public onUserTaskForIdentityFinished(
@@ -145,19 +146,19 @@ export class NotificationAdapter {
     subscribeOnce: boolean,
   ): Subscription {
 
-    const eventName: string = Messages.EventAggregatorSettings.messagePaths.userTaskFinished;
+    const eventName = Messages.EventAggregatorSettings.messagePaths.userTaskFinished;
 
-    const sanitationCallback: EventReceivedCallback = (message: UserTaskFinishedMessage): void => {
+    const sanitationCallback = (message: UserTaskFinishedMessage): void => {
 
-      const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
+      const identitiesMatch = this.checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
       if (identitiesMatch) {
-        const sanitizedMessage: Messages.SystemEvents.UserTaskFinishedMessage = this._sanitizeInternalMessageForPublicNotification(message);
+        const sanitizedMessage = this.sanitizeMessage<Messages.SystemEvents.UserTaskFinishedMessage>(message);
         sanitizedMessage.userTaskResult = message.userTaskResult;
         callback(sanitizedMessage);
       }
     };
 
-    return this._createSubscription(eventName, sanitationCallback, subscribeOnce);
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
   }
 
   public onManualTaskWaiting(
@@ -166,14 +167,14 @@ export class NotificationAdapter {
     subscribeOnce: boolean,
   ): Subscription {
 
-    const eventName: string = Messages.EventAggregatorSettings.messagePaths.manualTaskReached;
+    const eventName = Messages.EventAggregatorSettings.messagePaths.manualTaskReached;
 
-    const sanitationCallback: EventReceivedCallback = (message: ManualTaskReachedMessage): void => {
-      const sanitizedMessage: Messages.SystemEvents.ManualTaskReachedMessage = this._sanitizeInternalMessageForPublicNotification(message);
+    const sanitationCallback = (message: ManualTaskReachedMessage): void => {
+      const sanitizedMessage = this.sanitizeMessage(message);
       callback(sanitizedMessage);
     };
 
-    return this._createSubscription(eventName, sanitationCallback, subscribeOnce);
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
   }
 
   public onManualTaskFinished(
@@ -182,14 +183,14 @@ export class NotificationAdapter {
     subscribeOnce: boolean,
   ): Subscription {
 
-    const eventName: string = Messages.EventAggregatorSettings.messagePaths.manualTaskFinished;
+    const eventName = Messages.EventAggregatorSettings.messagePaths.manualTaskFinished;
 
-    const sanitationCallback: EventReceivedCallback = (message: ManualTaskFinishedMessage): void => {
-      const sanitizedMessage: Messages.SystemEvents.ManualTaskFinishedMessage = this._sanitizeInternalMessageForPublicNotification(message);
+    const sanitationCallback = (message: ManualTaskFinishedMessage): void => {
+      const sanitizedMessage = this.sanitizeMessage(message);
       callback(sanitizedMessage);
     };
 
-    return this._createSubscription(eventName, sanitationCallback, subscribeOnce);
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
   }
 
   public onManualTaskForIdentityWaiting(
@@ -198,18 +199,18 @@ export class NotificationAdapter {
     subscribeOnce: boolean,
   ): Subscription {
 
-    const eventName: string = Messages.EventAggregatorSettings.messagePaths.manualTaskReached;
+    const eventName = Messages.EventAggregatorSettings.messagePaths.manualTaskReached;
 
-    const sanitationCallback: EventReceivedCallback = (message: ManualTaskReachedMessage): void => {
+    const sanitationCallback = (message: ManualTaskReachedMessage): void => {
 
-      const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
+      const identitiesMatch = this.checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
       if (identitiesMatch) {
-        const sanitizedMessage: Messages.SystemEvents.ManualTaskReachedMessage = this._sanitizeInternalMessageForPublicNotification(message);
+        const sanitizedMessage = this.sanitizeMessage(message);
         callback(sanitizedMessage);
       }
     };
 
-    return this._createSubscription(eventName, sanitationCallback, subscribeOnce);
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
   }
 
   public onManualTaskForIdentityFinished(
@@ -218,30 +219,30 @@ export class NotificationAdapter {
     subscribeOnce: boolean,
   ): Subscription {
 
-    const eventName: string = Messages.EventAggregatorSettings.messagePaths.manualTaskFinished;
+    const eventName = Messages.EventAggregatorSettings.messagePaths.manualTaskFinished;
 
-    const sanitationCallback: EventReceivedCallback = (message: ManualTaskFinishedMessage): void => {
+    const sanitationCallback = (message: ManualTaskFinishedMessage): void => {
 
-      const identitiesMatch: boolean = this._checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
+      const identitiesMatch = this.checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
       if (identitiesMatch) {
-        const sanitizedMessage: Messages.SystemEvents.ManualTaskReachedMessage = this._sanitizeInternalMessageForPublicNotification(message);
+        const sanitizedMessage = this.sanitizeMessage(message);
         callback(sanitizedMessage);
       }
     };
 
-    return this._createSubscription(eventName, sanitationCallback, subscribeOnce);
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
   }
 
   public onProcessStarted(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessStartedCallback, subscribeOnce: boolean): Subscription {
 
-    const eventName: string = Messages.EventAggregatorSettings.messagePaths.processStarted;
+    const eventName = Messages.EventAggregatorSettings.messagePaths.processStarted;
 
-    const sanitationCallback: EventReceivedCallback = (message: ProcessStartedMessage): void => {
-      const sanitizedMessage: Messages.SystemEvents.ProcessStartedMessage = this._sanitizeInternalMessageForPublicNotification(message);
+    const sanitationCallback = (message: ProcessStartedMessage): void => {
+      const sanitizedMessage = this.sanitizeMessage(message);
       callback(sanitizedMessage);
     };
 
-    return this._createSubscription(eventName, sanitationCallback, subscribeOnce);
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
   }
 
   public onProcessWithProcessModelIdStarted(
@@ -251,32 +252,32 @@ export class NotificationAdapter {
     subscribeOnce: boolean,
   ): Subscription {
 
-    const eventName: string = Messages.EventAggregatorSettings.messagePaths.processStarted;
+    const eventName = Messages.EventAggregatorSettings.messagePaths.processStarted;
 
-    const sanitationCallback: EventReceivedCallback = (message: ProcessStartedMessage): void => {
+    const sanitationCallback = (message: ProcessStartedMessage): void => {
 
-      const processModelIdsDoNotMatch: boolean = message.processModelId !== processModelId;
+      const processModelIdsDoNotMatch = message.processModelId !== processModelId;
       if (processModelIdsDoNotMatch) {
         return;
       }
 
-      const sanitizedMessage: Messages.SystemEvents.ProcessStartedMessage = this._sanitizeInternalMessageForPublicNotification(message);
+      const sanitizedMessage = this.sanitizeMessage(message);
       callback(sanitizedMessage);
     };
 
-    return this._createSubscription(eventName, sanitationCallback, subscribeOnce);
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
   }
 
   public onProcessEnded(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessEndedCallback, subscribeOnce: boolean): Subscription {
 
-    const eventName: string = Messages.EventAggregatorSettings.messagePaths.processEnded;
+    const eventName = Messages.EventAggregatorSettings.messagePaths.processEnded;
 
-    const sanitationCallback: EventReceivedCallback = (message: EndEventReachedMessage): void => {
-      const sanitizedMessage: Messages.BpmnEvents.EndEventReachedMessage = this._sanitizeInternalMessageForPublicNotification(message);
+    const sanitationCallback = (message: EndEventReachedMessage): void => {
+      const sanitizedMessage = this.sanitizeMessage(message);
       callback(sanitizedMessage);
     };
 
-    return this._createSubscription(eventName, sanitationCallback, subscribeOnce);
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
   }
 
   public onProcessTerminated(
@@ -285,37 +286,36 @@ export class NotificationAdapter {
     subscribeOnce: boolean,
   ): Subscription {
 
-    const eventName: string = Messages.EventAggregatorSettings.messagePaths.processTerminated;
+    const eventName = Messages.EventAggregatorSettings.messagePaths.processTerminated;
 
-    const sanitationCallback: EventReceivedCallback = (message: TerminateEndEventReachedMessage): void => {
-      const sanitizedMessage: Messages.BpmnEvents.TerminateEndEventReachedMessage =
-        this._sanitizeInternalMessageForPublicNotification(message);
+    const sanitationCallback = (message: TerminateEndEventReachedMessage): void => {
+      const sanitizedMessage = this.sanitizeMessage(message);
       callback(sanitizedMessage);
     };
 
-    return this._createSubscription(eventName, sanitationCallback, subscribeOnce);
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
   }
 
   public removeSubscription(subscription: Subscription): void {
-    this._eventAggregator.unsubscribe(subscription);
+    this.eventAggregator.unsubscribe(subscription);
   }
 
-  private _createSubscription(eventName: string, callback: EventReceivedCallback, subscribeOnce: boolean): Subscription {
+  private createSubscription(eventName: string, callback: EventReceivedCallback, subscribeOnce: boolean): Subscription {
 
     if (subscribeOnce) {
-      return this._eventAggregator.subscribeOnce(eventName, callback);
+      return this.eventAggregator.subscribeOnce(eventName, callback);
     }
 
-    return this._eventAggregator.subscribe(eventName, callback);
+    return this.eventAggregator.subscribe(eventName, callback);
   }
 
-  private _checkIfIdentityUserIDsMatch(identityA: IIdentity, identityB: IIdentity): boolean {
+  private checkIfIdentityUserIDsMatch(identityA: IIdentity, identityB: IIdentity): boolean {
     return identityA.userId === identityB.userId;
   }
 
-  private _sanitizeInternalMessageForPublicNotification<TPublic extends Messages.BaseEventMessage>(internalMesage: any): TPublic {
+  private sanitizeMessage<TPublic extends Messages.BaseEventMessage>(internalMesage: BaseSystemEventMessage): TPublic {
 
-    const sanitizedMessage: Messages.BaseEventMessage = new Messages.BaseEventMessage(
+    const sanitizedMessage = new Messages.BaseEventMessage(
       internalMesage.correlationId,
       internalMesage.processModelId,
       internalMesage.processInstanceId,
@@ -326,4 +326,5 @@ export class NotificationAdapter {
 
     return <TPublic> sanitizedMessage;
   }
+
 }
