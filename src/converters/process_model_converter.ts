@@ -1,21 +1,21 @@
 import {DataModels} from '@process-engine/consumer_api_contracts';
-import {IProcessModelFacade, IProcessModelFacadeFactory} from '@process-engine/process_engine_contracts';
+import {IProcessModelFacadeFactory} from '@process-engine/process_engine_contracts';
 import {Model} from '@process-engine/process_model.contracts';
 
 export class ProcessModelConverter {
 
-  private _processModelFacadeFactory: IProcessModelFacadeFactory;
+  private processModelFacadeFactory: IProcessModelFacadeFactory;
 
   constructor(processModelFacadeFactory: IProcessModelFacadeFactory) {
-    this._processModelFacadeFactory = processModelFacadeFactory;
+    this.processModelFacadeFactory = processModelFacadeFactory;
   }
 
   public convertProcessModel(processModel: Model.Process): DataModels.ProcessModels.ProcessModel {
 
-    const processModelFacade: IProcessModelFacade = this._processModelFacadeFactory.create(processModel);
+    const processModelFacade = this.processModelFacadeFactory.create(processModel);
 
     function consumerApiEventConverter(event: Model.Events.Event): DataModels.Events.Event {
-      const consumerApiEvent: DataModels.Events.Event = new DataModels.Events.Event();
+      const consumerApiEvent = new DataModels.Events.Event();
       consumerApiEvent.id = event.id;
 
       return consumerApiEvent;
@@ -24,13 +24,13 @@ export class ProcessModelConverter {
     let consumerApiStartEvents: Array<DataModels.Events.Event> = [];
     let consumerApiEndEvents: Array<DataModels.Events.Event> = [];
 
-    const processModelIsExecutable: boolean = processModelFacade.getIsExecutable();
+    const processModelIsExecutable = processModelFacade.getIsExecutable();
 
     if (processModelIsExecutable) {
-      const startEvents: Array<Model.Events.StartEvent> = processModelFacade.getStartEvents();
+      const startEvents = processModelFacade.getStartEvents();
       consumerApiStartEvents = startEvents.map(consumerApiEventConverter);
 
-      const endEvents: Array<Model.Events.EndEvent> = processModelFacade.getEndEvents();
+      const endEvents = processModelFacade.getEndEvents();
       consumerApiEndEvents = endEvents.map(consumerApiEventConverter);
     }
 

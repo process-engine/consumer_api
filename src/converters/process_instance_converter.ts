@@ -9,22 +9,24 @@ export class ProcessInstanceConverter {
 
     for (const flowNodeInstance of flowNodeInstances) {
 
-      const processInstanceListHasNoMatchingEntry: boolean =
+      const processInstanceListHasNoMatchingEntry =
         !activeProcessInstances.some((entry: DataModels.ProcessInstance): boolean => {
           return entry.id === flowNodeInstance.processInstanceId;
         });
 
       if (processInstanceListHasNoMatchingEntry) {
-        const processInstance: DataModels.ProcessInstance =
-          new DataModels.ProcessInstance(flowNodeInstance.processInstanceId,
-                                         flowNodeInstance.processModelId,
-                                         flowNodeInstance.correlationId,
-                                         flowNodeInstance.owner,
-                                         flowNodeInstance.parentProcessInstanceId);
+        const processInstance = new DataModels.ProcessInstance(
+          flowNodeInstance.processInstanceId,
+          flowNodeInstance.processModelId,
+          flowNodeInstance.correlationId,
+          flowNodeInstance.owner,
+          flowNodeInstance.parentProcessInstanceId,
+        );
         activeProcessInstances.push(processInstance);
       }
     }
 
     return activeProcessInstances;
   }
+
 }
