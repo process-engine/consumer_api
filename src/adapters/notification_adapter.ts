@@ -4,8 +4,6 @@ import {Messages} from '@process-engine/consumer_api_contracts';
 
 import {
   BaseSystemEventMessage,
-  BoundaryEventFinishedMessage,
-  BoundaryEventReachedMessage,
   BoundaryEventTriggeredMessage,
   CallActivityFinishedMessage,
   CallActivityReachedMessage,

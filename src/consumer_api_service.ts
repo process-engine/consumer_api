@@ -171,9 +171,9 @@ export class ConsumerApiService implements IConsumerApi {
     callback: Messages.CallbackTypes.OnBoundaryEventTriggeredCallback,
     subscribeOnce: boolean = false,
   ): Promise<Subscription> {
-    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
+    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
 
-    return this._notificationAdapter.onBoundaryEventTriggered(identity, callback, subscribeOnce);
+    return this.notificationAdapter.onBoundaryEventTriggered(identity, callback, subscribeOnce);
   }
 
   public async onIntermediateCatchEventFinished(
@@ -181,9 +181,9 @@ export class ConsumerApiService implements IConsumerApi {
     callback: Messages.CallbackTypes.OnIntermediateCatchEventFinishedCallback,
     subscribeOnce: boolean = false,
   ): Promise<Subscription> {
-    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
+    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
 
-    return this._notificationAdapter.onIntermediateCatchEventFinished(identity, callback, subscribeOnce);
+    return this.notificationAdapter.onIntermediateCatchEventFinished(identity, callback, subscribeOnce);
   }
 
   public async onIntermediateEventTriggered(
@@ -191,9 +191,9 @@ export class ConsumerApiService implements IConsumerApi {
     callback: Messages.CallbackTypes.OnIntermediateEventTriggeredCallback,
     subscribeOnce: boolean = false,
   ): Promise<Subscription> {
-    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
+    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
 
-    return this._notificationAdapter.onIntermediateEventTriggered(identity, callback, subscribeOnce);
+    return this.notificationAdapter.onIntermediateEventTriggered(identity, callback, subscribeOnce);
   }
 
   public async onCallActivityWaiting(
@@ -201,9 +201,9 @@ export class ConsumerApiService implements IConsumerApi {
     callback: Messages.CallbackTypes.OnCallActivityWaitingCallback,
     subscribeOnce: boolean = false,
   ): Promise<Subscription> {
-    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
+    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
 
-    return this._notificationAdapter.onCallActivityWaiting(identity, callback, subscribeOnce);
+    return this.notificationAdapter.onCallActivityWaiting(identity, callback, subscribeOnce);
   }
 
   public async onCallActivityFinished(
@@ -211,9 +211,9 @@ export class ConsumerApiService implements IConsumerApi {
     callback: Messages.CallbackTypes.OnCallActivityFinishedCallback,
     subscribeOnce: boolean = false,
   ): Promise<Subscription> {
-    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
+    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
 
-    return this._notificationAdapter.onCallActivityFinished(identity, callback, subscribeOnce);
+    return this.notificationAdapter.onCallActivityFinished(identity, callback, subscribeOnce);
   }
 
   public async onManualTaskWaiting(
