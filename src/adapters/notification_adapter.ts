@@ -281,11 +281,11 @@ export class NotificationAdapter {
     const eventName: string = Messages.EventAggregatorSettings.messagePaths.boundaryEventTriggered;
 
     const sanitationCallback: EventReceivedCallback = (message: BoundaryEventTriggeredMessage): void => {
-      const sanitizedMessage: Messages.SystemEvents.BoundaryEventTriggeredMessage = this._sanitizeInternalMessageForPublicNotification(message);
+      const sanitizedMessage = this.sanitizeMessage(message);
       callback(sanitizedMessage);
     };
 
-    return this._createSubscription(eventName, sanitationCallback, subscribeOnce);
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
   }
 
   public onIntermediateEventTriggered(
@@ -297,11 +297,11 @@ export class NotificationAdapter {
     const eventName: string = Messages.EventAggregatorSettings.messagePaths.intermediateEventTriggered;
 
     const sanitationCallback: EventReceivedCallback = (message: IntermediateEventTriggeredMessage): void => {
-      const sanitizedMessage: Messages.SystemEvents.IntermediateEventTriggeredMessage = this._sanitizeInternalMessageForPublicNotification(message);
+      const sanitizedMessage = this.sanitizeMessage(message);
       callback(sanitizedMessage);
     };
 
-    return this._createSubscription(eventName, sanitationCallback, subscribeOnce);
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
   }
 
   public onIntermediateCatchEventFinished(
@@ -313,12 +313,11 @@ export class NotificationAdapter {
     const eventName: string = Messages.EventAggregatorSettings.messagePaths.intermediateCatchEventFinished;
 
     const sanitationCallback: EventReceivedCallback = (message: IntermediateCatchEventFinishedMessage): void => {
-      const sanitizedMessage: Messages.SystemEvents.IntermediateCatchEventFinishedMessage =
-        this._sanitizeInternalMessageForPublicNotification(message);
+      const sanitizedMessage = this.sanitizeMessage(message);
       callback(sanitizedMessage);
     };
 
-    return this._createSubscription(eventName, sanitationCallback, subscribeOnce);
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
   }
 
   public onProcessStarted(identity: IIdentity, callback: Messages.CallbackTypes.OnProcessStartedCallback, subscribeOnce: boolean): Subscription {
