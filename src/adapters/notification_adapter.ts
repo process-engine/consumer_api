@@ -6,13 +6,14 @@ import {
   BaseSystemEventMessage,
   BoundaryEventFinishedMessage,
   BoundaryEventReachedMessage,
+  BoundaryEventTriggeredMessage,
   CallActivityFinishedMessage,
   CallActivityReachedMessage,
   EmptyActivityFinishedMessage,
   EmptyActivityReachedMessage,
   EndEventReachedMessage,
-  IntermediateEventFinishedMessage,
-  IntermediateEventReachedMessage,
+  IntermediateCatchEventFinishedMessage,
+  IntermediateEventTriggeredMessage,
   ManualTaskFinishedMessage,
   ManualTaskReachedMessage,
   ProcessStartedMessage,
@@ -271,64 +272,49 @@ export class NotificationAdapter {
     return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
   }
 
-  public onBoundaryEventWaiting(
+  public onBoundaryEventTriggered(
     identity: IIdentity,
-    callback: Messages.CallbackTypes.OnBoundaryEventWaitingCallback,
+    callback: Messages.CallbackTypes.OnBoundaryEventTriggeredCallback,
     subscribeOnce: boolean,
   ): Subscription {
 
-    const eventName: string = Messages.EventAggregatorSettings.messagePaths.boundaryEventReached;
+    const eventName: string = Messages.EventAggregatorSettings.messagePaths.boundaryEventTriggered;
 
-    const sanitationCallback: EventReceivedCallback = (message: BoundaryEventReachedMessage): void => {
-      const sanitizedMessage: Messages.SystemEvents.BoundaryEventReachedMessage = this._sanitizeInternalMessageForPublicNotification(message);
+    const sanitationCallback: EventReceivedCallback = (message: BoundaryEventTriggeredMessage): void => {
+      const sanitizedMessage: Messages.SystemEvents.BoundaryEventTriggeredMessage = this._sanitizeInternalMessageForPublicNotification(message);
       callback(sanitizedMessage);
     };
 
     return this._createSubscription(eventName, sanitationCallback, subscribeOnce);
   }
 
-  public onBoundaryEventFinished(
+  public onIntermediateEventTriggered(
     identity: IIdentity,
-    callback: Messages.CallbackTypes.OnBoundaryEventFinishedCallback,
+    callback: Messages.CallbackTypes.OnIntermediateEventTriggeredCallback,
     subscribeOnce: boolean,
   ): Subscription {
 
-    const eventName: string = Messages.EventAggregatorSettings.messagePaths.boundaryEventFinished;
+    const eventName: string = Messages.EventAggregatorSettings.messagePaths.intermediateEventTriggered;
 
-    const sanitationCallback: EventReceivedCallback = (message: BoundaryEventFinishedMessage): void => {
-      const sanitizedMessage: Messages.SystemEvents.BoundaryEventFinishedMessage = this._sanitizeInternalMessageForPublicNotification(message);
+    const sanitationCallback: EventReceivedCallback = (message: IntermediateEventTriggeredMessage): void => {
+      const sanitizedMessage: Messages.SystemEvents.IntermediateEventTriggeredMessage = this._sanitizeInternalMessageForPublicNotification(message);
       callback(sanitizedMessage);
     };
 
     return this._createSubscription(eventName, sanitationCallback, subscribeOnce);
   }
 
-  public onIntermediateEventWaiting(
+  public onIntermediateCatchEventFinished(
     identity: IIdentity,
-    callback: Messages.CallbackTypes.OnIntermediateEventWaitingCallback,
+    callback: Messages.CallbackTypes.OnIntermediateCatchEventFinishedCallback,
     subscribeOnce: boolean,
   ): Subscription {
 
-    const eventName: string = Messages.EventAggregatorSettings.messagePaths.intermediateEventReached;
+    const eventName: string = Messages.EventAggregatorSettings.messagePaths.intermediateCatchEventFinished;
 
-    const sanitationCallback: EventReceivedCallback = (message: IntermediateEventReachedMessage): void => {
-      const sanitizedMessage: Messages.SystemEvents.IntermediateEventReachedMessage = this._sanitizeInternalMessageForPublicNotification(message);
-      callback(sanitizedMessage);
-    };
-
-    return this._createSubscription(eventName, sanitationCallback, subscribeOnce);
-  }
-
-  public onIntermediateEventFinished(
-    identity: IIdentity,
-    callback: Messages.CallbackTypes.OnIntermediateEventFinishedCallback,
-    subscribeOnce: boolean,
-  ): Subscription {
-
-    const eventName: string = Messages.EventAggregatorSettings.messagePaths.intermediateEventFinished;
-
-    const sanitationCallback: EventReceivedCallback = (message: IntermediateEventFinishedMessage): void => {
-      const sanitizedMessage: Messages.SystemEvents.IntermediateEventFinishedMessage = this._sanitizeInternalMessageForPublicNotification(message);
+    const sanitationCallback: EventReceivedCallback = (message: IntermediateCatchEventFinishedMessage): void => {
+      const sanitizedMessage: Messages.SystemEvents.IntermediateCatchEventFinishedMessage =
+        this._sanitizeInternalMessageForPublicNotification(message);
       callback(sanitizedMessage);
     };
 

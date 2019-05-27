@@ -166,44 +166,34 @@ export class ConsumerApiService implements IConsumerApi {
     return this.notificationAdapter.onUserTaskForIdentityFinished(identity, callback, subscribeOnce);
   }
 
-  public async onBoundaryEventFinished(
+  public async onBoundaryEventTriggered(
     identity: IIdentity,
-    callback: Messages.CallbackTypes.OnBoundaryEventFinishedCallback,
+    callback: Messages.CallbackTypes.OnBoundaryEventTriggeredCallback,
     subscribeOnce: boolean = false,
   ): Promise<Subscription> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
 
-    return this._notificationAdapter.onBoundaryEventFinished(identity, callback, subscribeOnce);
+    return this._notificationAdapter.onBoundaryEventTriggered(identity, callback, subscribeOnce);
   }
 
-  public async onBoundaryEventWaiting(
+  public async onIntermediateCatchEventFinished(
     identity: IIdentity,
-    callback: Messages.CallbackTypes.OnBoundaryEventWaitingCallback,
+    callback: Messages.CallbackTypes.OnIntermediateCatchEventFinishedCallback,
     subscribeOnce: boolean = false,
   ): Promise<Subscription> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
 
-    return this._notificationAdapter.onBoundaryEventWaiting(identity, callback, subscribeOnce);
+    return this._notificationAdapter.onIntermediateCatchEventFinished(identity, callback, subscribeOnce);
   }
 
-  public async onIntermediateEventFinished(
+  public async onIntermediateEventTriggered(
     identity: IIdentity,
-    callback: Messages.CallbackTypes.OnIntermediateEventFinishedCallback,
+    callback: Messages.CallbackTypes.OnIntermediateEventTriggeredCallback,
     subscribeOnce: boolean = false,
   ): Promise<Subscription> {
     await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
 
-    return this._notificationAdapter.onIntermediateEventFinished(identity, callback, subscribeOnce);
-  }
-
-  public async onIntermediateEventWaiting(
-    identity: IIdentity,
-    callback: Messages.CallbackTypes.OnIntermediateEventWaitingCallback,
-    subscribeOnce: boolean = false,
-  ): Promise<Subscription> {
-    await this._iamService.ensureHasClaim(identity, this._canSubscribeToEventsClaim);
-
-    return this._notificationAdapter.onIntermediateEventWaiting(identity, callback, subscribeOnce);
+    return this._notificationAdapter.onIntermediateEventTriggered(identity, callback, subscribeOnce);
   }
 
   public async onCallActivityWaiting(
