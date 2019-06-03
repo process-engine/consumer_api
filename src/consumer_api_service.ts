@@ -176,6 +176,16 @@ export class ConsumerApiService implements IConsumerApi {
     return this.notificationAdapter.onBoundaryEventTriggered(identity, callback, subscribeOnce);
   }
 
+  public async onIntermediateCatchEventReached(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnIntermediateCatchEventReachedCallback,
+    subscribeOnce: boolean = false,
+  ): Promise<Subscription> {
+    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+
+    return this.notificationAdapter.onIntermediateCatchEventReached(identity, callback, subscribeOnce);
+  }
+
   public async onIntermediateCatchEventFinished(
     identity: IIdentity,
     callback: Messages.CallbackTypes.OnIntermediateCatchEventFinishedCallback,
@@ -186,14 +196,14 @@ export class ConsumerApiService implements IConsumerApi {
     return this.notificationAdapter.onIntermediateCatchEventFinished(identity, callback, subscribeOnce);
   }
 
-  public async onIntermediateEventTriggered(
+  public async onIntermediateThrowEventTriggered(
     identity: IIdentity,
-    callback: Messages.CallbackTypes.OnIntermediateEventTriggeredCallback,
+    callback: Messages.CallbackTypes.OnIntermediateThrowEventTriggeredCallback,
     subscribeOnce: boolean = false,
   ): Promise<Subscription> {
     await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
 
-    return this.notificationAdapter.onIntermediateEventTriggered(identity, callback, subscribeOnce);
+    return this.notificationAdapter.onIntermediateThrowEventTriggered(identity, callback, subscribeOnce);
   }
 
   public async onCallActivityWaiting(
