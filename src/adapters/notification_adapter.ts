@@ -4,9 +4,15 @@ import {Messages} from '@process-engine/consumer_api_contracts';
 
 import {
   BaseSystemEventMessage,
+  BoundaryEventTriggeredMessage,
+  CallActivityFinishedMessage,
+  CallActivityReachedMessage,
   EmptyActivityFinishedMessage,
   EmptyActivityReachedMessage,
   EndEventReachedMessage,
+  IntermediateCatchEventFinishedMessage,
+  IntermediateCatchEventReachedMessage,
+  IntermediateThrowEventTriggeredMessage,
   ManualTaskFinishedMessage,
   ManualTaskReachedMessage,
   ProcessStartedMessage,
@@ -228,6 +234,102 @@ export class NotificationAdapter {
         const sanitizedMessage = this.sanitizeMessage(message);
         callback(sanitizedMessage);
       }
+    };
+
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
+  }
+
+  public onCallActivityWaiting(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnCallActivityWaitingCallback,
+    subscribeOnce: boolean,
+  ): Subscription {
+
+    const eventName = Messages.EventAggregatorSettings.messagePaths.callActivityReached;
+
+    const sanitationCallback = (message: CallActivityReachedMessage): void => {
+      const sanitizedMessage = this.sanitizeMessage(message);
+      callback(sanitizedMessage);
+    };
+
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
+  }
+
+  public onCallActivityFinished(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnCallActivityFinishedCallback,
+    subscribeOnce: boolean,
+  ): Subscription {
+
+    const eventName = Messages.EventAggregatorSettings.messagePaths.callActivityFinished;
+
+    const sanitationCallback = (message: CallActivityFinishedMessage): void => {
+      const sanitizedMessage = this.sanitizeMessage(message);
+      callback(sanitizedMessage);
+    };
+
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
+  }
+
+  public onBoundaryEventTriggered(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnBoundaryEventTriggeredCallback,
+    subscribeOnce: boolean,
+  ): Subscription {
+
+    const eventName = Messages.EventAggregatorSettings.messagePaths.boundaryEventTriggered;
+
+    const sanitationCallback = (message: BoundaryEventTriggeredMessage): void => {
+      const sanitizedMessage = this.sanitizeMessage(message);
+      callback(sanitizedMessage);
+    };
+
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
+  }
+
+  public onIntermediateThrowEventTriggered(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnIntermediateThrowEventTriggeredCallback,
+    subscribeOnce: boolean,
+  ): Subscription {
+
+    const eventName = Messages.EventAggregatorSettings.messagePaths.intermediateThrowEventTriggered;
+
+    const sanitationCallback = (message: IntermediateThrowEventTriggeredMessage): void => {
+      const sanitizedMessage = this.sanitizeMessage(message);
+      callback(sanitizedMessage);
+    };
+
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
+  }
+
+  public onIntermediateCatchEventReached(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnIntermediateCatchEventReachedCallback,
+    subscribeOnce: boolean,
+  ): Subscription {
+
+    const eventName = Messages.EventAggregatorSettings.messagePaths.intermediateCatchEventReached;
+
+    const sanitationCallback = (message: IntermediateCatchEventReachedMessage): void => {
+      const sanitizedMessage = this.sanitizeMessage(message);
+      callback(sanitizedMessage);
+    };
+
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
+  }
+
+  public onIntermediateCatchEventFinished(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnIntermediateCatchEventFinishedCallback,
+    subscribeOnce: boolean,
+  ): Subscription {
+
+    const eventName = Messages.EventAggregatorSettings.messagePaths.intermediateCatchEventFinished;
+
+    const sanitationCallback = (message: IntermediateCatchEventFinishedMessage): void => {
+      const sanitizedMessage = this.sanitizeMessage(message);
+      callback(sanitizedMessage);
     };
 
     return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
