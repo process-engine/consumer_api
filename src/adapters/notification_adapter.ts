@@ -245,9 +245,9 @@ export class NotificationAdapter {
     subscribeOnce: boolean,
   ): Subscription {
 
-    const eventName: string = Messages.EventAggregatorSettings.messagePaths.callActivityReached;
+    const eventName = Messages.EventAggregatorSettings.messagePaths.callActivityReached;
 
-    const sanitationCallback: EventReceivedCallback = (message: CallActivityReachedMessage): void => {
+    const sanitationCallback = (message: CallActivityReachedMessage): void => {
       const sanitizedMessage = this.sanitizeMessage(message);
       callback(sanitizedMessage);
     };
@@ -261,9 +261,9 @@ export class NotificationAdapter {
     subscribeOnce: boolean,
   ): Subscription {
 
-    const eventName: string = Messages.EventAggregatorSettings.messagePaths.callActivityFinished;
+    const eventName = Messages.EventAggregatorSettings.messagePaths.callActivityFinished;
 
-    const sanitationCallback: EventReceivedCallback = (message: CallActivityFinishedMessage): void => {
+    const sanitationCallback = (message: CallActivityFinishedMessage): void => {
       const sanitizedMessage = this.sanitizeMessage(message);
       callback(sanitizedMessage);
     };
@@ -277,9 +277,9 @@ export class NotificationAdapter {
     subscribeOnce: boolean,
   ): Subscription {
 
-    const eventName: string = Messages.EventAggregatorSettings.messagePaths.boundaryEventTriggered;
+    const eventName = Messages.EventAggregatorSettings.messagePaths.boundaryEventTriggered;
 
-    const sanitationCallback: EventReceivedCallback = (message: BoundaryEventTriggeredMessage): void => {
+    const sanitationCallback = (message: BoundaryEventTriggeredMessage): void => {
       const sanitizedMessage = this.sanitizeMessage(message);
       callback(sanitizedMessage);
     };
@@ -293,9 +293,9 @@ export class NotificationAdapter {
     subscribeOnce: boolean,
   ): Subscription {
 
-    const eventName: string = Messages.EventAggregatorSettings.messagePaths.intermediateThrowEventTriggered;
+    const eventName = Messages.EventAggregatorSettings.messagePaths.intermediateThrowEventTriggered;
 
-    const sanitationCallback: EventReceivedCallback = (message: IntermediateThrowEventTriggeredMessage): void => {
+    const sanitationCallback = (message: IntermediateThrowEventTriggeredMessage): void => {
       const sanitizedMessage = this.sanitizeMessage(message);
       callback(sanitizedMessage);
     };
@@ -309,9 +309,9 @@ export class NotificationAdapter {
     subscribeOnce: boolean,
   ): Subscription {
 
-    const eventName: string = Messages.EventAggregatorSettings.messagePaths.intermediateCatchEventReached;
+    const eventName = Messages.EventAggregatorSettings.messagePaths.intermediateCatchEventReached;
 
-    const sanitationCallback: EventReceivedCallback = (message: IntermediateCatchEventReachedMessage): void => {
+    const sanitationCallback = (message: IntermediateCatchEventReachedMessage): void => {
       const sanitizedMessage = this.sanitizeMessage(message);
       callback(sanitizedMessage);
     };
@@ -325,9 +325,9 @@ export class NotificationAdapter {
     subscribeOnce: boolean,
   ): Subscription {
 
-    const eventName: string = Messages.EventAggregatorSettings.messagePaths.intermediateCatchEventFinished;
+    const eventName = Messages.EventAggregatorSettings.messagePaths.intermediateCatchEventFinished;
 
-    const sanitationCallback: EventReceivedCallback = (message: IntermediateCatchEventFinishedMessage): void => {
+    const sanitationCallback = (message: IntermediateCatchEventFinishedMessage): void => {
       const sanitizedMessage = this.sanitizeMessage(message);
       callback(sanitizedMessage);
     };
