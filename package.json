@@ -1,6 +1,6 @@
 {
   "name": "@process-engine/consumer_api_core",
-  "version": "5.3.0",
+  "version": "5.4.0",
   "description": "the api-package for process-engine-consumer",
   "main": "dist/commonjs/index.js",
   "typings": "dist/index.d.ts",
@@ -20,7 +20,7 @@
   "homepage": "https://github.com/process-engine/consumer_api#readme",
   "dependencies": {
     "@essential-projects/errors_ts": "^1.5.0",
-    "@process-engine/consumer_api_contracts": "5.2.0-ae6e8fe5-b9",
+    "@process-engine/consumer_api_contracts": "6.0.0-7b4da3dc-b11",
     "@process-engine/correlation.contracts": "^2.0.0",
     "@process-engine/flow_node_instance.contracts": "^2.0.0",
     "@process-engine/process_engine_contracts": "44.0.0-ffcb3218-b7",
