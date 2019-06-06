@@ -29,10 +29,10 @@
   "homepage": "https://github.com/process-engine/consumer_api#readme",
   "dependencies": {
     "@essential-projects/errors_ts": "^1.5.0",
-    "@process-engine/consumer_api_contracts": "7.0.0-f7e1f918-b14",
+    "@process-engine/consumer_api_contracts": "feature~additional_notifications_for_activities",
     "@process-engine/correlation.contracts": "^2.0.0",
     "@process-engine/flow_node_instance.contracts": "^2.0.0",
-    "@process-engine/process_engine_contracts": "^44.0.0",
+    "@process-engine/process_engine_contracts": "feature~additional_notifications_for_activities",
     "@process-engine/process_model.contracts": "^2.3.0",
     "bluebird": "~3.5.2",
     "bluebird-global": "~1.0.1",
