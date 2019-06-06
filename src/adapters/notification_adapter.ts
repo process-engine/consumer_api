@@ -32,7 +32,7 @@ export class NotificationAdapter {
     subscribeOnce: boolean,
   ): Subscription {
 
-    const eventName = Messages.EventAggregatorSettings.messagePaths.callActivityReached;
+    const eventName = Messages.EventAggregatorSettings.messagePaths.activityReached;
 
     const sanitationCallback = (message: ActivityReachedMessage): void => {
       const sanitizedMessage = this.sanitizeMessage(message);
@@ -48,7 +48,7 @@ export class NotificationAdapter {
     subscribeOnce: boolean,
   ): Subscription {
 
-    const eventName = Messages.EventAggregatorSettings.messagePaths.callActivityFinished;
+    const eventName = Messages.EventAggregatorSettings.messagePaths.activityFinished;
 
     const sanitationCallback = (message: ActivityFinishedMessage): void => {
       const sanitizedMessage = this.sanitizeMessage(message);
