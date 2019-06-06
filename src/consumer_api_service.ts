@@ -12,11 +12,10 @@ import {
 } from '@process-engine/flow_node_instance.contracts';
 import {
   IProcessModelFacadeFactory,
-  EmptyActivityFinishedMessage as InternalEmptyActivityFinishedMessage,
+  ActivityFinishedMessage as InternalActivityFinishedMessage,
   FinishEmptyActivityMessage as InternalFinishEmptyActivityMessage,
   FinishManualTaskMessage as InternalFinishManualTaskMessage,
   FinishUserTaskMessage as InternalFinishUserTaskMessage,
-  ManualTaskFinishedMessage as InternalManualTaskFinishedMessage,
   UserTaskFinishedMessage as InternalUserTaskFinishedMessage,
 } from '@process-engine/process_engine_contracts';
 import {IProcessModelUseCases, Model} from '@process-engine/process_model.contracts';
@@ -86,6 +85,26 @@ export class ConsumerApiService implements IConsumerApi {
   }
 
   // Notifications
+  public async onActivityReached(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnActivityReachedCallback,
+    subscribeOnce: boolean = false,
+  ): Promise<Subscription> {
+    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+
+    return this.notificationAdapter.onActivityReached(identity, callback, subscribeOnce);
+  }
+
+  public async onActivityFinished(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnActivityFinishedCallback,
+    subscribeOnce: boolean = false,
+  ): Promise<Subscription> {
+    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+
+    return this.notificationAdapter.onActivityFinished(identity, callback, subscribeOnce);
+  }
+
   public async onEmptyActivityWaiting(
     identity: IIdentity,
     callback: Messages.CallbackTypes.OnEmptyActivityWaitingCallback,
@@ -204,26 +223,6 @@ export class ConsumerApiService implements IConsumerApi {
     await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onIntermediateThrowEventTriggered(identity, callback, subscribeOnce);
-  }
-
-  public async onCallActivityWaiting(
-    identity: IIdentity,
-    callback: Messages.CallbackTypes.OnCallActivityWaitingCallback,
-    subscribeOnce: boolean = false,
-  ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
-
-    return this.notificationAdapter.onCallActivityWaiting(identity, callback, subscribeOnce);
-  }
-
-  public async onCallActivityFinished(
-    identity: IIdentity,
-    callback: Messages.CallbackTypes.OnCallActivityFinishedCallback,
-    subscribeOnce: boolean = false,
-  ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
-
-    return this.notificationAdapter.onCallActivityFinished(identity, callback, subscribeOnce);
   }
 
   public async onManualTaskWaiting(
@@ -597,7 +596,7 @@ export class ConsumerApiService implements IConsumerApi {
         .replace(routePrameter.processInstanceId, processInstanceId)
         .replace(routePrameter.flowNodeInstanceId, emptyActivityInstanceId);
 
-      this.eventAggregator.subscribeOnce(emptyActivityFinishedEvent, (message: InternalEmptyActivityFinishedMessage): void => {
+      this.eventAggregator.subscribeOnce(emptyActivityFinishedEvent, (message: InternalActivityFinishedMessage): void => {
         resolve();
       });
 
@@ -693,7 +692,7 @@ export class ConsumerApiService implements IConsumerApi {
         .replace(routePrameter.processInstanceId, processInstanceId)
         .replace(routePrameter.flowNodeInstanceId, manualTaskInstanceId);
 
-      this.eventAggregator.subscribeOnce(manualTaskFinishedEvent, (message: InternalManualTaskFinishedMessage): void => {
+      this.eventAggregator.subscribeOnce(manualTaskFinishedEvent, (message: InternalActivityFinishedMessage): void => {
         resolve();
       });
 
