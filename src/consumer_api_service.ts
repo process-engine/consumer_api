@@ -307,6 +307,16 @@ export class ConsumerApiService implements IConsumerApi {
     return this.notificationAdapter.onProcessTerminated(identity, callback, subscribeOnce);
   }
 
+  public async onProcessError(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnProcessErrorCallback,
+    subscribeOnce = false,
+  ): Promise<Subscription> {
+    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+
+    return this.notificationAdapter.onProcessError(identity, callback, subscribeOnce);
+  }
+
   public async removeSubscription(identity: IIdentity, subscription: Subscription): Promise<void> {
     await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
 

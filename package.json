@@ -1,6 +1,6 @@
 {
   "name": "@process-engine/consumer_api_core",
-  "version": "5.4.0",
+  "version": "5.5.0",
   "description": "the api-package for process-engine-consumer",
   "main": "dist/commonjs/index.js",
   "typings": "dist/index.d.ts",
@@ -9,9 +9,18 @@
     "url": "git+https://github.com/process-engine/consumer_api.git"
   },
   "author": "5Minds IT-Solutions GmbH & Co. KG",
+  "maintainers": [
+    "Alexander Kasten <alexander.kasten@5minds.de>",
+    "Christian Werner <christian.werner@5minds.de>",
+    "René Föhring <rene.foehring@5minds.de>",
+    "Steffen Knaup <steffen.knaup@5minds.de>"
+  ],
   "contributors": [
-    "Sebastian Meier <sebastian.meier@5minds.de>",
-    "Christian Werner <christian.werner@5minds.de>"
+    "Bastian Schnittger <bastian.schnittger@5minds.de>",
+    "Christoph Gnip <christoph.gnip@5minds.de>",
+    "Robin Lenz <robin.lenz@5minds.de>",
+    "Robin Palkovits <robin.palkovits@5minds.de>",
+    "Sebastian Meier <sebastian.meier@5minds.de>"
   ],
   "license": "MIT",
   "bugs": {
@@ -20,7 +29,7 @@
   "homepage": "https://github.com/process-engine/consumer_api#readme",
   "dependencies": {
     "@essential-projects/errors_ts": "^1.5.0",
-    "@process-engine/consumer_api_contracts": "^6.0.0",
+    "@process-engine/consumer_api_contracts": "7.0.0-f7e1f918-b14",
     "@process-engine/correlation.contracts": "^2.0.0",
     "@process-engine/flow_node_instance.contracts": "^2.0.0",
     "@process-engine/process_engine_contracts": "^44.0.0",
