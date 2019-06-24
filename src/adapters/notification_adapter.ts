@@ -15,6 +15,7 @@ import {
   IntermediateThrowEventTriggeredMessage,
   ManualTaskFinishedMessage,
   ManualTaskReachedMessage,
+  ProcessErrorMessage,
   ProcessStartedMessage,
   TerminateEndEventReachedMessage,
   UserTaskFinishedMessage,
@@ -391,6 +392,22 @@ export class NotificationAdapter {
     const eventName = Messages.EventAggregatorSettings.messagePaths.processTerminated;
 
     const sanitationCallback = (message: TerminateEndEventReachedMessage): void => {
+      const sanitizedMessage = this.sanitizeMessage(message);
+      callback(sanitizedMessage);
+    };
+
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
+  }
+
+  public onProcessError(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnProcessErrorCallback,
+    subscribeOnce: boolean,
+  ): Subscription {
+
+    const eventName = Messages.EventAggregatorSettings.messagePaths.processError;
+
+    const sanitationCallback = (message: ProcessErrorMessage): void => {
       const sanitizedMessage = this.sanitizeMessage(message);
       callback(sanitizedMessage);
     };
