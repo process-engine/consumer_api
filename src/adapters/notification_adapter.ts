@@ -7,6 +7,7 @@ import {
   ActivityReachedMessage,
   BaseSystemEventMessage,
   BoundaryEventTriggeredMessage,
+  BpmnType,
   EndEventReachedMessage,
   IntermediateCatchEventFinishedMessage,
   IntermediateCatchEventReachedMessage,
@@ -35,7 +36,10 @@ export class NotificationAdapter {
     const eventName = Messages.EventAggregatorSettings.messagePaths.activityReached;
 
     const sanitationCallback = (message: ActivityReachedMessage): void => {
-      const sanitizedMessage = this.sanitizeMessage(message);
+      const sanitizedMessage = this.sanitizeMessage<ActivityReachedMessage>(message);
+
+      sanitizedMessage.flowNodeType = message.flowNodeType;
+
       callback(sanitizedMessage);
     };
 
@@ -51,7 +55,10 @@ export class NotificationAdapter {
     const eventName = Messages.EventAggregatorSettings.messagePaths.activityFinished;
 
     const sanitationCallback = (message: ActivityFinishedMessage): void => {
-      const sanitizedMessage = this.sanitizeMessage(message);
+      const sanitizedMessage = this.sanitizeMessage<ActivityFinishedMessage>(message);
+
+      sanitizedMessage.flowNodeType = message.flowNodeType;
+
       callback(sanitizedMessage);
     };
 
@@ -70,9 +77,14 @@ export class NotificationAdapter {
 
     const sanitationCallback = (message: ActivityReachedMessage): void => {
 
-      // TODO - Check if the message is for a callActivity
+      if (message.flowNodeType !== BpmnType.callActivity) {
+        return;
+      }
 
-      const sanitizedMessage = this.sanitizeMessage(message);
+      const sanitizedMessage = this.sanitizeMessage<ActivityReachedMessage>(message);
+
+      sanitizedMessage.flowNodeType = message.flowNodeType;
+
       callback(sanitizedMessage);
     };
 
@@ -89,9 +101,14 @@ export class NotificationAdapter {
 
     const sanitationCallback = (message: ActivityFinishedMessage): void => {
 
-      // TODO - Check if the message is for a callActivity
+      if (message.flowNodeType !== BpmnType.callActivity) {
+        return;
+      }
 
-      const sanitizedMessage = this.sanitizeMessage(message);
+      const sanitizedMessage = this.sanitizeMessage<ActivityFinishedMessage>(message);
+
+      sanitizedMessage.flowNodeType = message.flowNodeType;
+
       callback(sanitizedMessage);
     };
 
