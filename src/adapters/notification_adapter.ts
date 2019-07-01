@@ -3,18 +3,16 @@ import {IIdentity} from '@essential-projects/iam_contracts';
 import {Messages} from '@process-engine/consumer_api_contracts';
 
 import {
+  ActivityFinishedMessage,
+  ActivityReachedMessage,
   BaseSystemEventMessage,
   BoundaryEventTriggeredMessage,
-  CallActivityFinishedMessage,
-  CallActivityReachedMessage,
-  EmptyActivityFinishedMessage,
-  EmptyActivityReachedMessage,
+  BpmnType,
   EndEventReachedMessage,
   IntermediateCatchEventFinishedMessage,
   IntermediateCatchEventReachedMessage,
   IntermediateThrowEventTriggeredMessage,
-  ManualTaskFinishedMessage,
-  ManualTaskReachedMessage,
+  ProcessErrorMessage,
   ProcessStartedMessage,
   TerminateEndEventReachedMessage,
   UserTaskFinishedMessage,
@@ -29,6 +27,96 @@ export class NotificationAdapter {
     this.eventAggregator = eventAggregator;
   }
 
+  public onActivityReached(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnActivityReachedCallback,
+    subscribeOnce: boolean,
+  ): Subscription {
+
+    const eventName = Messages.EventAggregatorSettings.messagePaths.activityReached;
+
+    const sanitationCallback = (message: ActivityReachedMessage): void => {
+      const sanitizedMessage = this.sanitizeMessage<ActivityReachedMessage>(message);
+
+      sanitizedMessage.flowNodeType = message.flowNodeType;
+
+      callback(sanitizedMessage);
+    };
+
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
+  }
+
+  public onActivityFinished(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnActivityFinishedCallback,
+    subscribeOnce: boolean,
+  ): Subscription {
+
+    const eventName = Messages.EventAggregatorSettings.messagePaths.activityFinished;
+
+    const sanitationCallback = (message: ActivityFinishedMessage): void => {
+      const sanitizedMessage = this.sanitizeMessage<ActivityFinishedMessage>(message);
+
+      sanitizedMessage.flowNodeType = message.flowNodeType;
+
+      callback(sanitizedMessage);
+    };
+
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
+  }
+
+  // ------------ For backwards compatibility only
+
+  public async onCallActivityWaiting(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnCallActivityWaitingCallback,
+    subscribeOnce: boolean = false,
+  ): Promise<Subscription> {
+
+    const eventName = Messages.EventAggregatorSettings.messagePaths.activityReached;
+
+    const sanitationCallback = (message: ActivityReachedMessage): void => {
+
+      if (message.flowNodeType !== BpmnType.callActivity) {
+        return;
+      }
+
+      const sanitizedMessage = this.sanitizeMessage<ActivityReachedMessage>(message);
+
+      sanitizedMessage.flowNodeType = message.flowNodeType;
+
+      callback(sanitizedMessage);
+    };
+
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
+  }
+
+  public async onCallActivityFinished(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnCallActivityFinishedCallback,
+    subscribeOnce: boolean = false,
+  ): Promise<Subscription> {
+
+    const eventName = Messages.EventAggregatorSettings.messagePaths.activityFinished;
+
+    const sanitationCallback = (message: ActivityFinishedMessage): void => {
+
+      if (message.flowNodeType !== BpmnType.callActivity) {
+        return;
+      }
+
+      const sanitizedMessage = this.sanitizeMessage<ActivityFinishedMessage>(message);
+
+      sanitizedMessage.flowNodeType = message.flowNodeType;
+
+      callback(sanitizedMessage);
+    };
+
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
+  }
+
+  // ------------
+
   public onEmptyActivityWaiting(
     identity: IIdentity,
     callback: Messages.CallbackTypes.OnEmptyActivityWaitingCallback,
@@ -37,7 +125,7 @@ export class NotificationAdapter {
 
     const eventName = Messages.EventAggregatorSettings.messagePaths.emptyActivityReached;
 
-    const sanitationCallback = (message: EmptyActivityReachedMessage): void => {
+    const sanitationCallback = (message: ActivityFinishedMessage): void => {
       const sanitizedMessage = this.sanitizeMessage(message);
       callback(sanitizedMessage);
     };
@@ -53,7 +141,7 @@ export class NotificationAdapter {
 
     const eventName = Messages.EventAggregatorSettings.messagePaths.emptyActivityFinished;
 
-    const sanitationCallback = (message: EmptyActivityFinishedMessage): void => {
+    const sanitationCallback = (message: ActivityReachedMessage): void => {
       const sanitizedMessage = this.sanitizeMessage(message);
       callback(sanitizedMessage);
     };
@@ -69,7 +157,7 @@ export class NotificationAdapter {
 
     const eventName = Messages.EventAggregatorSettings.messagePaths.emptyActivityReached;
 
-    const sanitationCallback = (message: EmptyActivityReachedMessage): void => {
+    const sanitationCallback = (message: ActivityFinishedMessage): void => {
 
       const identitiesMatch = this.checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
       if (identitiesMatch) {
@@ -89,7 +177,7 @@ export class NotificationAdapter {
 
     const eventName = Messages.EventAggregatorSettings.messagePaths.emptyActivityFinished;
 
-    const sanitationCallback = (message: EmptyActivityFinishedMessage): void => {
+    const sanitationCallback = (message: ActivityReachedMessage): void => {
 
       const identitiesMatch = this.checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
       if (identitiesMatch) {
@@ -175,7 +263,7 @@ export class NotificationAdapter {
 
     const eventName = Messages.EventAggregatorSettings.messagePaths.manualTaskReached;
 
-    const sanitationCallback = (message: ManualTaskReachedMessage): void => {
+    const sanitationCallback = (message: ActivityReachedMessage): void => {
       const sanitizedMessage = this.sanitizeMessage(message);
       callback(sanitizedMessage);
     };
@@ -191,7 +279,7 @@ export class NotificationAdapter {
 
     const eventName = Messages.EventAggregatorSettings.messagePaths.manualTaskFinished;
 
-    const sanitationCallback = (message: ManualTaskFinishedMessage): void => {
+    const sanitationCallback = (message: ActivityReachedMessage): void => {
       const sanitizedMessage = this.sanitizeMessage(message);
       callback(sanitizedMessage);
     };
@@ -207,7 +295,7 @@ export class NotificationAdapter {
 
     const eventName = Messages.EventAggregatorSettings.messagePaths.manualTaskReached;
 
-    const sanitationCallback = (message: ManualTaskReachedMessage): void => {
+    const sanitationCallback = (message: ActivityReachedMessage): void => {
 
       const identitiesMatch = this.checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
       if (identitiesMatch) {
@@ -227,45 +315,13 @@ export class NotificationAdapter {
 
     const eventName = Messages.EventAggregatorSettings.messagePaths.manualTaskFinished;
 
-    const sanitationCallback = (message: ManualTaskFinishedMessage): void => {
+    const sanitationCallback = (message: ActivityReachedMessage): void => {
 
       const identitiesMatch = this.checkIfIdentityUserIDsMatch(identity, message.processInstanceOwner);
       if (identitiesMatch) {
         const sanitizedMessage = this.sanitizeMessage(message);
         callback(sanitizedMessage);
       }
-    };
-
-    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
-  }
-
-  public onCallActivityWaiting(
-    identity: IIdentity,
-    callback: Messages.CallbackTypes.OnCallActivityWaitingCallback,
-    subscribeOnce: boolean,
-  ): Subscription {
-
-    const eventName = Messages.EventAggregatorSettings.messagePaths.callActivityReached;
-
-    const sanitationCallback = (message: CallActivityReachedMessage): void => {
-      const sanitizedMessage = this.sanitizeMessage(message);
-      callback(sanitizedMessage);
-    };
-
-    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
-  }
-
-  public onCallActivityFinished(
-    identity: IIdentity,
-    callback: Messages.CallbackTypes.OnCallActivityFinishedCallback,
-    subscribeOnce: boolean,
-  ): Subscription {
-
-    const eventName = Messages.EventAggregatorSettings.messagePaths.callActivityFinished;
-
-    const sanitationCallback = (message: CallActivityFinishedMessage): void => {
-      const sanitizedMessage = this.sanitizeMessage(message);
-      callback(sanitizedMessage);
     };
 
     return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
@@ -391,6 +447,22 @@ export class NotificationAdapter {
     const eventName = Messages.EventAggregatorSettings.messagePaths.processTerminated;
 
     const sanitationCallback = (message: TerminateEndEventReachedMessage): void => {
+      const sanitizedMessage = this.sanitizeMessage(message);
+      callback(sanitizedMessage);
+    };
+
+    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
+  }
+
+  public onProcessError(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnProcessErrorCallback,
+    subscribeOnce: boolean,
+  ): Subscription {
+
+    const eventName = Messages.EventAggregatorSettings.messagePaths.processError;
+
+    const sanitationCallback = (message: ProcessErrorMessage): void => {
       const sanitizedMessage = this.sanitizeMessage(message);
       callback(sanitizedMessage);
     };
