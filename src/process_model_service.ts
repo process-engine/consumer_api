@@ -20,7 +20,6 @@ import {
 import {IProcessModelUseCases, Model} from '@process-engine/process_model.contracts';
 
 import {NotificationAdapter} from './adapters/index';
-import {ProcessModelConverter} from './converters/index';
 
 export class ProcessModelService implements APIs.IProcessModelConsumerApi {
 
@@ -32,8 +31,6 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
 
   private readonly notificationAdapter: NotificationAdapter;
 
-  private readonly processModelConverter: ProcessModelConverter;
-
   private readonly canSubscribeToEventsClaim = 'can_subscribe_to_events';
 
   constructor(
@@ -43,7 +40,6 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
     processModelFacadeFactory: IProcessModelFacadeFactory,
     processModelUseCase: IProcessModelUseCases,
     notificationAdapter: NotificationAdapter,
-    processModelConverter: ProcessModelConverter,
   ) {
     this.executeProcessService = executeProcessService;
     this.flowNodeInstanceService = flowNodeInstanceService;
@@ -52,8 +48,6 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
     this.processModelUseCase = processModelUseCase;
 
     this.notificationAdapter = notificationAdapter;
-
-    this.processModelConverter = processModelConverter;
   }
 
   public async onProcessStarted(
@@ -110,9 +104,7 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
   public async getProcessModels(identity: IIdentity): Promise<DataModels.ProcessModels.ProcessModelList> {
 
     const processModels = await this.processModelUseCase.getProcessModels(identity);
-    const consumerApiProcessModels = processModels.map((processModel: Model.Process): DataModels.ProcessModels.ProcessModel => {
-      return this.processModelConverter.convertProcessModel(processModel);
-    });
+    const consumerApiProcessModels = processModels.map(this.convertProcessModelToPublicType);
 
     return {
       processModels: consumerApiProcessModels,
@@ -122,7 +114,7 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
   public async getProcessModelById(identity: IIdentity, processModelId: string): Promise<DataModels.ProcessModels.ProcessModel> {
 
     const processModel = await this.processModelUseCase.getProcessModelById(identity, processModelId);
-    const consumerApiProcessModel = this.processModelConverter.convertProcessModel(processModel);
+    const consumerApiProcessModel = this.convertProcessModelToPublicType(processModel);
 
     return consumerApiProcessModel;
   }
@@ -130,7 +122,7 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
   public async getProcessModelByProcessInstanceId(identity: IIdentity, processInstanceId: string): Promise<DataModels.ProcessModels.ProcessModel> {
 
     const processModel = await this.processModelUseCase.getProcessModelByProcessInstanceId(identity, processInstanceId);
-    const consumerApiProcessModel = this.processModelConverter.convertProcessModel(processModel);
+    const consumerApiProcessModel = this.convertProcessModelToPublicType(processModel);
 
     return consumerApiProcessModel;
   }
@@ -300,6 +292,42 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
 
   private checkIfIdentityUserIDsMatch(identityA: IIdentity, identityB: IIdentity): boolean {
     return identityA.userId === identityB.userId;
+  }
+
+  public convertProcessModelToPublicType(processModel: Model.Process): DataModels.ProcessModels.ProcessModel {
+
+    const processModelFacade = this.processModelFacadeFactory.create(processModel);
+
+    function consumerApiEventConverter(event: Model.Events.Event): DataModels.Events.Event {
+      const consumerApiEvent = new DataModels.Events.Event();
+      consumerApiEvent.id = event.id;
+      consumerApiEvent.eventName = event.name;
+      consumerApiEvent.bpmnType = event.bpmnType;
+      consumerApiEvent.processModelId = processModel.id;
+
+      return consumerApiEvent;
+    }
+
+    let consumerApiStartEvents: Array<DataModels.Events.Event> = [];
+    let consumerApiEndEvents: Array<DataModels.Events.Event> = [];
+
+    const processModelIsExecutable = processModelFacade.getIsExecutable();
+
+    if (processModelIsExecutable) {
+      const startEvents = processModelFacade.getStartEvents();
+      consumerApiStartEvents = startEvents.map(consumerApiEventConverter);
+
+      const endEvents = processModelFacade.getEndEvents();
+      consumerApiEndEvents = endEvents.map(consumerApiEventConverter);
+    }
+
+    const processModelResponse: DataModels.ProcessModels.ProcessModel = {
+      id: processModel.id,
+      startEvents: consumerApiStartEvents,
+      endEvents: consumerApiEndEvents,
+    };
+
+    return processModelResponse;
   }
 
   private getProcessInstancesfromFlowNodeInstances(flowNodeInstances: Array<FlowNodeInstance>): Array<DataModels.ProcessInstance> {
