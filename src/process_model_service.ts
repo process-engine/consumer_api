@@ -20,7 +20,7 @@ import {
 import {IProcessModelUseCases, Model} from '@process-engine/process_model.contracts';
 
 import {NotificationAdapter} from './adapters/index';
-import {ProcessInstanceConverter, ProcessModelConverter} from './converters/index';
+import {ProcessModelConverter} from './converters/index';
 
 export class ProcessModelService implements APIs.IProcessModelConsumerApi {
 
@@ -32,7 +32,6 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
 
   private readonly notificationAdapter: NotificationAdapter;
 
-  private readonly processInstanceConverter: ProcessInstanceConverter;
   private readonly processModelConverter: ProcessModelConverter;
 
   private readonly canSubscribeToEventsClaim = 'can_subscribe_to_events';
@@ -44,7 +43,6 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
     processModelFacadeFactory: IProcessModelFacadeFactory,
     processModelUseCase: IProcessModelUseCases,
     notificationAdapter: NotificationAdapter,
-    processInstanceConverter: ProcessInstanceConverter,
     processModelConverter: ProcessModelConverter,
   ) {
     this.executeProcessService = executeProcessService;
@@ -55,7 +53,6 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
 
     this.notificationAdapter = notificationAdapter;
 
-    this.processInstanceConverter = processInstanceConverter;
     this.processModelConverter = processModelConverter;
   }
 
@@ -226,7 +223,7 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
       return this.checkIfIdentityUserIDsMatch(identity, flowNodeInstance.owner);
     });
 
-    const processInstances = this.processInstanceConverter.convertFlowNodeInstances(flowNodeInstancesOwnedByUser);
+    const processInstances = this.getProcessInstancesfromFlowNodeInstances(flowNodeInstancesOwnedByUser);
 
     return processInstances;
   }
@@ -303,6 +300,32 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
 
   private checkIfIdentityUserIDsMatch(identityA: IIdentity, identityB: IIdentity): boolean {
     return identityA.userId === identityB.userId;
+  }
+
+  private getProcessInstancesfromFlowNodeInstances(flowNodeInstances: Array<FlowNodeInstance>): Array<DataModels.ProcessInstance> {
+
+    const activeProcessInstances: Array<DataModels.ProcessInstance> = [];
+
+    for (const flowNodeInstance of flowNodeInstances) {
+
+      const processInstanceListHasNoMatchingEntry =
+        !activeProcessInstances.some((entry: DataModels.ProcessInstance): boolean => {
+          return entry.id === flowNodeInstance.processInstanceId;
+        });
+
+      if (processInstanceListHasNoMatchingEntry) {
+        const processInstance = new DataModels.ProcessInstance(
+          flowNodeInstance.processInstanceId,
+          flowNodeInstance.processModelId,
+          flowNodeInstance.correlationId,
+          flowNodeInstance.owner,
+          flowNodeInstance.parentProcessInstanceId,
+        );
+        activeProcessInstances.push(processInstance);
+      }
+    }
+
+    return activeProcessInstances;
   }
 
 }
