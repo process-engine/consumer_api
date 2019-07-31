@@ -1,3 +1,5 @@
+import * as uuid from 'node-uuid';
+
 import * as EssentialProjectErrors from '@essential-projects/errors_ts';
 import {Subscription} from '@essential-projects/event_aggregator_contracts';
 import {IIAMService, IIdentity} from '@essential-projects/iam_contracts';
@@ -9,17 +11,22 @@ import {
   ProcessToken,
   ProcessTokenType,
 } from '@process-engine/flow_node_instance.contracts';
-import {IProcessModelFacadeFactory} from '@process-engine/process_engine_contracts';
+import {
+  EndEventReachedMessage,
+  IExecuteProcessService,
+  IProcessModelFacadeFactory,
+  ProcessStartedMessage,
+} from '@process-engine/process_engine_contracts';
 import {IProcessModelUseCases, Model} from '@process-engine/process_model.contracts';
 
-import {IProcessModelExecutionAdapter, NotificationAdapter} from './adapters/index';
+import {NotificationAdapter} from './adapters/index';
 import {ProcessInstanceConverter, ProcessModelConverter} from './converters/index';
 
 export class ProcessModelService implements APIs.IProcessModelConsumerApi {
 
+  private readonly executeProcessService: IExecuteProcessService;
   private readonly flowNodeInstanceService: IFlowNodeInstanceService;
   private readonly iamService: IIAMService;
-  private readonly processModelExecutionAdapter: IProcessModelExecutionAdapter;
   private readonly processModelFacadeFactory: IProcessModelFacadeFactory;
   private readonly processModelUseCase: IProcessModelUseCases;
 
@@ -31,18 +38,18 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
   private readonly canSubscribeToEventsClaim = 'can_subscribe_to_events';
 
   constructor(
+    executeProcessService: IExecuteProcessService,
     flowNodeInstanceService: IFlowNodeInstanceService,
     iamService: IIAMService,
-    processModelExecutionAdapter: IProcessModelExecutionAdapter,
     processModelFacadeFactory: IProcessModelFacadeFactory,
     processModelUseCase: IProcessModelUseCases,
     notificationAdapter: NotificationAdapter,
     processInstanceConverter: ProcessInstanceConverter,
     processModelConverter: ProcessModelConverter,
   ) {
+    this.executeProcessService = executeProcessService;
     this.flowNodeInstanceService = flowNodeInstanceService;
     this.iamService = iamService;
-    this.processModelExecutionAdapter = processModelExecutionAdapter;
     this.processModelFacadeFactory = processModelFacadeFactory;
     this.processModelUseCase = processModelUseCase;
 
@@ -140,9 +147,24 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
     endEventId?: string,
   ): Promise<DataModels.ProcessModels.ProcessStartResponsePayload> {
 
-    return this
-      .processModelExecutionAdapter
-      .startProcessInstance(identity, processModelId, payload, startCallbackType, startEventId, endEventId);
+    let startCallbackTypeToUse = startCallbackType;
+
+    const useDefaultStartCallbackType: boolean = startCallbackTypeToUse === undefined;
+    if (useDefaultStartCallbackType) {
+      startCallbackTypeToUse = DataModels.ProcessModels.StartCallbackType.CallbackOnProcessInstanceCreated;
+    }
+
+    if (!Object.values(DataModels.ProcessModels.StartCallbackType).includes(startCallbackTypeToUse)) {
+      throw new EssentialProjectErrors.BadRequestError(`${startCallbackTypeToUse} is not a valid return option!`);
+    }
+
+    const correlationId: string = payload.correlationId || uuid.v4();
+
+    // Execution of the ProcessModel will still be done with the requesting users identity.
+    const response: DataModels.ProcessModels.ProcessStartResponsePayload =
+      await this.executeProcessInstance(identity, correlationId, processModelId, startEventId, payload, startCallbackTypeToUse, endEventId);
+
+    return response;
   }
 
   public async getProcessResultForCorrelation(
@@ -207,6 +229,61 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
     const processInstances = this.processInstanceConverter.convertFlowNodeInstances(flowNodeInstancesOwnedByUser);
 
     return processInstances;
+  }
+
+  private async executeProcessInstance(
+    identity: IIdentity,
+    correlationId: string,
+    processModelId: string,
+    startEventId: string,
+    payload: DataModels.ProcessModels.ProcessStartRequestPayload,
+    startCallbackType: DataModels.ProcessModels.StartCallbackType,
+    endEventId?: string,
+  ): Promise<DataModels.ProcessModels.ProcessStartResponsePayload> {
+
+    const response: DataModels.ProcessModels.ProcessStartResponsePayload = {
+      correlationId: correlationId,
+      processInstanceId: undefined,
+    };
+
+    // Only start the process instance and return
+    const resolveImmediatelyAfterStart: boolean = startCallbackType === DataModels.ProcessModels.StartCallbackType.CallbackOnProcessInstanceCreated;
+    if (resolveImmediatelyAfterStart) {
+      const startResult: ProcessStartedMessage =
+        await this.executeProcessService.start(identity, processModelId, correlationId, startEventId, payload.inputValues, payload.callerId);
+
+      response.processInstanceId = startResult.processInstanceId;
+
+      return response;
+    }
+
+    let processEndedMessage: EndEventReachedMessage;
+
+    // Start the process instance and wait for a specific end event result
+    const resolveAfterReachingSpecificEndEvent: boolean = startCallbackType === DataModels.ProcessModels.StartCallbackType.CallbackOnEndEventReached;
+    if (resolveAfterReachingSpecificEndEvent) {
+
+      processEndedMessage = await this
+        .executeProcessService
+        .startAndAwaitSpecificEndEvent(identity, processModelId, correlationId, endEventId, startEventId, payload.inputValues, payload.callerId);
+
+      response.endEventId = processEndedMessage.flowNodeId;
+      response.tokenPayload = processEndedMessage.currentToken;
+      response.processInstanceId = processEndedMessage.processInstanceId;
+
+      return response;
+    }
+
+    // Start the process instance and wait for the first end event result
+    processEndedMessage = await this
+      .executeProcessService
+      .startAndAwaitEndEvent(identity, processModelId, correlationId, startEventId, payload.inputValues, payload.callerId);
+
+    response.endEventId = processEndedMessage.flowNodeId;
+    response.tokenPayload = processEndedMessage.currentToken;
+    response.processInstanceId = processEndedMessage.processInstanceId;
+
+    return response;
   }
 
   private createCorrelationResultFromEndEventInstance(endEventInstance: FlowNodeInstance): DataModels.CorrelationResult {
