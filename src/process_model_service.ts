@@ -104,7 +104,7 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
   public async getProcessModels(identity: IIdentity): Promise<DataModels.ProcessModels.ProcessModelList> {
 
     const processModels = await this.processModelUseCase.getProcessModels(identity);
-    const consumerApiProcessModels = processModels.map(this.convertProcessModelToPublicType);
+    const consumerApiProcessModels = processModels.map<DataModels.ProcessModels.ProcessModel>(this.convertProcessModelToPublicType.bind(this));
 
     return {
       processModels: consumerApiProcessModels,
