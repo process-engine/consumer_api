@@ -50,57 +50,6 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
     this.notificationAdapter = notificationAdapter;
   }
 
-  public async onProcessStarted(
-    identity: IIdentity,
-    callback: Messages.CallbackTypes.OnProcessStartedCallback,
-    subscribeOnce = false,
-  ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
-
-    return this.notificationAdapter.onProcessStarted(identity, callback, subscribeOnce);
-  }
-
-  public async onProcessWithProcessModelIdStarted(
-    identity: IIdentity,
-    callback: Messages.CallbackTypes.OnProcessStartedCallback,
-    processModelId: string,
-    subscribeOnce = false,
-  ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
-
-    return this.notificationAdapter.onProcessWithProcessModelIdStarted(identity, callback, processModelId, subscribeOnce);
-  }
-
-  public async onProcessEnded(
-    identity: IIdentity,
-    callback: Messages.CallbackTypes.OnProcessEndedCallback,
-    subscribeOnce = false,
-  ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
-
-    return this.notificationAdapter.onProcessEnded(identity, callback, subscribeOnce);
-  }
-
-  public async onProcessTerminated(
-    identity: IIdentity,
-    callback: Messages.CallbackTypes.OnProcessTerminatedCallback,
-    subscribeOnce = false,
-  ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
-
-    return this.notificationAdapter.onProcessTerminated(identity, callback, subscribeOnce);
-  }
-
-  public async onProcessError(
-    identity: IIdentity,
-    callback: Messages.CallbackTypes.OnProcessErrorCallback,
-    subscribeOnce = false,
-  ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
-
-    return this.notificationAdapter.onProcessError(identity, callback, subscribeOnce);
-  }
-
   public async getProcessModels(identity: IIdentity): Promise<DataModels.ProcessModels.ProcessModelList> {
 
     const processModels = await this.processModelUseCase.getProcessModels(identity);
@@ -220,6 +169,57 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
     return processInstances;
   }
 
+  public async onProcessStarted(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnProcessStartedCallback,
+    subscribeOnce = false,
+  ): Promise<Subscription> {
+    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+
+    return this.notificationAdapter.onProcessStarted(identity, callback, subscribeOnce);
+  }
+
+  public async onProcessWithProcessModelIdStarted(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnProcessStartedCallback,
+    processModelId: string,
+    subscribeOnce = false,
+  ): Promise<Subscription> {
+    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+
+    return this.notificationAdapter.onProcessWithProcessModelIdStarted(identity, callback, processModelId, subscribeOnce);
+  }
+
+  public async onProcessEnded(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnProcessEndedCallback,
+    subscribeOnce = false,
+  ): Promise<Subscription> {
+    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+
+    return this.notificationAdapter.onProcessEnded(identity, callback, subscribeOnce);
+  }
+
+  public async onProcessTerminated(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnProcessTerminatedCallback,
+    subscribeOnce = false,
+  ): Promise<Subscription> {
+    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+
+    return this.notificationAdapter.onProcessTerminated(identity, callback, subscribeOnce);
+  }
+
+  public async onProcessError(
+    identity: IIdentity,
+    callback: Messages.CallbackTypes.OnProcessErrorCallback,
+    subscribeOnce = false,
+  ): Promise<Subscription> {
+    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+
+    return this.notificationAdapter.onProcessError(identity, callback, subscribeOnce);
+  }
+
   private async executeProcessInstance(
     identity: IIdentity,
     correlationId: string,
@@ -294,7 +294,7 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
     return identityA.userId === identityB.userId;
   }
 
-  public convertProcessModelToPublicType(processModel: Model.Process): DataModels.ProcessModels.ProcessModel {
+  private convertProcessModelToPublicType(processModel: Model.Process): DataModels.ProcessModels.ProcessModel {
 
     const processModelFacade = this.processModelFacadeFactory.create(processModel);
 
