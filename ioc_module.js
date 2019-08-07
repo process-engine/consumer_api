@@ -11,6 +11,7 @@ const {
 const {
   EmptyActivityService,
   EventService,
+  ExternalTaskService,
   ManualTaskService,
   NotificationService,
   ProcessModelService,
@@ -70,6 +71,10 @@ function registerServices(container) {
       'IamService',
       'ProcessModelUseCases',
       'ConsumerApiEventConverter')
+    .singleton();
+
+  container.register('ConsumerApiExternalTaskService', ExternalTaskService)
+    .dependencies('EventAggregator', 'ExternalTaskRepository', 'IamService')
     .singleton();
 
   container

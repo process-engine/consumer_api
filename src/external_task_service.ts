@@ -15,7 +15,7 @@ import {
 
 const logger = new Logger('processengine:consumer_api:external_task_service');
 
-export class ExternalTaskApiService implements APIs.IExternalTaskConsumerApi {
+export class ExternalTaskService implements APIs.IExternalTaskConsumerApi {
 
   private readonly eventAggregator: IEventAggregator;
   private readonly externalTaskRepository: IExternalTaskRepository;
