@@ -79,7 +79,7 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
   public async startProcessInstance(
     identity: IIdentity,
     processModelId: string,
-    payload: DataModels.ProcessModels.ProcessStartRequestPayload,
+    payload?: DataModels.ProcessModels.ProcessStartRequestPayload,
     startCallbackType?: DataModels.ProcessModels.StartCallbackType,
     startEventId?: string,
     endEventId?: string,
@@ -96,7 +96,8 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
       throw new EssentialProjectErrors.BadRequestError(`${startCallbackTypeToUse} is not a valid return option!`);
     }
 
-    const correlationId: string = payload.correlationId || uuid.v4();
+    const correlationIdExistsInPayload: boolean = payload && payload.correlationId !== undefined;
+    const correlationId: string = correlationIdExistsInPayload ? payload.correlationId : uuid.v4();
 
     // Execution of the ProcessModel will still be done with the requesting users identity.
     const response: DataModels.ProcessModels.ProcessStartResponsePayload =
@@ -235,11 +236,18 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
       processInstanceId: undefined,
     };
 
+    const inputValuesAreGiven = payload && payload.inputValues !== undefined;
+    const inputValues = inputValuesAreGiven ? payload.inputValues : undefined;
+
+    const callerIdIsGiven = payload && payload.callerId !== undefined;
+    const callerId = callerIdIsGiven ? payload.callerId : undefined;
+
     // Only start the process instance and return
     const resolveImmediatelyAfterStart: boolean = startCallbackType === DataModels.ProcessModels.StartCallbackType.CallbackOnProcessInstanceCreated;
     if (resolveImmediatelyAfterStart) {
+
       const startResult: ProcessStartedMessage =
-        await this.executeProcessService.start(identity, processModelId, correlationId, startEventId, payload.inputValues, payload.callerId);
+        await this.executeProcessService.start(identity, processModelId, correlationId, startEventId, inputValues, callerId);
 
       response.processInstanceId = startResult.processInstanceId;
 
@@ -254,7 +262,7 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
 
       processEndedMessage = await this
         .executeProcessService
-        .startAndAwaitSpecificEndEvent(identity, processModelId, correlationId, endEventId, startEventId, payload.inputValues, payload.callerId);
+        .startAndAwaitSpecificEndEvent(identity, processModelId, correlationId, endEventId, startEventId, inputValues, callerId);
 
       response.endEventId = processEndedMessage.flowNodeId;
       response.tokenPayload = processEndedMessage.currentToken;
@@ -266,7 +274,7 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
     // Start the process instance and wait for the first end event result
     processEndedMessage = await this
       .executeProcessService
-      .startAndAwaitEndEvent(identity, processModelId, correlationId, startEventId, payload.inputValues, payload.callerId);
+      .startAndAwaitEndEvent(identity, processModelId, correlationId, startEventId, inputValues, callerId);
 
     response.endEventId = processEndedMessage.flowNodeId;
     response.tokenPayload = processEndedMessage.currentToken;
