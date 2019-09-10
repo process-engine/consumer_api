@@ -93,7 +93,7 @@ export class EmptyActivityConverter {
 
     const onSuspendToken = emptyActivityInstance.getTokenByType(ProcessTokenType.onSuspend);
 
-    const consumerApiManualTask: DataModels.EmptyActivities.EmptyActivity = {
+    const consumerApiEmptyActivity: DataModels.EmptyActivities.EmptyActivity = {
       id: emptyActivityInstance.flowNodeId,
       flowNodeInstanceId: emptyActivityInstance.id,
       name: emptyActivityModel.name,
@@ -103,7 +103,7 @@ export class EmptyActivityConverter {
       tokenPayload: onSuspendToken.payload,
     };
 
-    return consumerApiManualTask;
+    return consumerApiEmptyActivity;
 
   }
 
