@@ -11,6 +11,7 @@ import {FinishUserTaskMessage as InternalFinishUserTaskMessage} from '@process-e
 
 import {NotificationAdapter} from './adapters/index';
 import {UserTaskConverter} from './converters/index';
+import {applyPagination} from './paginator';
 
 export class UserTaskService implements APIs.IUserTaskConsumerApi {
 
@@ -86,29 +87,50 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
     this.notificationAdapter.removeSubscription(subscription);
   }
 
-  public async getUserTasksForProcessModel(identity: IIdentity, processModelId: string): Promise<DataModels.UserTasks.UserTaskList> {
+  public async getUserTasksForProcessModel(
+    identity: IIdentity,
+    processModelId: string,
+    offset: number = 0,
+    limit: number = 0,
+  ): Promise<DataModels.UserTasks.UserTaskList> {
 
     const suspendedFlowNodes = await this.flowNodeInstanceService.querySuspendedByProcessModel(processModelId);
 
     const userTaskList = await this.userTaskConverter.convertUserTasks(identity, suspendedFlowNodes);
 
+    userTaskList.userTasks = applyPagination(userTaskList.userTasks, offset, limit);
+
     return userTaskList;
   }
 
-  public async getUserTasksForProcessInstance(identity: IIdentity, processInstanceId: string): Promise<DataModels.UserTasks.UserTaskList> {
+  public async getUserTasksForProcessInstance(
+    identity: IIdentity,
+    processInstanceId: string,
+    offset: number = 0,
+    limit: number = 0,
+  ): Promise<DataModels.UserTasks.UserTaskList> {
 
     const suspendedFlowNodes = await this.flowNodeInstanceService.querySuspendedByProcessInstance(processInstanceId);
 
     const userTaskList = await this.userTaskConverter.convertUserTasks(identity, suspendedFlowNodes);
 
+    userTaskList.userTasks = applyPagination(userTaskList.userTasks, offset, limit);
+
     return userTaskList;
   }
 
-  public async getUserTasksForCorrelation(identity: IIdentity, correlationId: string): Promise<DataModels.UserTasks.UserTaskList> {
+  public async getUserTasksForCorrelation(
+    identity: IIdentity,
+    correlationId: string,
+    offset: number = 0,
+    limit: number = 0,
+  ): Promise<DataModels.UserTasks.UserTaskList> {
 
     const suspendedFlowNodes = await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
     const userTaskList = await this.userTaskConverter.convertUserTasks(identity, suspendedFlowNodes);
+
+    userTaskList.userTasks = applyPagination(userTaskList.userTasks, offset, limit);
 
     return userTaskList;
   }
@@ -117,6 +139,8 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
     identity: IIdentity,
     processModelId: string,
     correlationId: string,
+    offset: number = 0,
+    limit: number = 0,
   ): Promise<DataModels.UserTasks.UserTaskList> {
 
     const flowNodeInstances = await this.flowNodeInstanceService.queryActiveByCorrelationAndProcessModel(correlationId, processModelId);
@@ -134,10 +158,16 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
 
     const userTaskList = await this.userTaskConverter.convertUserTasks(identity, suspendedFlowNodeInstances);
 
+    userTaskList.userTasks = applyPagination(userTaskList.userTasks, offset, limit);
+
     return userTaskList;
   }
 
-  public async getWaitingUserTasksByIdentity(identity: IIdentity): Promise<DataModels.UserTasks.UserTaskList> {
+  public async getWaitingUserTasksByIdentity(
+    identity: IIdentity,
+    offset: number = 0,
+    limit: number = 0,
+  ): Promise<DataModels.UserTasks.UserTaskList> {
 
     const suspendedFlowNodeInstances = await this.flowNodeInstanceService.queryByState(FlowNodeInstanceState.suspended);
 
@@ -146,6 +176,8 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
     });
 
     const userTaskList = await this.userTaskConverter.convertUserTasks(identity, flowNodeInstancesOwnedByUser);
+
+    userTaskList.userTasks = applyPagination(userTaskList.userTasks, offset, limit);
 
     return userTaskList;
   }
