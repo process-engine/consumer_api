@@ -20,6 +20,7 @@ import {
 import {IProcessModelUseCases, Model} from '@process-engine/process_model.contracts';
 
 import {NotificationAdapter} from './adapters/index';
+import {applyPagination} from './paginator';
 
 export class ProcessModelService implements APIs.IProcessModelConsumerApi {
 
@@ -50,13 +51,17 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
     this.notificationAdapter = notificationAdapter;
   }
 
-  public async getProcessModels(identity: IIdentity): Promise<DataModels.ProcessModels.ProcessModelList> {
+  public async getProcessModels(
+    identity: IIdentity,
+    offset: number = 0,
+    limit: number = 0,
+  ): Promise<DataModels.ProcessModels.ProcessModelList> {
 
     const processModels = await this.processModelUseCase.getProcessModels(identity);
     const consumerApiProcessModels = processModels.map<DataModels.ProcessModels.ProcessModel>(this.convertProcessModelToPublicType.bind(this));
 
     return {
-      processModels: consumerApiProcessModels,
+      processModels: applyPagination(consumerApiProcessModels, offset, limit),
     };
   }
 
