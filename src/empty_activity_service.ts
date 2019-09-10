@@ -179,7 +179,7 @@ export class EmptyActivityService implements APIs.IEmptyActivityConsumerApi {
   ): Promise<void> {
 
     const matchingFlowNodeInstance =
-      await this.getFlowNodeInstanceInProcessInstance(processInstanceId, emptyActivityInstanceId);
+      await this.getFlowNodeInstanceForCorrelationInProcessInstance(correlationId, processInstanceId, emptyActivityInstanceId);
 
     const noMatchingInstanceFound = matchingFlowNodeInstance === undefined;
     if (noMatchingInstanceFound) {
@@ -210,15 +210,17 @@ export class EmptyActivityService implements APIs.IEmptyActivityConsumerApi {
     });
   }
 
-  private async getFlowNodeInstanceInProcessInstance(
+  private async getFlowNodeInstanceForCorrelationInProcessInstance(
+    correlationId: string,
     processInstanceId: string,
-    flowNodeInstanceId: string,
+    instanceId: string,
   ): Promise<FlowNodeInstance> {
 
     const suspendedFlowNodeInstances = await this.flowNodeInstanceService.querySuspendedByProcessInstance(processInstanceId);
 
     const matchingInstance = suspendedFlowNodeInstances.find((instance: FlowNodeInstance): boolean => {
-      return instance.id === flowNodeInstanceId;
+      return instance.id === instanceId &&
+             instance.correlationId === correlationId;
     });
 
     return matchingInstance;
