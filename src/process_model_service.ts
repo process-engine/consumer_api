@@ -162,7 +162,7 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
     return results;
   }
 
-  public async getProcessInstancesByIdentity(identity: IIdentity): Promise<Array<DataModels.ProcessInstance>> {
+  public async getProcessInstancesByIdentity(identity: IIdentity, offset: number = 0, limit: number = 0): Promise<Array<DataModels.ProcessInstance>> {
 
     const suspendedFlowNodeInstances = await this.flowNodeInstanceService.queryActive();
 
@@ -172,7 +172,9 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
 
     const processInstances = this.getProcessInstancesfromFlowNodeInstances(flowNodeInstancesOwnedByUser);
 
-    return processInstances;
+    const paginizedProcessInstances = applyPagination(processInstances, offset, limit);
+
+    return paginizedProcessInstances;
   }
 
   public async onProcessStarted(
