@@ -1,15 +1,12 @@
-import {BadRequestError} from '@essential-projects/errors_ts';
+import {Logger} from 'loggerhythm';
+
+const logger = Logger.createLogger('processengine:consumer_api_core:paginator');
 
 export function applyPagination<TValue>(values: Array<TValue>, offset: number, limit: number): Array<TValue> {
 
   if (offset > values.length) {
-    const error = new BadRequestError(`The offset of ${offset} is out of bounds!`);
-    error.additionalInformation = {
-      numberOfItemsInValueList: values.length,
-      offsetUsed: offset,
-    } as any; //eslint-disable-line
-
-    throw error;
+    logger.warn(`The offset of ${offset} is larger than the given value list (${values.length})! Returning an empty result set.`);
+    return [];
   }
 
   let valueSubset = offset > 0
