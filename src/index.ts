@@ -8,3 +8,4 @@ export * from './manual_task_service';
 export * from './notiifcation_service';
 export * from './process_model_service';
 export * from './user_task_service';
+export * from './task_service';
