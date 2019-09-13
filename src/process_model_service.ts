@@ -20,6 +20,7 @@ import {
 import {IProcessModelUseCases, Model} from '@process-engine/process_model.contracts';
 
 import {NotificationAdapter} from './adapters/index';
+import {applyPagination} from './paginator';
 
 export class ProcessModelService implements APIs.IProcessModelConsumerApi {
 
@@ -50,13 +51,17 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
     this.notificationAdapter = notificationAdapter;
   }
 
-  public async getProcessModels(identity: IIdentity): Promise<DataModels.ProcessModels.ProcessModelList> {
+  public async getProcessModels(
+    identity: IIdentity,
+    offset: number = 0,
+    limit: number = 0,
+  ): Promise<DataModels.ProcessModels.ProcessModelList> {
 
     const processModels = await this.processModelUseCase.getProcessModels(identity);
     const consumerApiProcessModels = processModels.map<DataModels.ProcessModels.ProcessModel>(this.convertProcessModelToPublicType.bind(this));
 
     return {
-      processModels: consumerApiProcessModels,
+      processModels: applyPagination(consumerApiProcessModels, offset, limit),
     };
   }
 
@@ -157,7 +162,7 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
     return results;
   }
 
-  public async getProcessInstancesByIdentity(identity: IIdentity): Promise<Array<DataModels.ProcessInstance>> {
+  public async getProcessInstancesByIdentity(identity: IIdentity, offset: number = 0, limit: number = 0): Promise<Array<DataModels.ProcessInstance>> {
 
     const suspendedFlowNodeInstances = await this.flowNodeInstanceService.queryActive();
 
@@ -167,7 +172,9 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
 
     const processInstances = this.getProcessInstancesfromFlowNodeInstances(flowNodeInstancesOwnedByUser);
 
-    return processInstances;
+    const paginizedProcessInstances = applyPagination(processInstances, offset, limit);
+
+    return paginizedProcessInstances;
   }
 
   public async onProcessStarted(

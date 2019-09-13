@@ -5,6 +5,7 @@ import {FlowNodeInstance, IFlowNodeInstanceService} from '@process-engine/flow_n
 import {IProcessModelUseCases} from '@process-engine/process_model.contracts';
 
 import {EventConverter} from './converters/index';
+import {applyPagination} from './paginator';
 
 export class EventService implements APIs.IEventConsumerApi {
 
@@ -31,7 +32,12 @@ export class EventService implements APIs.IEventConsumerApi {
     this.eventConverter = eventConverter;
   }
 
-  public async getEventsForProcessModel(identity: IIdentity, processModelId: string): Promise<DataModels.Events.EventList> {
+  public async getEventsForProcessModel(
+    identity: IIdentity,
+    processModelId: string,
+    offset: number = 0,
+    limit: number = 0,
+  ): Promise<DataModels.Events.EventList> {
 
     const suspendedFlowNodeInstances = await this.flowNodeInstanceService.querySuspendedByProcessModel(processModelId);
 
@@ -39,10 +45,19 @@ export class EventService implements APIs.IEventConsumerApi {
 
     const eventList = await this.eventConverter.convertEvents(identity, suspendedEvents);
 
+    // TODO: Remove that useless `EventList` datatype and just return an Array of Events.
+    // Goes for the other UseCases as well.
+    eventList.events = applyPagination(eventList.events, offset, limit);
+
     return eventList;
   }
 
-  public async getEventsForCorrelation(identity: IIdentity, correlationId: string): Promise<DataModels.Events.EventList> {
+  public async getEventsForCorrelation(
+    identity: IIdentity,
+    correlationId: string,
+    offset: number = 0,
+    limit: number = 0,
+  ): Promise<DataModels.Events.EventList> {
 
     const suspendedFlowNodeInstances = await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
@@ -61,6 +76,8 @@ export class EventService implements APIs.IEventConsumerApi {
 
     const eventList = await this.eventConverter.convertEvents(identity, accessibleEvents);
 
+    eventList.events = applyPagination(eventList.events, offset, limit);
+
     return eventList;
   }
 
@@ -68,6 +85,8 @@ export class EventService implements APIs.IEventConsumerApi {
     identity: IIdentity,
     processModelId: string,
     correlationId: string,
+    offset: number = 0,
+    limit: number = 0,
   ): Promise<DataModels.Events.EventList> {
 
     const suspendedFlowNodeInstances = await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
@@ -80,9 +99,11 @@ export class EventService implements APIs.IEventConsumerApi {
       return flowNodeIsEvent && flowNodeBelongstoCorrelation;
     });
 
-    const triggerableEvents = await this.eventConverter.convertEvents(identity, suspendedEvents);
+    const eventList = await this.eventConverter.convertEvents(identity, suspendedEvents);
 
-    return triggerableEvents;
+    eventList.events = applyPagination(eventList.events, offset, limit);
+
+    return eventList;
   }
 
   public async triggerMessageEvent(identity: IIdentity, messageName: string, payload?: DataModels.Events.EventTriggerPayload): Promise<void> {
