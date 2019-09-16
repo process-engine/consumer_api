@@ -5,9 +5,11 @@ import {
   IFlowNodeInstanceService,
 } from '@process-engine/flow_node_instance.contracts';
 import {IIdentity} from '@essential-projects/iam_contracts';
-import {EmptyActivityConverter, ManualTaskConverter, UserTaskConverter} from './converters/index';
 
-export class TaskService implements APIs.ITaskConsumerApi {
+import {EmptyActivityConverter, ManualTaskConverter, UserTaskConverter} from './converters/index';
+import {applyPagination} from './paginator';
+
+export class FlowNodeInstanceService implements APIs.IFlowNodeInstanceConsumerApi {
 
   private readonly flowNodeInstanceService: IFlowNodeInstanceService;
 
@@ -28,7 +30,11 @@ export class TaskService implements APIs.ITaskConsumerApi {
     this.userTaskConverter = userTaskConverter;
   }
 
-  public async getAllSuspendedTasks(identity: IIdentity): Promise<DataModels.Tasks.TaskList> {
+  public async getAllSuspendedTasks(
+    identity: IIdentity,
+    offset: number = 0,
+    limit: number = 0,
+  ): Promise<DataModels.FlowNodeInstances.TaskList> {
 
     const suspendedFlowNodes = await this.flowNodeInstanceService.queryByState(FlowNodeInstanceState.suspended);
 
@@ -36,16 +42,21 @@ export class TaskService implements APIs.ITaskConsumerApi {
     const manualTaskList = await this.manualTaskConverter.convert(identity, suspendedFlowNodes);
     const emptyActivityList = await this.emptyActivityConverter.convert(identity, suspendedFlowNodes);
 
-    const taskList: DataModels.Tasks.TaskList = {
-      emptyActivities: emptyActivityList.emptyActivities,
-      userTasks: userTaskList.userTasks,
-      manualTasks: manualTaskList.manualTasks,
+    const taskList: DataModels.FlowNodeInstances.TaskList = {
+      emptyActivities: applyPagination(emptyActivityList.emptyActivities, offset, limit),
+      userTasks: applyPagination(userTaskList.userTasks, offset, limit),
+      manualTasks: applyPagination(manualTaskList.manualTasks, offset, limit),
     };
 
     return taskList;
   }
 
-  public async getTasksForProcessModel(identity: IIdentity, processModelId: string): Promise<DataModels.Tasks.TaskList> {
+  public async getSuspendedTasksForProcessModel(
+    identity: IIdentity,
+    processModelId: string,
+    offset: number = 0,
+    limit: number = 0,
+  ): Promise<DataModels.FlowNodeInstances.TaskList> {
 
     const suspendedFlowNodes = await this.flowNodeInstanceService.querySuspendedByProcessModel(processModelId);
 
@@ -53,16 +64,21 @@ export class TaskService implements APIs.ITaskConsumerApi {
     const manualTaskList = await this.manualTaskConverter.convert(identity, suspendedFlowNodes);
     const emptyActivityList = await this.emptyActivityConverter.convert(identity, suspendedFlowNodes);
 
-    const taskList: DataModels.Tasks.TaskList = {
-      emptyActivities: emptyActivityList.emptyActivities,
-      userTasks: userTaskList.userTasks,
-      manualTasks: manualTaskList.manualTasks,
+    const taskList: DataModels.FlowNodeInstances.TaskList = {
+      emptyActivities: applyPagination(emptyActivityList.emptyActivities, offset, limit),
+      userTasks: applyPagination(userTaskList.userTasks, offset, limit),
+      manualTasks: applyPagination(manualTaskList.manualTasks, offset, limit),
     };
 
     return taskList;
   }
 
-  public async getTasksForProcessInstance(identity: IIdentity, processInstanceId: string): Promise<DataModels.Tasks.TaskList> {
+  public async getSuspendedTasksForProcessInstance(
+    identity: IIdentity,
+    processInstanceId: string,
+    offset: number = 0,
+    limit: number = 0,
+  ): Promise<DataModels.FlowNodeInstances.TaskList> {
 
     const suspendedFlowNodes = await this.flowNodeInstanceService.querySuspendedByProcessInstance(processInstanceId);
 
@@ -70,16 +86,21 @@ export class TaskService implements APIs.ITaskConsumerApi {
     const manualTaskList = await this.manualTaskConverter.convert(identity, suspendedFlowNodes);
     const emptyActivityList = await this.emptyActivityConverter.convert(identity, suspendedFlowNodes);
 
-    const taskList: DataModels.Tasks.TaskList = {
-      emptyActivities: emptyActivityList.emptyActivities,
-      userTasks: userTaskList.userTasks,
-      manualTasks: manualTaskList.manualTasks,
+    const taskList: DataModels.FlowNodeInstances.TaskList = {
+      emptyActivities: applyPagination(emptyActivityList.emptyActivities, offset, limit),
+      userTasks: applyPagination(userTaskList.userTasks, offset, limit),
+      manualTasks: applyPagination(manualTaskList.manualTasks, offset, limit),
     };
 
     return taskList;
   }
 
-  public async getTasksForCorrelation(identity: IIdentity, correlationId: string): Promise<DataModels.Tasks.TaskList> {
+  public async getSuspendedTasksForCorrelation(
+    identity: IIdentity,
+    correlationId: string,
+    offset: number = 0,
+    limit: number = 0,
+  ): Promise<DataModels.FlowNodeInstances.TaskList> {
 
     const suspendedFlowNodes = await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
@@ -87,20 +108,22 @@ export class TaskService implements APIs.ITaskConsumerApi {
     const manualTaskList = await this.manualTaskConverter.convert(identity, suspendedFlowNodes);
     const emptyActivityList = await this.emptyActivityConverter.convert(identity, suspendedFlowNodes);
 
-    const taskList: DataModels.Tasks.TaskList = {
-      emptyActivities: emptyActivityList.emptyActivities,
-      userTasks: userTaskList.userTasks,
-      manualTasks: manualTaskList.manualTasks,
+    const taskList: DataModels.FlowNodeInstances.TaskList = {
+      emptyActivities: applyPagination(emptyActivityList.emptyActivities, offset, limit),
+      userTasks: applyPagination(userTaskList.userTasks, offset, limit),
+      manualTasks: applyPagination(manualTaskList.manualTasks, offset, limit),
     };
 
     return taskList;
   }
 
-  public async getTasksForProcessModelInCorrelation(
+  public async getSuspendedTasksForProcessModelInCorrelation(
     identity: IIdentity,
     processModelId: string,
     correlationId: string,
-  ): Promise<DataModels.Tasks.TaskList> {
+    offset: number = 0,
+    limit: number = 0,
+  ): Promise<DataModels.FlowNodeInstances.TaskList> {
 
     const flowNodeInstances = await this.flowNodeInstanceService.queryActiveByCorrelationAndProcessModel(correlationId, processModelId);
 
@@ -110,7 +133,7 @@ export class TaskService implements APIs.ITaskConsumerApi {
 
     const noSuspendedFlowNodesFound = !suspendedFlowNodeInstances || suspendedFlowNodeInstances.length === 0;
     if (noSuspendedFlowNodesFound) {
-      return <DataModels.Tasks.TaskList> {
+      return <DataModels.FlowNodeInstances.TaskList> {
         manualTasks: [],
         userTasks: [],
         emptyActivities: [],
@@ -121,10 +144,10 @@ export class TaskService implements APIs.ITaskConsumerApi {
     const manualTaskList = await this.manualTaskConverter.convert(identity, suspendedFlowNodeInstances);
     const emptyActivityList = await this.emptyActivityConverter.convert(identity, suspendedFlowNodeInstances);
 
-    const taskList: DataModels.Tasks.TaskList = {
-      emptyActivities: emptyActivityList.emptyActivities,
-      userTasks: userTaskList.userTasks,
-      manualTasks: manualTaskList.manualTasks,
+    const taskList: DataModels.FlowNodeInstances.TaskList = {
+      emptyActivities: applyPagination(emptyActivityList.emptyActivities, offset, limit),
+      userTasks: applyPagination(userTaskList.userTasks, offset, limit),
+      manualTasks: applyPagination(manualTaskList.manualTasks, offset, limit),
     };
 
     return taskList;
