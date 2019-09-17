@@ -52,6 +52,7 @@ export class EventConverter {
 
     const eventList: DataModels.Events.EventList = {
       events: suspendedEvents,
+      totalCount: suspendedEvents.length,
     };
 
     return eventList;

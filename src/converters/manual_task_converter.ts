@@ -47,6 +47,7 @@ export class ManualTaskConverter {
 
     const manualTaskList: DataModels.ManualTasks.ManualTaskList = {
       manualTasks: suspendedManualTasks,
+      totalCount: suspendedManualTasks.length,
     };
 
     return manualTaskList;

@@ -47,6 +47,7 @@ export class EmptyActivityConverter {
 
     const emptyActivityList: DataModels.EmptyActivities.EmptyActivityList = {
       emptyActivities: suspendedEmptyActivities,
+      totalCount: suspendedEmptyActivities.length,
     };
 
     return emptyActivityList;

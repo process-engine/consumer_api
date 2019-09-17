@@ -60,9 +60,9 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
     const processModels = await this.processModelUseCase.getProcessModels(identity);
     const consumerApiProcessModels = processModels.map<DataModels.ProcessModels.ProcessModel>(this.convertProcessModelToPublicType.bind(this));
 
-    return {
-      processModels: applyPagination(consumerApiProcessModels, offset, limit),
-    };
+    const paginizedProcessModels = applyPagination(consumerApiProcessModels, offset, limit);
+
+    return {processModels: paginizedProcessModels, totalCount: processModels.length};
   }
 
   public async getProcessModelById(identity: IIdentity, processModelId: string): Promise<DataModels.ProcessModels.ProcessModel> {
@@ -115,7 +115,7 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
     identity: IIdentity,
     correlationId: string,
     processModelId: string,
-  ): Promise<Array<DataModels.CorrelationResult>> {
+  ): Promise<DataModels.Correlations.CorrelationResultList> {
 
     const processModel =
       await this.processModelUseCase.getProcessModelById(identity, processModelId);
@@ -159,10 +159,14 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
     // Now extract all results from the available EndEvents.
     const results = availableEndEvents.map(this.createCorrelationResultFromEndEventInstance);
 
-    return results;
+    return {correlationResults: results, totalCount: results.length};
   }
 
-  public async getProcessInstancesByIdentity(identity: IIdentity, offset: number = 0, limit: number = 0): Promise<Array<DataModels.ProcessInstance>> {
+  public async getProcessInstancesByIdentity(
+    identity: IIdentity,
+    offset: number = 0,
+    limit: number = 0,
+  ): Promise<DataModels.ProcessModels.ProcessInstanceList> {
 
     const suspendedFlowNodeInstances = await this.flowNodeInstanceService.queryActive();
 
@@ -174,7 +178,7 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
 
     const paginizedProcessInstances = applyPagination(processInstances, offset, limit);
 
-    return paginizedProcessInstances;
+    return {processInstances: paginizedProcessInstances, totalCount: processInstances.length};
   }
 
   public async onProcessStarted(
@@ -290,13 +294,13 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
     return response;
   }
 
-  private createCorrelationResultFromEndEventInstance(endEventInstance: FlowNodeInstance): DataModels.CorrelationResult {
+  private createCorrelationResultFromEndEventInstance(endEventInstance: FlowNodeInstance): DataModels.Correlations.CorrelationResult {
 
     const exitToken = endEventInstance.tokens.find((token: ProcessToken): boolean => {
       return token.type === ProcessTokenType.onExit;
     });
 
-    const correlationResult: DataModels.CorrelationResult = {
+    const correlationResult: DataModels.Correlations.CorrelationResult = {
       correlationId: exitToken.correlationId,
       endEventId: endEventInstance.flowNodeId,
       tokenPayload: exitToken.payload,
@@ -345,19 +349,19 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
     return processModelResponse;
   }
 
-  private getProcessInstancesfromFlowNodeInstances(flowNodeInstances: Array<FlowNodeInstance>): Array<DataModels.ProcessInstance> {
+  private getProcessInstancesfromFlowNodeInstances(flowNodeInstances: Array<FlowNodeInstance>): Array<DataModels.ProcessModels.ProcessInstance> {
 
-    const activeProcessInstances: Array<DataModels.ProcessInstance> = [];
+    const activeProcessInstances: Array<DataModels.ProcessModels.ProcessInstance> = [];
 
     for (const flowNodeInstance of flowNodeInstances) {
 
       const processInstanceListHasNoMatchingEntry =
-        !activeProcessInstances.some((entry: DataModels.ProcessInstance): boolean => {
+        !activeProcessInstances.some((entry: DataModels.ProcessModels.ProcessInstance): boolean => {
           return entry.id === flowNodeInstance.processInstanceId;
         });
 
       if (processInstanceListHasNoMatchingEntry) {
-        const processInstance = new DataModels.ProcessInstance(
+        const processInstance = new DataModels.ProcessModels.ProcessInstance(
           flowNodeInstance.processInstanceId,
           flowNodeInstance.processModelId,
           flowNodeInstance.correlationId,
