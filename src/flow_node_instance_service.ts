@@ -42,10 +42,13 @@ export class FlowNodeInstanceService implements APIs.IFlowNodeInstanceConsumerAp
     const manualTaskList = await this.manualTaskConverter.convert(identity, suspendedFlowNodes);
     const emptyActivityList = await this.emptyActivityConverter.convert(identity, suspendedFlowNodes);
 
+    const totalCount = emptyActivityList.emptyActivities.length + manualTaskList.manualTasks.length + userTaskList.userTasks.length;
+
     const taskList: DataModels.FlowNodeInstances.TaskList = {
       emptyActivities: emptyActivityList.emptyActivities,
       userTasks: userTaskList.userTasks,
       manualTasks: manualTaskList.manualTasks,
+      totalCount: totalCount,
     };
 
     const paginatedTaskList = applyPaginationForTaskList(taskList, offset, limit);
@@ -66,10 +69,13 @@ export class FlowNodeInstanceService implements APIs.IFlowNodeInstanceConsumerAp
     const manualTaskList = await this.manualTaskConverter.convert(identity, suspendedFlowNodes);
     const emptyActivityList = await this.emptyActivityConverter.convert(identity, suspendedFlowNodes);
 
+    const totalCount = emptyActivityList.emptyActivities.length + manualTaskList.manualTasks.length + userTaskList.userTasks.length;
+
     const taskList: DataModels.FlowNodeInstances.TaskList = {
       emptyActivities: emptyActivityList.emptyActivities,
       userTasks: userTaskList.userTasks,
       manualTasks: manualTaskList.manualTasks,
+      totalCount: totalCount,
     };
 
     const paginatedTaskList = applyPaginationForTaskList(taskList, offset, limit);
@@ -90,10 +96,13 @@ export class FlowNodeInstanceService implements APIs.IFlowNodeInstanceConsumerAp
     const manualTaskList = await this.manualTaskConverter.convert(identity, suspendedFlowNodes);
     const emptyActivityList = await this.emptyActivityConverter.convert(identity, suspendedFlowNodes);
 
+    const totalCount = emptyActivityList.emptyActivities.length + manualTaskList.manualTasks.length + userTaskList.userTasks.length;
+
     const taskList: DataModels.FlowNodeInstances.TaskList = {
       emptyActivities: emptyActivityList.emptyActivities,
       userTasks: userTaskList.userTasks,
       manualTasks: manualTaskList.manualTasks,
+      totalCount: totalCount,
     };
 
     const paginatedTaskList = applyPaginationForTaskList(taskList, offset, limit);
@@ -114,10 +123,13 @@ export class FlowNodeInstanceService implements APIs.IFlowNodeInstanceConsumerAp
     const manualTaskList = await this.manualTaskConverter.convert(identity, suspendedFlowNodes);
     const emptyActivityList = await this.emptyActivityConverter.convert(identity, suspendedFlowNodes);
 
+    const totalCount = emptyActivityList.emptyActivities.length + manualTaskList.manualTasks.length + userTaskList.userTasks.length;
+
     const taskList: DataModels.FlowNodeInstances.TaskList = {
       emptyActivities: emptyActivityList.emptyActivities,
       userTasks: userTaskList.userTasks,
       manualTasks: manualTaskList.manualTasks,
+      totalCount: totalCount,
     };
 
     const paginatedTaskList = applyPaginationForTaskList(taskList, offset, limit);
@@ -145,6 +157,7 @@ export class FlowNodeInstanceService implements APIs.IFlowNodeInstanceConsumerAp
         manualTasks: [],
         userTasks: [],
         emptyActivities: [],
+        totalCount: 0,
       };
     }
 
@@ -152,10 +165,13 @@ export class FlowNodeInstanceService implements APIs.IFlowNodeInstanceConsumerAp
     const manualTaskList = await this.manualTaskConverter.convert(identity, suspendedFlowNodeInstances);
     const emptyActivityList = await this.emptyActivityConverter.convert(identity, suspendedFlowNodeInstances);
 
+    const totalCount = emptyActivityList.emptyActivities.length + manualTaskList.manualTasks.length + userTaskList.userTasks.length;
+
     const taskList: DataModels.FlowNodeInstances.TaskList = {
       emptyActivities: emptyActivityList.emptyActivities,
       userTasks: userTaskList.userTasks,
       manualTasks: manualTaskList.manualTasks,
+      totalCount: totalCount,
     };
 
     const paginatedTaskList = applyPaginationForTaskList(taskList, offset, limit);

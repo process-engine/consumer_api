@@ -30,15 +30,14 @@ export function applyPaginationForTaskList(
   limit: number,
 ): DataModels.FlowNodeInstances.TaskList {
 
-  const taskListLength = taskList.emptyActivities.length + taskList.manualTasks.length + taskList.userTasks.length;
-  if (offset > taskListLength) {
-    logger.warn(`The offset of ${offset} is larger than the given value list (${taskListLength})! Returning an empty result set.`);
+  if (offset > taskList.totalCount) {
+    logger.warn(`The offset of ${offset} is larger than the given value list (${taskList.totalCount})! Returning an empty result set.`);
 
     return {
       emptyActivities: [],
       manualTasks: [],
       userTasks: [],
-      totalCount: 0,
+      totalCount: taskList.totalCount,
     };
   }
 
@@ -61,13 +60,11 @@ export function applyPaginationForTaskList(
 
   const userTasks = limit > 0 && limitForUserTasks < 1 ? [] : applyPagination(taskList.userTasks, offsetForUserTasks, limitForUserTasks);
 
-  const totalCount = emptyActivities.length + manualTasks.length + userTasks.length;
-
   const newTaskList = {
     emptyActivities: emptyActivities,
     manualTasks: manualTasks,
     userTasks: userTasks,
-    totalCount: totalCount,
+    totalCount: taskList.totalCount,
   };
 
   return newTaskList;
