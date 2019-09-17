@@ -65,6 +65,7 @@ export class UserTaskConverter {
 
     const userTaskList: DataModels.UserTasks.UserTaskList = {
       userTasks: suspendedUserTasks,
+      totalCount: suspendedUserTasks.length,
     };
 
     return userTaskList;

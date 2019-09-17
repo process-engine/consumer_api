@@ -60,9 +60,9 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
     const processModels = await this.processModelUseCase.getProcessModels(identity);
     const consumerApiProcessModels = processModels.map<DataModels.ProcessModels.ProcessModel>(this.convertProcessModelToPublicType.bind(this));
 
-    return {
-      processModels: applyPagination(consumerApiProcessModels, offset, limit),
-    };
+    const paginizedProcessModels = applyPagination(consumerApiProcessModels, offset, limit);
+
+    return {processModels: paginizedProcessModels, totalCount: processModels.length};
   }
 
   public async getProcessModelById(identity: IIdentity, processModelId: string): Promise<DataModels.ProcessModels.ProcessModel> {
@@ -115,7 +115,7 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
     identity: IIdentity,
     correlationId: string,
     processModelId: string,
-  ): Promise<Array<DataModels.CorrelationResult>> {
+  ): Promise<DataModels.CorrelationResultList> {
 
     const processModel =
       await this.processModelUseCase.getProcessModelById(identity, processModelId);
@@ -159,10 +159,10 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
     // Now extract all results from the available EndEvents.
     const results = availableEndEvents.map(this.createCorrelationResultFromEndEventInstance);
 
-    return results;
+    return {correlationResults: results, totalCount: results.length};
   }
 
-  public async getProcessInstancesByIdentity(identity: IIdentity, offset: number = 0, limit: number = 0): Promise<Array<DataModels.ProcessInstance>> {
+  public async getProcessInstancesByIdentity(identity: IIdentity, offset: number = 0, limit: number = 0): Promise<DataModels.ProcessInstanceList> {
 
     const suspendedFlowNodeInstances = await this.flowNodeInstanceService.queryActive();
 
@@ -174,7 +174,7 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
 
     const paginizedProcessInstances = applyPagination(processInstances, offset, limit);
 
-    return paginizedProcessInstances;
+    return {processInstances: paginizedProcessInstances, totalCount: processInstances.length};
   }
 
   public async onProcessStarted(
