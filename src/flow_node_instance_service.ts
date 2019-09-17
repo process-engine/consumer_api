@@ -7,7 +7,7 @@ import {
 import {IIdentity} from '@essential-projects/iam_contracts';
 
 import {EmptyActivityConverter, ManualTaskConverter, UserTaskConverter} from './converters/index';
-import {applyPagination} from './paginator';
+import {applyPaginationForTaskList} from './paginator';
 
 export class FlowNodeInstanceService implements APIs.IFlowNodeInstanceConsumerApi {
 
@@ -43,12 +43,14 @@ export class FlowNodeInstanceService implements APIs.IFlowNodeInstanceConsumerAp
     const emptyActivityList = await this.emptyActivityConverter.convert(identity, suspendedFlowNodes);
 
     const taskList: DataModels.FlowNodeInstances.TaskList = {
-      emptyActivities: applyPagination(emptyActivityList.emptyActivities, offset, limit),
-      userTasks: applyPagination(userTaskList.userTasks, offset, limit),
-      manualTasks: applyPagination(manualTaskList.manualTasks, offset, limit),
+      emptyActivities: emptyActivityList.emptyActivities,
+      userTasks: userTaskList.userTasks,
+      manualTasks: manualTaskList.manualTasks,
     };
 
-    return taskList;
+    const paginatedTaskList = applyPaginationForTaskList(taskList, offset, limit);
+
+    return paginatedTaskList;
   }
 
   public async getSuspendedTasksForProcessModel(
@@ -65,12 +67,14 @@ export class FlowNodeInstanceService implements APIs.IFlowNodeInstanceConsumerAp
     const emptyActivityList = await this.emptyActivityConverter.convert(identity, suspendedFlowNodes);
 
     const taskList: DataModels.FlowNodeInstances.TaskList = {
-      emptyActivities: applyPagination(emptyActivityList.emptyActivities, offset, limit),
-      userTasks: applyPagination(userTaskList.userTasks, offset, limit),
-      manualTasks: applyPagination(manualTaskList.manualTasks, offset, limit),
+      emptyActivities: emptyActivityList.emptyActivities,
+      userTasks: userTaskList.userTasks,
+      manualTasks: manualTaskList.manualTasks,
     };
 
-    return taskList;
+    const paginatedTaskList = applyPaginationForTaskList(taskList, offset, limit);
+
+    return paginatedTaskList;
   }
 
   public async getSuspendedTasksForProcessInstance(
@@ -87,12 +91,14 @@ export class FlowNodeInstanceService implements APIs.IFlowNodeInstanceConsumerAp
     const emptyActivityList = await this.emptyActivityConverter.convert(identity, suspendedFlowNodes);
 
     const taskList: DataModels.FlowNodeInstances.TaskList = {
-      emptyActivities: applyPagination(emptyActivityList.emptyActivities, offset, limit),
-      userTasks: applyPagination(userTaskList.userTasks, offset, limit),
-      manualTasks: applyPagination(manualTaskList.manualTasks, offset, limit),
+      emptyActivities: emptyActivityList.emptyActivities,
+      userTasks: userTaskList.userTasks,
+      manualTasks: manualTaskList.manualTasks,
     };
 
-    return taskList;
+    const paginatedTaskList = applyPaginationForTaskList(taskList, offset, limit);
+
+    return paginatedTaskList;
   }
 
   public async getSuspendedTasksForCorrelation(
@@ -109,12 +115,14 @@ export class FlowNodeInstanceService implements APIs.IFlowNodeInstanceConsumerAp
     const emptyActivityList = await this.emptyActivityConverter.convert(identity, suspendedFlowNodes);
 
     const taskList: DataModels.FlowNodeInstances.TaskList = {
-      emptyActivities: applyPagination(emptyActivityList.emptyActivities, offset, limit),
-      userTasks: applyPagination(userTaskList.userTasks, offset, limit),
-      manualTasks: applyPagination(manualTaskList.manualTasks, offset, limit),
+      emptyActivities: emptyActivityList.emptyActivities,
+      userTasks: userTaskList.userTasks,
+      manualTasks: manualTaskList.manualTasks,
     };
 
-    return taskList;
+    const paginatedTaskList = applyPaginationForTaskList(taskList, offset, limit);
+
+    return paginatedTaskList;
   }
 
   public async getSuspendedTasksForProcessModelInCorrelation(
@@ -145,12 +153,14 @@ export class FlowNodeInstanceService implements APIs.IFlowNodeInstanceConsumerAp
     const emptyActivityList = await this.emptyActivityConverter.convert(identity, suspendedFlowNodeInstances);
 
     const taskList: DataModels.FlowNodeInstances.TaskList = {
-      emptyActivities: applyPagination(emptyActivityList.emptyActivities, offset, limit),
-      userTasks: applyPagination(userTaskList.userTasks, offset, limit),
-      manualTasks: applyPagination(manualTaskList.manualTasks, offset, limit),
+      emptyActivities: emptyActivityList.emptyActivities,
+      userTasks: userTaskList.userTasks,
+      manualTasks: manualTaskList.manualTasks,
     };
 
-    return taskList;
+    const paginatedTaskList = applyPaginationForTaskList(taskList, offset, limit);
+
+    return paginatedTaskList;
   }
 
 }
