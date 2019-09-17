@@ -36,7 +36,7 @@ export class ExternalTaskService implements APIs.IExternalTaskConsumerApi {
     maxTasks: number,
     longPollingTimeout: number,
     lockDuration: number,
-  ): Promise<DataModels.ExternalTask.ExternalTaskList<TPayload>> {
+  ): Promise<Array<DataModels.ExternalTask.ExternalTask<TPayload>>> {
 
     await this.iamService.ensureHasClaim(identity, this.canAccessExternalTasksClaim);
 
@@ -54,7 +54,7 @@ export class ExternalTaskService implements APIs.IExternalTaskConsumerApi {
     // An "undefined" entry matches a task that could not be locked for the worker.
     const availableTasks = lockedTasks.filter((task): boolean => task !== undefined);
 
-    return {externalTasks: availableTasks, totalCount: availableTasks.length};
+    return availableTasks;
   }
 
   public async extendLock(identity: IIdentity, workerId: string, externalTaskId: string, additionalDuration: number): Promise<void> {
