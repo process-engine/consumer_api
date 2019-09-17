@@ -14,7 +14,7 @@ const {
   NotificationService,
   ProcessModelService,
   UserTaskService,
-  FlowNodenstanceService,
+  FlowNodeInstanceService,
 } = require('./dist/commonjs/index');
 
 function registerInContainer(container) {
@@ -118,7 +118,7 @@ function registerServices(container) {
     .singleton();
 
   container
-    .register('ConsumerApiFlowNodeInstanceService', FlowNodenstanceService)
+    .register('ConsumerApiFlowNodeInstanceService', FlowNodeInstanceService)
     .dependencies(
       'FlowNodeInstanceService',
       'ConsumerApiEmptyActivityConverter',
