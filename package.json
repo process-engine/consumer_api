@@ -29,7 +29,7 @@
   "homepage": "https://github.com/process-engine/consumer_api#readme",
   "dependencies": {
     "@essential-projects/errors_ts": "^1.5.0",
-    "@process-engine/consumer_api_contracts": "feature~add_total-count",
+    "@process-engine/consumer_api_contracts": "8.1.0-e115ab4a-b31",
     "@process-engine/correlation.contracts": "2.2.0-cf63a55e-b11",
     "@process-engine/flow_node_instance.contracts": "2.1.0-2db7098c-b4",
     "@process-engine/process_engine_contracts": "^45.1.0",
