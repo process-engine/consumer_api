@@ -7,7 +7,6 @@ import {
   ActivityReachedMessage,
   BaseSystemEventMessage,
   BoundaryEventTriggeredMessage,
-  BpmnType,
   EndEventReachedMessage,
   IntermediateCatchEventFinishedMessage,
   IntermediateCatchEventReachedMessage,
