@@ -1,5 +1,3 @@
-'use strict';
-
 const {
   EmptyActivityConverter,
   EventConverter,
@@ -16,6 +14,7 @@ const {
   NotificationService,
   ProcessModelService,
   UserTaskService,
+  FlowNodeInstanceService,
 } = require('./dist/commonjs/index');
 
 function registerInContainer(container) {
@@ -60,7 +59,8 @@ function registerServices(container) {
       'FlowNodeInstanceService',
       'IamService',
       'ConsumerApiNotificationAdapter',
-      'ConsumerApiEmptyActivityConverter')
+      'ConsumerApiEmptyActivityConverter',
+    )
     .singleton();
 
   container
@@ -70,7 +70,8 @@ function registerServices(container) {
       'FlowNodeInstanceService',
       'IamService',
       'ProcessModelUseCases',
-      'ConsumerApiEventConverter')
+      'ConsumerApiEventConverter',
+    )
     .singleton();
 
   container.register('ConsumerApiExternalTaskService', ExternalTaskService)
@@ -84,7 +85,8 @@ function registerServices(container) {
       'FlowNodeInstanceService',
       'IamService',
       'ConsumerApiNotificationAdapter',
-      'ConsumerApiManualTaskConverter')
+      'ConsumerApiManualTaskConverter',
+    )
     .singleton();
 
   container
@@ -100,7 +102,8 @@ function registerServices(container) {
       'IamService',
       'ProcessModelFacadeFactory',
       'ProcessModelUseCases',
-      'ConsumerApiNotificationAdapter')
+      'ConsumerApiNotificationAdapter',
+    )
     .singleton();
 
   container
@@ -110,7 +113,18 @@ function registerServices(container) {
       'FlowNodeInstanceService',
       'IamService',
       'ConsumerApiNotificationAdapter',
-      'ConsumerApiUserTaskConverter')
+      'ConsumerApiUserTaskConverter',
+    )
+    .singleton();
+
+  container
+    .register('ConsumerApiFlowNodeInstanceService', FlowNodeInstanceService)
+    .dependencies(
+      'FlowNodeInstanceService',
+      'ConsumerApiEmptyActivityConverter',
+      'ConsumerApiManualTaskConverter',
+      'ConsumerApiUserTaskConverter',
+    )
     .singleton();
 
 }
