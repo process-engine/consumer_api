@@ -95,6 +95,7 @@ export class ManualTaskConverter {
     const onSuspendToken = manualTaskInstance.getTokenByType(ProcessTokenType.onSuspend);
 
     const consumerApiManualTask: DataModels.ManualTasks.ManualTask = {
+      flowNodeType: BpmnType.manualTask,
       id: manualTaskInstance.flowNodeId,
       flowNodeInstanceId: manualTaskInstance.id,
       name: manualTaskModel.name,

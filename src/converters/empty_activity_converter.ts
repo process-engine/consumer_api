@@ -95,6 +95,7 @@ export class EmptyActivityConverter {
     const onSuspendToken = emptyActivityInstance.getTokenByType(ProcessTokenType.onSuspend);
 
     const consumerApiEmptyActivity: DataModels.EmptyActivities.EmptyActivity = {
+      flowNodeType: BpmnType.emptyActivity,
       id: emptyActivityInstance.flowNodeId,
       flowNodeInstanceId: emptyActivityInstance.id,
       name: emptyActivityModel.name,
