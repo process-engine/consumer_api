@@ -7,7 +7,6 @@ import {
   ActivityReachedMessage,
   BaseSystemEventMessage,
   BoundaryEventTriggeredMessage,
-  BpmnType,
   EndEventReachedMessage,
   IntermediateCatchEventFinishedMessage,
   IntermediateCatchEventReachedMessage,
@@ -64,58 +63,6 @@ export class NotificationAdapter {
 
     return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
   }
-
-  // ------------ For backwards compatibility only
-
-  public async onCallActivityWaiting(
-    identity: IIdentity,
-    callback: Messages.CallbackTypes.OnCallActivityWaitingCallback,
-    subscribeOnce: boolean = false,
-  ): Promise<Subscription> {
-
-    const eventName = Messages.EventAggregatorSettings.messagePaths.activityReached;
-
-    const sanitationCallback = (message: ActivityReachedMessage): void => {
-
-      if (message.flowNodeType !== BpmnType.callActivity) {
-        return;
-      }
-
-      const sanitizedMessage = this.sanitizeMessage<ActivityReachedMessage>(message);
-
-      sanitizedMessage.flowNodeType = message.flowNodeType;
-
-      callback(sanitizedMessage);
-    };
-
-    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
-  }
-
-  public async onCallActivityFinished(
-    identity: IIdentity,
-    callback: Messages.CallbackTypes.OnCallActivityFinishedCallback,
-    subscribeOnce: boolean = false,
-  ): Promise<Subscription> {
-
-    const eventName = Messages.EventAggregatorSettings.messagePaths.activityFinished;
-
-    const sanitationCallback = (message: ActivityFinishedMessage): void => {
-
-      if (message.flowNodeType !== BpmnType.callActivity) {
-        return;
-      }
-
-      const sanitizedMessage = this.sanitizeMessage<ActivityFinishedMessage>(message);
-
-      sanitizedMessage.flowNodeType = message.flowNodeType;
-
-      callback(sanitizedMessage);
-    };
-
-    return this.createSubscription(eventName, sanitationCallback, subscribeOnce);
-  }
-
-  // ------------
 
   public onEmptyActivityWaiting(
     identity: IIdentity,
