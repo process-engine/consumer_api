@@ -97,10 +97,9 @@ export class UserTaskConverter {
   }
 
   private async getProcessModelHashForProcessInstance(identity: IIdentity, processInstanceId: string): Promise<string> {
-    const correlationForProcessInstance = await this.correlationService.getByProcessInstanceId(identity, processInstanceId);
+    const processInstance = await this.correlationService.getByProcessInstanceId(identity, processInstanceId);
 
-    // Note that ProcessInstances will only ever have one processModel and therefore only one hash attached to them.
-    return correlationForProcessInstance.processInstances[0].hash;
+    return processInstance.hash;
   }
 
   private async convertToConsumerApiUserTask(
