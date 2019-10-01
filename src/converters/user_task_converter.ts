@@ -2,17 +2,22 @@
 import {IIdentity} from '@essential-projects/iam_contracts';
 
 import {DataModels} from '@process-engine/consumer_api_contracts';
-import {ICorrelationService} from '@process-engine/correlation.contracts';
 import {
-  FlowNodeInstance, IFlowNodeInstanceService, ProcessToken, ProcessTokenType,
-} from '@process-engine/flow_node_instance.contracts';
+  BpmnType,
+  FlowNodeInstance,
+  ICorrelationService,
+  IFlowNodeInstanceService,
+  IProcessModelUseCases,
+  Model,
+  ProcessToken,
+  ProcessTokenType,
+} from '@process-engine/persistence_api.contracts';
 import {
   IFlowNodeInstanceResult,
   IProcessModelFacade,
   IProcessModelFacadeFactory,
   IProcessTokenFacadeFactory,
 } from '@process-engine/process_engine_contracts';
-import {BpmnType, IProcessModelUseCases, Model} from '@process-engine/process_model.contracts';
 
 import * as ProcessModelCache from './process_model_cache';
 

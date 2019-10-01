@@ -3,10 +3,13 @@ import {IIdentity} from '@essential-projects/iam_contracts';
 
 import {InternalServerError} from '@essential-projects/errors_ts';
 import {DataModels} from '@process-engine/consumer_api_contracts';
-import {ICorrelationService} from '@process-engine/correlation.contracts';
-import {FlowNodeInstance} from '@process-engine/flow_node_instance.contracts';
+import {
+  FlowNodeInstance,
+  ICorrelationService,
+  IProcessModelUseCases,
+  Model,
+} from '@process-engine/persistence_api.contracts';
 import {IProcessModelFacade, IProcessModelFacadeFactory} from '@process-engine/process_engine_contracts';
-import {IProcessModelUseCases, Model} from '@process-engine/process_model.contracts';
 
 import * as ProcessModelCache from './process_model_cache';
 
