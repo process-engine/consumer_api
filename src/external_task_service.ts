@@ -126,34 +126,36 @@ export class ExternalTaskService implements APIs.IExternalTaskConsumerApi {
     longPollingTimeout: number,
   ): Promise<Array<DataModels.ExternalTask.ExternalTask<TPayload>>> {
 
+    const tasks = await this.externalTaskService.fetchAvailableForProcessing<TPayload>(identity, topicName, maxTasks);
+
+    const taskAreNotEmpty = tasks.length > 0;
+
+    if (taskAreNotEmpty) {
+      return tasks;
+    }
+
     // eslint-disable-next-line consistent-return
-    return new Promise<Array<DataModels.ExternalTask.ExternalTask<TPayload>>>(async (resolve: Function): Promise<void> => {
+    return new Promise<Array<DataModels.ExternalTask.ExternalTask<TPayload>>>(async (resolve: Function, reject: Function): Promise<void> => {
 
-      const tasks = await this.externalTaskService.fetchAvailableForProcessing<TPayload>(identity, topicName, maxTasks);
+      try {
+        let subscription: Subscription;
 
-      const taskAreNotEmpty = tasks.length > 0;
+        const timeout = setTimeout((): void => {
+          this.eventAggregator.unsubscribe(subscription);
+          return resolve([]);
+        }, longPollingTimeout);
 
-      if (taskAreNotEmpty) {
-        return resolve(tasks);
+        const eventName = `/externaltask/topic/${topicName}/created`;
+        subscription = this.eventAggregator.subscribeOnce(eventName, async (): Promise<void> => {
+          clearTimeout(timeout);
+          const availableTasks = await this.externalTaskService.fetchAvailableForProcessing<TPayload>(identity, topicName, maxTasks);
+
+          return resolve(availableTasks);
+        });
+      } catch (error) {
+        logger.error('Failed to fetch and lock ExternalTasks!', error);
+        return reject(error);
       }
-
-      let subscription: Subscription;
-
-      const timeout = setTimeout((): void => {
-        this.eventAggregator.unsubscribe(subscription);
-
-        return resolve([]);
-      }, longPollingTimeout);
-
-      const externalTaskCreatedEventName = `/externaltask/topic/${topicName}/created`;
-      subscription = this.eventAggregator.subscribeOnce(externalTaskCreatedEventName, async (): Promise<void> => {
-
-        clearTimeout(timeout);
-
-        const availableTasks = await this.externalTaskService.fetchAvailableForProcessing<TPayload>(identity, topicName, maxTasks);
-
-        return resolve(availableTasks);
-      });
     });
   }
 
