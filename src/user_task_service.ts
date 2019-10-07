@@ -6,7 +6,7 @@ import {
   FlowNodeInstance,
   FlowNodeInstanceState,
   IFlowNodeInstanceService,
-} from '@process-engine/flow_node_instance.contracts';
+} from '@process-engine/persistence_api.contracts';
 import {FinishUserTaskMessage as InternalFinishUserTaskMessage} from '@process-engine/process_engine_contracts';
 
 import {NotificationAdapter} from './adapters/index';

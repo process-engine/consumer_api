@@ -4,29 +4,25 @@ import * as moment from 'moment';
 
 import * as EssentialProjectErrors from '@essential-projects/errors_ts';
 import {IEventAggregator, Subscription} from '@essential-projects/event_aggregator_contracts';
-import {IIAMService, IIdentity} from '@essential-projects/iam_contracts';
+import {IIdentity} from '@essential-projects/iam_contracts';
 
 import {
   APIs,
   DataModels,
-  IExternalTaskRepository,
   Messages,
 } from '@process-engine/consumer_api_contracts';
+import {IExternalTaskService} from '@process-engine/persistence_api.contracts';
 
 const logger = new Logger('processengine:consumer_api:external_task_service');
 
 export class ExternalTaskService implements APIs.IExternalTaskConsumerApi {
 
   private readonly eventAggregator: IEventAggregator;
-  private readonly externalTaskRepository: IExternalTaskRepository;
-  private readonly iamService: IIAMService;
+  private readonly externalTaskService: IExternalTaskService;
 
-  private readonly canAccessExternalTasksClaim = 'can_access_external_tasks';
-
-  constructor(eventAggregator: IEventAggregator, externalTaskRepository: IExternalTaskRepository, iamService: IIAMService) {
+  constructor(eventAggregator: IEventAggregator, externalTaskService: IExternalTaskService) {
     this.eventAggregator = eventAggregator;
-    this.externalTaskRepository = externalTaskRepository;
-    this.iamService = iamService;
+    this.externalTaskService = externalTaskService;
   }
 
   public async fetchAndLockExternalTasks<TPayload>(
@@ -38,16 +34,14 @@ export class ExternalTaskService implements APIs.IExternalTaskConsumerApi {
     lockDuration: number,
   ): Promise<Array<DataModels.ExternalTask.ExternalTask<TPayload>>> {
 
-    await this.iamService.ensureHasClaim(identity, this.canAccessExternalTasksClaim);
-
-    const tasks = await this.fetchOrWaitForExternalTasks<TPayload>(topicName, maxTasks, longPollingTimeout);
+    const tasks = await this.fetchOrWaitForExternalTasks<TPayload>(identity, topicName, maxTasks, longPollingTimeout);
 
     const lockExpirationTime = this.getLockExpirationDate(lockDuration);
 
     const lockedTasks = await Promise.map(
       tasks,
       async (externalTask: DataModels.ExternalTask.ExternalTask<TPayload>): Promise<DataModels.ExternalTask.ExternalTask<TPayload>> => {
-        return this.lockExternalTask(externalTask, workerId, lockExpirationTime);
+        return this.lockExternalTask(identity, externalTask, workerId, lockExpirationTime);
       },
     );
 
@@ -59,30 +53,26 @@ export class ExternalTaskService implements APIs.IExternalTaskConsumerApi {
 
   public async extendLock(identity: IIdentity, workerId: string, externalTaskId: string, additionalDuration: number): Promise<void> {
 
-    await this.iamService.ensureHasClaim(identity, this.canAccessExternalTasksClaim);
-
     // Note: The type of the initial payload is irrelevant for lock extension.
-    const externalTask = await this.externalTaskRepository.getById(externalTaskId);
+    const externalTask = await this.externalTaskService.getById(identity, externalTaskId);
 
     this.ensureExternalTaskCanBeAccessedByWorker(externalTask, externalTaskId, workerId);
 
     const newLockExpirationTime = this.getLockExpirationDate(additionalDuration);
 
-    return this.externalTaskRepository.lockForWorker(workerId, externalTaskId, newLockExpirationTime);
+    return this.externalTaskService.lockForWorker(identity, workerId, externalTaskId, newLockExpirationTime);
   }
 
   public async handleBpmnError(identity: IIdentity, workerId: string, externalTaskId: string, errorCode: string): Promise<void> {
 
-    await this.iamService.ensureHasClaim(identity, this.canAccessExternalTasksClaim);
-
     // Note: The type of the initial payload is irrelevant for finishing with an error.
-    const externalTask = await this.externalTaskRepository.getById(externalTaskId);
+    const externalTask = await this.externalTaskService.getById(identity, externalTaskId);
 
     this.ensureExternalTaskCanBeAccessedByWorker(externalTask, externalTaskId, workerId);
 
     const error = new EssentialProjectErrors.InternalServerError(`ExternalTask failed due to BPMN error with code ${errorCode}`);
 
-    await this.externalTaskRepository.finishWithError(externalTaskId, error);
+    await this.externalTaskService.finishWithError(identity, externalTaskId, error);
 
     const errorNotificationPayload = new Messages.SystemEvents.ExternalTaskErrorMessage(error);
 
@@ -97,16 +87,14 @@ export class ExternalTaskService implements APIs.IExternalTaskConsumerApi {
     errorDetails: string,
   ): Promise<void> {
 
-    await this.iamService.ensureHasClaim(identity, this.canAccessExternalTasksClaim);
-
-    const externalTask = await this.externalTaskRepository.getById(externalTaskId);
+    const externalTask = await this.externalTaskService.getById(identity, externalTaskId);
 
     this.ensureExternalTaskCanBeAccessedByWorker(externalTask, externalTaskId, workerId);
 
     const error = new EssentialProjectErrors.InternalServerError(errorMessage);
     error.additionalInformation = errorDetails;
 
-    await this.externalTaskRepository.finishWithError(externalTaskId, error);
+    await this.externalTaskService.finishWithError(identity, externalTaskId, error);
 
     const errorNotificationPayload = new Messages.SystemEvents.ExternalTaskErrorMessage(error);
 
@@ -120,13 +108,11 @@ export class ExternalTaskService implements APIs.IExternalTaskConsumerApi {
     payload: TResultType,
   ): Promise<void> {
 
-    await this.iamService.ensureHasClaim(identity, this.canAccessExternalTasksClaim);
-
-    const externalTask = await this.externalTaskRepository.getById(externalTaskId);
+    const externalTask = await this.externalTaskService.getById(identity, externalTaskId);
 
     this.ensureExternalTaskCanBeAccessedByWorker(externalTask, externalTaskId, workerId);
 
-    await this.externalTaskRepository.finishWithSuccess<TResultType>(externalTaskId, payload);
+    await this.externalTaskService.finishWithSuccess<TResultType>(identity, externalTaskId, payload);
 
     const successNotificationPayload = new Messages.SystemEvents.ExternalTaskSuccessMessage(payload);
 
@@ -134,39 +120,42 @@ export class ExternalTaskService implements APIs.IExternalTaskConsumerApi {
   }
 
   private async fetchOrWaitForExternalTasks<TPayload>(
+    identity: IIdentity,
     topicName: string,
     maxTasks: number,
     longPollingTimeout: number,
   ): Promise<Array<DataModels.ExternalTask.ExternalTask<TPayload>>> {
 
+    const tasks = await this.externalTaskService.fetchAvailableForProcessing<TPayload>(identity, topicName, maxTasks);
+
+    const taskAreNotEmpty = tasks.length > 0;
+
+    if (taskAreNotEmpty) {
+      return tasks;
+    }
+
     // eslint-disable-next-line consistent-return
-    return new Promise<Array<DataModels.ExternalTask.ExternalTask<TPayload>>>(async (resolve: Function): Promise<void> => {
+    return new Promise<Array<DataModels.ExternalTask.ExternalTask<TPayload>>>(async (resolve: Function, reject: Function): Promise<void> => {
 
-      const tasks = await this.externalTaskRepository.fetchAvailableForProcessing<TPayload>(topicName, maxTasks);
+      try {
+        let subscription: Subscription;
 
-      const taskAreNotEmpty = tasks.length > 0;
+        const timeout = setTimeout((): void => {
+          this.eventAggregator.unsubscribe(subscription);
+          return resolve([]);
+        }, longPollingTimeout);
 
-      if (taskAreNotEmpty) {
-        return resolve(tasks);
+        const eventName = `/externaltask/topic/${topicName}/created`;
+        subscription = this.eventAggregator.subscribeOnce(eventName, async (): Promise<void> => {
+          clearTimeout(timeout);
+          const availableTasks = await this.externalTaskService.fetchAvailableForProcessing<TPayload>(identity, topicName, maxTasks);
+
+          return resolve(availableTasks);
+        });
+      } catch (error) {
+        logger.error('Failed to fetch and lock ExternalTasks!', error);
+        return reject(error);
       }
-
-      let subscription: Subscription;
-
-      const timeout = setTimeout((): void => {
-        this.eventAggregator.unsubscribe(subscription);
-
-        return resolve([]);
-      }, longPollingTimeout);
-
-      const externalTaskCreatedEventName = `/externaltask/topic/${topicName}/created`;
-      subscription = this.eventAggregator.subscribeOnce(externalTaskCreatedEventName, async (): Promise<void> => {
-
-        clearTimeout(timeout);
-
-        const availableTasks = await this.externalTaskRepository.fetchAvailableForProcessing<TPayload>(topicName, maxTasks);
-
-        return resolve(availableTasks);
-      });
     });
   }
 
@@ -182,13 +171,14 @@ export class ExternalTaskService implements APIs.IExternalTaskConsumerApi {
    * @returns                  The clocked ExternalTask.
    */
   private async lockExternalTask<TPayload>(
+    identity: IIdentity,
     externalTask: DataModels.ExternalTask.ExternalTask<TPayload>,
     workerId: string,
     lockExpirationTime: Date,
   ): Promise<DataModels.ExternalTask.ExternalTask<TPayload>> {
 
     try {
-      await this.externalTaskRepository.lockForWorker(workerId, externalTask.id, lockExpirationTime);
+      await this.externalTaskService.lockForWorker(identity, workerId, externalTask.id, lockExpirationTime);
 
       externalTask.workerId = workerId;
       externalTask.lockExpirationTime = lockExpirationTime;

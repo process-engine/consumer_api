@@ -3,7 +3,7 @@ import {
   FlowNodeInstance,
   FlowNodeInstanceState,
   IFlowNodeInstanceService,
-} from '@process-engine/flow_node_instance.contracts';
+} from '@process-engine/persistence_api.contracts';
 import {IIdentity} from '@essential-projects/iam_contracts';
 
 import {EmptyActivityConverter, ManualTaskConverter, UserTaskConverter} from './converters/index';

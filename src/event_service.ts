@@ -1,8 +1,7 @@
 import {IEventAggregator} from '@essential-projects/event_aggregator_contracts';
 import {IIAMService, IIdentity} from '@essential-projects/iam_contracts';
 import {APIs, DataModels, Messages} from '@process-engine/consumer_api_contracts';
-import {FlowNodeInstance, IFlowNodeInstanceService} from '@process-engine/flow_node_instance.contracts';
-import {IProcessModelUseCases} from '@process-engine/process_model.contracts';
+import {FlowNodeInstance, IFlowNodeInstanceService, IProcessModelUseCases} from '@process-engine/persistence_api.contracts';
 
 import {EventConverter} from './converters/index';
 import {applyPagination} from './paginator';

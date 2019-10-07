@@ -75,7 +75,7 @@ function registerServices(container) {
     .singleton();
 
   container.register('ConsumerApiExternalTaskService', ExternalTaskService)
-    .dependencies('EventAggregator', 'ExternalTaskRepository', 'IamService')
+    .dependencies('EventAggregator', 'ExternalTaskService')
     .singleton();
 
   container
