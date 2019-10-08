@@ -19,7 +19,7 @@ import {
   IProcessTokenFacadeFactory,
 } from '@process-engine/process_engine_contracts';
 
-import * as ProcessModelCache from './process_model_cache';
+import * as ProcessModelCache from '../process_model_cache';
 
 export class UserTaskConverter {
 

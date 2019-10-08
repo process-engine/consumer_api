@@ -11,7 +11,7 @@ import {
 } from '@process-engine/persistence_api.contracts';
 import {IProcessModelFacade, IProcessModelFacadeFactory} from '@process-engine/process_engine_contracts';
 
-import * as ProcessModelCache from './process_model_cache';
+import * as ProcessModelCache from '../process_model_cache';
 
 export class ManualTaskConverter {
 

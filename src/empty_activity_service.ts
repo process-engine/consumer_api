@@ -21,7 +21,7 @@ import {
 import {NotificationAdapter} from './adapters/index';
 import {applyPagination} from './paginator';
 
-import * as ProcessModelCache from './converters/process_model_cache';
+import * as ProcessModelCache from './process_model_cache';
 
 export class EmptyActivityService implements APIs.IEmptyActivityConsumerApi {
 
