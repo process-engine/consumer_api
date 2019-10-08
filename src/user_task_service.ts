@@ -57,7 +57,6 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
     this.processModelFacadeFactory = processModelFacadeFactory;
     this.processModelUseCase = processModelUse;
     this.processTokenFacadeFactory = processTokenFacadeFactory;
-
     this.notificationAdapter = notificationAdapter;
   }
 

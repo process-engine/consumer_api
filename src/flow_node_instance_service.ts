@@ -9,6 +9,8 @@ import {IIdentity} from '@essential-projects/iam_contracts';
 import {EmptyActivityService, ManualTaskService, UserTaskService} from './index';
 import {applyPagination} from './paginator';
 
+type Task = DataModels.EmptyActivities.EmptyActivity | DataModels.ManualTasks.ManualTask | DataModels.UserTasks.UserTask;
+
 export class FlowNodeInstanceService implements APIs.IFlowNodeInstanceConsumerApi {
 
   private readonly flowNodeInstanceService: IFlowNodeInstanceService;
@@ -137,13 +139,13 @@ export class FlowNodeInstanceService implements APIs.IFlowNodeInstanceConsumerAp
     return taskList;
   }
 
-  private async convertFlowNodeInstancesToTaskList(identity: IIdentity, suspendedFlowNodes: Array<FlowNodeInstance>): Promise<any> {
+  private async convertFlowNodeInstancesToTaskList(identity: IIdentity, suspendedFlowNodes: Array<FlowNodeInstance>): Promise<Array<Task>> {
 
     const emptyActivityList = await this.emptyActivityService.convertFlowNodeInstancesToEmptyActivities(identity, suspendedFlowNodes);
     const manualTaskList = await this.manualTaskService.convertFlowNodeInstancesToManualTasks(identity, suspendedFlowNodes);
     const userTaskList = await this.userTaskService.convertFlowNodeInstancesToUserTasks(identity, suspendedFlowNodes);
 
-    const tasks = [...emptyActivityList.emptyActivities, manualTaskList.manualTasks, userTaskList.userTasks];
+    const tasks = [...emptyActivityList.emptyActivities, ...manualTaskList.manualTasks, ...userTaskList.userTasks];
 
     return tasks;
   }
