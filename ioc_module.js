@@ -30,11 +30,6 @@ function registerConvertersAndAdapters(container) {
     .singleton();
 
   container
-    .register('ConsumerApiEmptyActivityConverter', EmptyActivityConverter)
-    .dependencies('CorrelationService', 'ProcessModelFacadeFactory', 'ProcessModelUseCases')
-    .singleton();
-
-  container
     .register('ConsumerApiEventConverter', EventConverter)
     .dependencies('CorrelationService', 'ProcessModelFacadeFactory', 'ProcessModelUseCases')
     .singleton();
@@ -55,11 +50,13 @@ function registerServices(container) {
   container
     .register('ConsumerApiEmptyActivityService', EmptyActivityService)
     .dependencies(
+      'CorrelationService',
       'EventAggregator',
       'FlowNodeInstanceService',
       'IamService',
       'ConsumerApiNotificationAdapter',
-      'ConsumerApiEmptyActivityConverter',
+      'ProcessModelFacadeFactory',
+      'ProcessModelUseCases',
     )
     .singleton();
 
