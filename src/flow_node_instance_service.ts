@@ -6,28 +6,28 @@ import {
 } from '@process-engine/persistence_api.contracts';
 import {IIdentity} from '@essential-projects/iam_contracts';
 
-import {EmptyActivityConverter, ManualTaskConverter, UserTaskConverter} from './converters/index';
+import {EmptyActivityService, ManualTaskService, UserTaskService} from './index';
 import {applyPagination} from './paginator';
 
 export class FlowNodeInstanceService implements APIs.IFlowNodeInstanceConsumerApi {
 
   private readonly flowNodeInstanceService: IFlowNodeInstanceService;
 
-  private readonly userTaskConverter: UserTaskConverter;
-  private readonly manualTaskConverter: ManualTaskConverter;
-  private readonly emptyActivityConverter: EmptyActivityConverter;
+  private readonly emptyActivityService: EmptyActivityService;
+  private readonly manualTaskService: ManualTaskService;
+  private readonly userTaskService: UserTaskService;
 
   constructor(
     flowNodeInstanceService: IFlowNodeInstanceService,
-    emptyActivityConverter: EmptyActivityConverter,
-    manualTaskConverter: ManualTaskConverter,
-    userTaskConverter: UserTaskConverter,
+    emptyActivityService: EmptyActivityService,
+    manualTaskService: ManualTaskService,
+    userTaskService: UserTaskService,
   ) {
     this.flowNodeInstanceService = flowNodeInstanceService;
 
-    this.emptyActivityConverter = emptyActivityConverter;
-    this.manualTaskConverter = manualTaskConverter;
-    this.userTaskConverter = userTaskConverter;
+    this.emptyActivityService = emptyActivityService;
+    this.manualTaskService = manualTaskService;
+    this.userTaskService = userTaskService;
   }
 
   public async getAllSuspendedTasks(
@@ -36,13 +36,9 @@ export class FlowNodeInstanceService implements APIs.IFlowNodeInstanceConsumerAp
     limit: number = 0,
   ): Promise<DataModels.FlowNodeInstances.TaskList> {
 
-    const suspendedFlowNodes = await this.flowNodeInstanceService.queryByState(FlowNodeInstanceState.suspended);
+    const suspendedFlowNodeInstances = await this.flowNodeInstanceService.queryByState(FlowNodeInstanceState.suspended);
 
-    const userTaskList = await this.userTaskConverter.convertUserTasks(identity, suspendedFlowNodes);
-    const manualTaskList = await this.manualTaskConverter.convert(identity, suspendedFlowNodes);
-    const emptyActivityList = await this.emptyActivityConverter.convert(identity, suspendedFlowNodes);
-
-    const tasks = emptyActivityList.emptyActivities.concat(manualTaskList.manualTasks, userTaskList.userTasks);
+    const tasks = await this.convertFlowNodeInstancesToTaskList(identity, suspendedFlowNodeInstances);
 
     const taskList: DataModels.FlowNodeInstances.TaskList = {
       tasks: applyPagination(tasks, offset, limit),
@@ -59,13 +55,9 @@ export class FlowNodeInstanceService implements APIs.IFlowNodeInstanceConsumerAp
     limit: number = 0,
   ): Promise<DataModels.FlowNodeInstances.TaskList> {
 
-    const suspendedFlowNodes = await this.flowNodeInstanceService.querySuspendedByProcessModel(processModelId);
+    const suspendedFlowNodeInstances = await this.flowNodeInstanceService.querySuspendedByProcessModel(processModelId);
 
-    const userTaskList = await this.userTaskConverter.convertUserTasks(identity, suspendedFlowNodes);
-    const manualTaskList = await this.manualTaskConverter.convert(identity, suspendedFlowNodes);
-    const emptyActivityList = await this.emptyActivityConverter.convert(identity, suspendedFlowNodes);
-
-    const tasks = emptyActivityList.emptyActivities.concat(manualTaskList.manualTasks, userTaskList.userTasks);
+    const tasks = await this.convertFlowNodeInstancesToTaskList(identity, suspendedFlowNodeInstances);
 
     const taskList: DataModels.FlowNodeInstances.TaskList = {
       tasks: applyPagination(tasks, offset, limit),
@@ -82,13 +74,9 @@ export class FlowNodeInstanceService implements APIs.IFlowNodeInstanceConsumerAp
     limit: number = 0,
   ): Promise<DataModels.FlowNodeInstances.TaskList> {
 
-    const suspendedFlowNodes = await this.flowNodeInstanceService.querySuspendedByProcessInstance(processInstanceId);
+    const suspendedFlowNodeInstances = await this.flowNodeInstanceService.querySuspendedByProcessInstance(processInstanceId);
 
-    const userTaskList = await this.userTaskConverter.convertUserTasks(identity, suspendedFlowNodes);
-    const manualTaskList = await this.manualTaskConverter.convert(identity, suspendedFlowNodes);
-    const emptyActivityList = await this.emptyActivityConverter.convert(identity, suspendedFlowNodes);
-
-    const tasks = emptyActivityList.emptyActivities.concat(manualTaskList.manualTasks, userTaskList.userTasks);
+    const tasks = await this.convertFlowNodeInstancesToTaskList(identity, suspendedFlowNodeInstances);
 
     const taskList: DataModels.FlowNodeInstances.TaskList = {
       tasks: applyPagination(tasks, offset, limit),
@@ -105,13 +93,9 @@ export class FlowNodeInstanceService implements APIs.IFlowNodeInstanceConsumerAp
     limit: number = 0,
   ): Promise<DataModels.FlowNodeInstances.TaskList> {
 
-    const suspendedFlowNodes = await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
+    const suspendedFlowNodeInstances = await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
-    const userTaskList = await this.userTaskConverter.convertUserTasks(identity, suspendedFlowNodes);
-    const manualTaskList = await this.manualTaskConverter.convert(identity, suspendedFlowNodes);
-    const emptyActivityList = await this.emptyActivityConverter.convert(identity, suspendedFlowNodes);
-
-    const tasks = emptyActivityList.emptyActivities.concat(manualTaskList.manualTasks, userTaskList.userTasks);
+    const tasks = await this.convertFlowNodeInstancesToTaskList(identity, suspendedFlowNodeInstances);
 
     const taskList: DataModels.FlowNodeInstances.TaskList = {
       tasks: applyPagination(tasks, offset, limit),
@@ -143,11 +127,7 @@ export class FlowNodeInstanceService implements APIs.IFlowNodeInstanceConsumerAp
       };
     }
 
-    const userTaskList = await this.userTaskConverter.convertUserTasks(identity, suspendedFlowNodeInstances);
-    const manualTaskList = await this.manualTaskConverter.convert(identity, suspendedFlowNodeInstances);
-    const emptyActivityList = await this.emptyActivityConverter.convert(identity, suspendedFlowNodeInstances);
-
-    const tasks = emptyActivityList.emptyActivities.concat(manualTaskList.manualTasks, userTaskList.userTasks);
+    const tasks = await this.convertFlowNodeInstancesToTaskList(identity, suspendedFlowNodeInstances);
 
     const taskList: DataModels.FlowNodeInstances.TaskList = {
       tasks: applyPagination(tasks, offset, limit),
@@ -155,6 +135,17 @@ export class FlowNodeInstanceService implements APIs.IFlowNodeInstanceConsumerAp
     };
 
     return taskList;
+  }
+
+  private async convertFlowNodeInstancesToTaskList(identity: IIdentity, suspendedFlowNodes: Array<FlowNodeInstance>): Promise<any> {
+
+    const emptyActivityList = await this.emptyActivityService.convertFlowNodeInstancesToEmptyActivities(identity, suspendedFlowNodes);
+    const manualTaskList = await this.manualTaskService.convertFlowNodeInstancesToManualTasks(identity, suspendedFlowNodes);
+    const userTaskList = await this.userTaskService.convertFlowNodeInstancesToUserTasks(identity, suspendedFlowNodes);
+
+    const tasks = [...emptyActivityList.emptyActivities, manualTaskList.manualTasks, userTaskList.userTasks];
+
+    return tasks;
   }
 
 }

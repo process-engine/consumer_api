@@ -105,7 +105,7 @@ export class EmptyActivityService implements APIs.IEmptyActivityConsumerApi {
 
     const emptyActivities = suspendedFlowNodes.filter(this.checkIfIsFlowNodeIsEmptyActivity);
 
-    const emptyActivityList = await this.convertToEmptyActivity(identity, emptyActivities);
+    const emptyActivityList = await this.convertFlowNodeInstancesToEmptyActivities(identity, emptyActivities);
 
     // TODO: Remove that useless `EmptyActivityList` datatype and just return an Array of EmptyActivities.
     // Goes for the other UseCases as well.
@@ -125,7 +125,7 @@ export class EmptyActivityService implements APIs.IEmptyActivityConsumerApi {
 
     const emptyActivities = suspendedFlowNodes.filter(this.checkIfIsFlowNodeIsEmptyActivity);
 
-    const emptyActivityList = await this.convertToEmptyActivity(identity, emptyActivities);
+    const emptyActivityList = await this.convertFlowNodeInstancesToEmptyActivities(identity, emptyActivities);
 
     emptyActivityList.emptyActivities = applyPagination(emptyActivityList.emptyActivities, offset, limit);
 
@@ -143,7 +143,7 @@ export class EmptyActivityService implements APIs.IEmptyActivityConsumerApi {
 
     const emptyActivities = suspendedFlowNodes.filter(this.checkIfIsFlowNodeIsEmptyActivity);
 
-    const emptyActivityList = await this.convertToEmptyActivity(identity, emptyActivities);
+    const emptyActivityList = await this.convertFlowNodeInstancesToEmptyActivities(identity, emptyActivities);
 
     emptyActivityList.emptyActivities = applyPagination(emptyActivityList.emptyActivities, offset, limit);
 
@@ -166,7 +166,7 @@ export class EmptyActivityService implements APIs.IEmptyActivityConsumerApi {
       return isEmptyActivity && belongsToProcessModel;
     });
 
-    const emptyActivityList = await this.convertToEmptyActivity(identity, suspendedProcessModelFlowNodes);
+    const emptyActivityList = await this.convertFlowNodeInstancesToEmptyActivities(identity, suspendedProcessModelFlowNodes);
 
     emptyActivityList.emptyActivities = applyPagination(emptyActivityList.emptyActivities, offset, limit);
 
@@ -187,7 +187,7 @@ export class EmptyActivityService implements APIs.IEmptyActivityConsumerApi {
       return isEmptyActivity && userIdsMatch;
     });
 
-    const emptyActivityList = await this.convertToEmptyActivity(identity, flowNodeInstancesOwnedByUser);
+    const emptyActivityList = await this.convertFlowNodeInstancesToEmptyActivities(identity, flowNodeInstancesOwnedByUser);
 
     emptyActivityList.emptyActivities = applyPagination(emptyActivityList.emptyActivities, offset, limit);
 
@@ -211,7 +211,7 @@ export class EmptyActivityService implements APIs.IEmptyActivityConsumerApi {
       throw new EssentialProjectErrors.NotFoundError(errorMessage);
     }
 
-    const convertedEmptyActivityList = await this.convertToEmptyActivity(identity, [matchingFlowNodeInstance]);
+    const convertedEmptyActivityList = await this.convertFlowNodeInstancesToEmptyActivities(identity, [matchingFlowNodeInstance]);
 
     const matchingEmptyActivity = convertedEmptyActivityList.emptyActivities[0];
 
@@ -232,31 +232,7 @@ export class EmptyActivityService implements APIs.IEmptyActivityConsumerApi {
     });
   }
 
-  private async getFlowNodeInstanceForCorrelationInProcessInstance(
-    correlationId: string,
-    processInstanceId: string,
-    instanceId: string,
-  ): Promise<FlowNodeInstance> {
-
-    const suspendedFlowNodeInstances = await this.flowNodeInstanceService.querySuspendedByProcessInstance(processInstanceId);
-
-    const matchingInstance = suspendedFlowNodeInstances.find((instance: FlowNodeInstance): boolean => {
-      return instance.id === instanceId &&
-             instance.correlationId === correlationId;
-    });
-
-    return matchingInstance;
-  }
-
-  private checkIfIsFlowNodeIsEmptyActivity(flowNodeInstance: FlowNodeInstance): boolean {
-    return flowNodeInstance.flowNodeType !== BpmnType.emptyActivity;
-  }
-
-  private checkIfIdentityUserIDsMatch(identityA: IIdentity, identityB: IIdentity): boolean {
-    return identityA.userId === identityB.userId;
-  }
-
-  private async convertToEmptyActivity(
+  public async convertFlowNodeInstancesToEmptyActivities(
     identity: IIdentity,
     suspendedFlowNodes: Array<FlowNodeInstance>,
   ): Promise<DataModels.EmptyActivities.EmptyActivityList> {
@@ -332,6 +308,30 @@ export class EmptyActivityService implements APIs.IEmptyActivityConsumerApi {
 
     return consumerApiEmptyActivity;
 
+  }
+
+  private async getFlowNodeInstanceForCorrelationInProcessInstance(
+    correlationId: string,
+    processInstanceId: string,
+    instanceId: string,
+  ): Promise<FlowNodeInstance> {
+
+    const suspendedFlowNodeInstances = await this.flowNodeInstanceService.querySuspendedByProcessInstance(processInstanceId);
+
+    const matchingInstance = suspendedFlowNodeInstances.find((instance: FlowNodeInstance): boolean => {
+      return instance.id === instanceId &&
+             instance.correlationId === correlationId;
+    });
+
+    return matchingInstance;
+  }
+
+  private checkIfIsFlowNodeIsEmptyActivity(flowNodeInstance: FlowNodeInstance): boolean {
+    return flowNodeInstance.flowNodeType !== BpmnType.emptyActivity;
+  }
+
+  private checkIfIdentityUserIDsMatch(identityA: IIdentity, identityB: IIdentity): boolean {
+    return identityA.userId === identityB.userId;
   }
 
   private publishFinishEmptyActivityEvent(
