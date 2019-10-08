@@ -1,5 +1,4 @@
 export * from './adapters/index';
-export * from './converters/index';
 
 export * from './empty_activity_service';
 export * from './event_service';

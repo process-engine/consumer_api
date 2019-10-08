@@ -3,42 +3,55 @@ import {IEventAggregator, Subscription} from '@essential-projects/event_aggregat
 import {IIAMService, IIdentity} from '@essential-projects/iam_contracts';
 import {APIs, DataModels, Messages} from '@process-engine/consumer_api_contracts';
 import {
+  BpmnType,
   FlowNodeInstance,
   FlowNodeInstanceState,
+  ICorrelationService,
   IFlowNodeInstanceService,
+  IProcessModelUseCases,
+  Model,
+  ProcessTokenType,
 } from '@process-engine/persistence_api.contracts';
-import {FinishManualTaskMessage as InternalFinishManualTaskMessage} from '@process-engine/process_engine_contracts';
+import {
+  IProcessModelFacade,
+  IProcessModelFacadeFactory,
+  FinishManualTaskMessage as InternalFinishManualTaskMessage,
+} from '@process-engine/process_engine_contracts';
 
 import {NotificationAdapter} from './adapters/index';
-import {ManualTaskConverter} from './converters/index';
 import {applyPagination} from './paginator';
+import * as ProcessModelCache from './process_model_cache';
 
 export class ManualTaskService implements APIs.IManualTaskConsumerApi {
 
+  private readonly correlationService: ICorrelationService;
   private readonly eventAggregator: IEventAggregator;
   private readonly flowNodeInstanceService: IFlowNodeInstanceService;
   private readonly iamService: IIAMService;
+  private readonly processModelUseCase: IProcessModelUseCases;
+  private readonly processModelFacadeFactory: IProcessModelFacadeFactory;
 
   private readonly notificationAdapter: NotificationAdapter;
-
-  private readonly manualTaskConverter: ManualTaskConverter;
 
   private readonly canSubscribeToEventsClaim = 'can_subscribe_to_events';
 
   constructor(
+    correlationService: ICorrelationService,
     eventAggregator: IEventAggregator,
     flowNodeInstanceService: IFlowNodeInstanceService,
     iamService: IIAMService,
+    processModelFacadeFactory: IProcessModelFacadeFactory,
+    processModelUseCase: IProcessModelUseCases,
     notificationAdapter: NotificationAdapter,
-    manualTaskConverter: ManualTaskConverter,
   ) {
+    this.correlationService = correlationService;
     this.eventAggregator = eventAggregator;
     this.flowNodeInstanceService = flowNodeInstanceService;
     this.iamService = iamService;
+    this.processModelFacadeFactory = processModelFacadeFactory;
+    this.processModelUseCase = processModelUseCase;
 
     this.notificationAdapter = notificationAdapter;
-
-    this.manualTaskConverter = manualTaskConverter;
   }
 
   public async onManualTaskWaiting(
@@ -90,7 +103,7 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
 
     const suspendedFlowNodes = await this.flowNodeInstanceService.querySuspendedByProcessModel(processModelId);
 
-    const manualTaskList = await this.manualTaskConverter.convert(identity, suspendedFlowNodes);
+    const manualTaskList = await this.convertFlowNodeInstancesToManualTasks(identity, suspendedFlowNodes);
 
     // TODO: Remove that useless `ManualTaskList` datatype and just return an Array of ManualTasks.
     // Goes for the other UseCases as well.
@@ -108,7 +121,7 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
 
     const suspendedFlowNodes = await this.flowNodeInstanceService.querySuspendedByProcessInstance(processInstanceId);
 
-    const manualTaskList = await this.manualTaskConverter.convert(identity, suspendedFlowNodes);
+    const manualTaskList = await this.convertFlowNodeInstancesToManualTasks(identity, suspendedFlowNodes);
 
     manualTaskList.manualTasks = applyPagination(manualTaskList.manualTasks, offset, limit);
 
@@ -124,7 +137,7 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
 
     const suspendedFlowNodes = await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
-    const manualTaskList = await this.manualTaskConverter.convert(identity, suspendedFlowNodes);
+    const manualTaskList = await this.convertFlowNodeInstancesToManualTasks(identity, suspendedFlowNodes);
 
     manualTaskList.manualTasks = applyPagination(manualTaskList.manualTasks, offset, limit);
 
@@ -145,7 +158,7 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
       return flowNodeInstance.state === FlowNodeInstanceState.suspended;
     });
 
-    const manualTaskList = await this.manualTaskConverter.convert(identity, suspendedFlowNodeInstances);
+    const manualTaskList = await this.convertFlowNodeInstancesToManualTasks(identity, suspendedFlowNodeInstances);
 
     manualTaskList.manualTasks = applyPagination(manualTaskList.manualTasks, offset, limit);
 
@@ -164,7 +177,7 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
       return this.checkIfIdentityUserIDsMatch(identity, flowNodeInstance.owner);
     });
 
-    const manualTaskList = await this.manualTaskConverter.convert(identity, flowNodeInstancesOwnedByUser);
+    const manualTaskList = await this.convertFlowNodeInstancesToManualTasks(identity, flowNodeInstancesOwnedByUser);
 
     manualTaskList.manualTasks = applyPagination(manualTaskList.manualTasks, offset, limit);
 
@@ -188,7 +201,7 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
       throw new EssentialProjectErrors.NotFoundError(errorMessage);
     }
 
-    const convertedUserTaskList = await this.manualTaskConverter.convert(identity, [matchingFlowNodeInstance]);
+    const convertedUserTaskList = await this.convertFlowNodeInstancesToManualTasks(identity, [matchingFlowNodeInstance]);
 
     const matchingManualTask = convertedUserTaskList.manualTasks[0];
 
@@ -207,6 +220,90 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
 
       this.publishFinishManualTaskEvent(identity, matchingManualTask);
     });
+  }
+
+  public async convertFlowNodeInstancesToManualTasks(
+    identity: IIdentity,
+    suspendedFlowNodes: Array<FlowNodeInstance>,
+  ): Promise<DataModels.ManualTasks.ManualTaskList> {
+
+    const suspendedManualTasks: Array<DataModels.ManualTasks.ManualTask> = [];
+
+    for (const suspendedFlowNode of suspendedFlowNodes) {
+
+      const taskIsNotAManualTask = suspendedFlowNode.flowNodeType !== BpmnType.manualTask;
+      if (taskIsNotAManualTask) {
+        continue;
+      }
+
+      const processModelFacade = await this.getProcessModelForFlowNodeInstance(identity, suspendedFlowNode);
+
+      const manualTask = await this.convertSuspendedFlowNodeToManualTask(suspendedFlowNode, processModelFacade);
+
+      suspendedManualTasks.push(manualTask);
+    }
+
+    const manualTaskList: DataModels.ManualTasks.ManualTaskList = {
+      manualTasks: suspendedManualTasks,
+      totalCount: suspendedManualTasks.length,
+    };
+
+    return manualTaskList;
+  }
+
+  private async getProcessModelForFlowNodeInstance(
+    identity: IIdentity,
+    flowNodeInstance: FlowNodeInstance,
+  ): Promise<IProcessModelFacade> {
+
+    let processModel: Model.Process;
+
+    // We must store the ProcessModel for each user, to account for lane-restrictions.
+    // Some users may not be able to see some lanes that are visible to others.
+    const cacheKeyToUse = `${flowNodeInstance.processInstanceId}-${identity.userId}`;
+
+    const cacheHasMatchingEntry = ProcessModelCache.hasEntry(cacheKeyToUse);
+    if (cacheHasMatchingEntry) {
+      processModel = ProcessModelCache.get(cacheKeyToUse);
+    } else {
+      const processModelHash = await this.getProcessModelHashForProcessInstance(identity, flowNodeInstance.processInstanceId);
+      processModel = await this.processModelUseCase.getByHash(identity, flowNodeInstance.processModelId, processModelHash);
+      ProcessModelCache.add(cacheKeyToUse, processModel);
+    }
+
+    const processModelFacade = this.processModelFacadeFactory.create(processModel);
+
+    return processModelFacade;
+  }
+
+  private async getProcessModelHashForProcessInstance(identity: IIdentity, processInstanceId: string): Promise<string> {
+    const processInstance = await this.correlationService.getByProcessInstanceId(identity, processInstanceId);
+
+    return processInstance.hash;
+  }
+
+  private async convertSuspendedFlowNodeToManualTask(
+    manualTaskInstance: FlowNodeInstance,
+    processModelFacade: IProcessModelFacade,
+  ): Promise<DataModels.ManualTasks.ManualTask> {
+
+    const manualTaskModel = processModelFacade.getFlowNodeById(manualTaskInstance.flowNodeId);
+
+    const onSuspendToken = manualTaskInstance.getTokenByType(ProcessTokenType.onSuspend);
+
+    const consumerApiManualTask: DataModels.ManualTasks.ManualTask = {
+      flowNodeType: BpmnType.manualTask,
+      id: manualTaskInstance.flowNodeId,
+      flowNodeInstanceId: manualTaskInstance.id,
+      name: manualTaskModel.name,
+      correlationId: manualTaskInstance.correlationId,
+      processModelId: manualTaskInstance.processModelId,
+      processInstanceId: manualTaskInstance.processInstanceId,
+      tokenPayload: onSuspendToken.payload,
+    };
+
+    return consumerApiManualTask;
+
   }
 
   private async getFlowNodeInstanceForCorrelationInProcessInstance(
