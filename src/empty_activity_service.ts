@@ -20,7 +20,6 @@ import {
 
 import {NotificationAdapter} from './adapters/index';
 import {applyPagination} from './paginator';
-
 import * as ProcessModelCache from './process_model_cache';
 
 export class EmptyActivityService implements APIs.IEmptyActivityConsumerApi {
@@ -107,8 +106,6 @@ export class EmptyActivityService implements APIs.IEmptyActivityConsumerApi {
 
     const emptyActivityList = await this.convertFlowNodeInstancesToEmptyActivities(identity, emptyActivities);
 
-    // TODO: Remove that useless `EmptyActivityList` datatype and just return an Array of EmptyActivities.
-    // Goes for the other UseCases as well.
     emptyActivityList.emptyActivities = applyPagination(emptyActivityList.emptyActivities, offset, limit);
 
     return emptyActivityList;
