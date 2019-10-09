@@ -63,9 +63,9 @@ function registerInContainer(container) {
       'EventAggregator',
       'FlowNodeInstanceService',
       'IamService',
+      'ConsumerApiNotificationAdapter',
       'ProcessModelFacadeFactory',
       'ProcessModelUseCases',
-      'ConsumerApiNotificationAdapter',
     )
     .singleton();
 
@@ -80,9 +80,9 @@ function registerInContainer(container) {
       'ExecuteProcessService',
       'FlowNodeInstanceService',
       'IamService',
+      'ConsumerApiNotificationAdapter',
       'ProcessModelFacadeFactory',
       'ProcessModelUseCases',
-      'ConsumerApiNotificationAdapter',
     )
     .singleton();
 
@@ -93,10 +93,10 @@ function registerInContainer(container) {
       'EventAggregator',
       'FlowNodeInstanceService',
       'IamService',
+      'ConsumerApiNotificationAdapter',
       'ProcessModelFacadeFactory',
       'ProcessModelUseCases',
       'ProcessTokenFacadeFactory',
-      'ConsumerApiNotificationAdapter',
     )
     .singleton();
 }

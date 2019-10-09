@@ -56,8 +56,6 @@ export class EventService implements APIs.IEventConsumerApi {
 
     const eventList = await this.convertFlowNodeInstancesToEvents(identity, suspendedEvents);
 
-    // TODO: Remove that useless `EventList` datatype and just return an Array of Events.
-    // Goes for the other UseCases as well.
     eventList.events = applyPagination(eventList.events, offset, limit);
 
     return eventList;

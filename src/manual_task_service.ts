@@ -28,10 +28,9 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
   private readonly eventAggregator: IEventAggregator;
   private readonly flowNodeInstanceService: IFlowNodeInstanceService;
   private readonly iamService: IIAMService;
+  private readonly notificationAdapter: NotificationAdapter;
   private readonly processModelUseCase: IProcessModelUseCases;
   private readonly processModelFacadeFactory: IProcessModelFacadeFactory;
-
-  private readonly notificationAdapter: NotificationAdapter;
 
   private readonly canSubscribeToEventsClaim = 'can_subscribe_to_events';
 
@@ -40,18 +39,18 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
     eventAggregator: IEventAggregator,
     flowNodeInstanceService: IFlowNodeInstanceService,
     iamService: IIAMService,
+    notificationAdapter: NotificationAdapter,
     processModelFacadeFactory: IProcessModelFacadeFactory,
     processModelUseCase: IProcessModelUseCases,
-    notificationAdapter: NotificationAdapter,
   ) {
     this.correlationService = correlationService;
     this.eventAggregator = eventAggregator;
     this.flowNodeInstanceService = flowNodeInstanceService;
     this.iamService = iamService;
+    this.notificationAdapter = notificationAdapter;
     this.processModelFacadeFactory = processModelFacadeFactory;
     this.processModelUseCase = processModelUseCase;
 
-    this.notificationAdapter = notificationAdapter;
   }
 
   public async onManualTaskWaiting(
@@ -107,8 +106,6 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
 
     const manualTaskList = await this.convertFlowNodeInstancesToManualTasks(identity, manualTasks);
 
-    // TODO: Remove that useless `ManualTaskList` datatype and just return an Array of ManualTasks.
-    // Goes for the other UseCases as well.
     manualTaskList.manualTasks = applyPagination(manualTaskList.manualTasks, offset, limit);
 
     return manualTaskList;

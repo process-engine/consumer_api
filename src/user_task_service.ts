@@ -32,11 +32,10 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
   private readonly eventAggregator: IEventAggregator;
   private readonly flowNodeInstanceService: IFlowNodeInstanceService;
   private readonly iamService: IIAMService;
+  private readonly notificationAdapter: NotificationAdapter;
   private readonly processModelFacadeFactory: IProcessModelFacadeFactory;
   private readonly processModelUseCase: IProcessModelUseCases;
   private readonly processTokenFacadeFactory: IProcessTokenFacadeFactory;
-
-  private readonly notificationAdapter: NotificationAdapter;
 
   private readonly canSubscribeToEventsClaim = 'can_subscribe_to_events';
 
@@ -45,19 +44,19 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
     eventAggregator: IEventAggregator,
     flowNodeInstanceService: IFlowNodeInstanceService,
     iamService: IIAMService,
+    notificationAdapter: NotificationAdapter,
     processModelFacadeFactory: IProcessModelFacadeFactory,
     processModelUse: IProcessModelUseCases,
     processTokenFacadeFactory: IProcessTokenFacadeFactory,
-    notificationAdapter: NotificationAdapter,
   ) {
     this.correlationService = correlationService;
     this.eventAggregator = eventAggregator;
     this.flowNodeInstanceService = flowNodeInstanceService;
     this.iamService = iamService;
+    this.notificationAdapter = notificationAdapter;
     this.processModelFacadeFactory = processModelFacadeFactory;
     this.processModelUseCase = processModelUse;
     this.processTokenFacadeFactory = processTokenFacadeFactory;
-    this.notificationAdapter = notificationAdapter;
   }
 
   public async onUserTaskWaiting(
