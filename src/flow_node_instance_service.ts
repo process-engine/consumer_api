@@ -1,9 +1,9 @@
 import {APIs, DataModels} from '@process-engine/consumer_api_contracts';
 import {
+  BpmnType,
   FlowNodeInstance,
   FlowNodeInstanceState,
   IFlowNodeInstanceService,
-  BpmnType,
 } from '@process-engine/persistence_api.contracts';
 import {IIdentity} from '@essential-projects/iam_contracts';
 
