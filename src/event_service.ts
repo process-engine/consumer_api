@@ -105,9 +105,9 @@ export class EventService implements APIs.IEventConsumerApi {
     const suspendedEvents = suspendedFlowNodeInstances.filter((flowNode: FlowNodeInstance): boolean => {
 
       const flowNodeIsEvent = this.isFlowNodeAnEvent(flowNode);
-      const flowNodeBelongstoCorrelation = flowNode.processModelId === processModelId;
+      const flowNodeBelongsToProcessModel = flowNode.processModelId === processModelId;
 
-      return flowNodeIsEvent && flowNodeBelongstoCorrelation;
+      return flowNodeIsEvent && flowNodeBelongsToProcessModel;
     });
 
     const eventList = await this.convertFlowNodeInstancesToEvents(identity, suspendedEvents);
@@ -145,15 +145,6 @@ export class EventService implements APIs.IEventConsumerApi {
     const suspendedEvents: Array<DataModels.Events.Event> = [];
 
     for (const suspendedFlowNode of suspendedFlowNodes) {
-
-      // A triggerable suspended event will always have an eventType attached to it, to indicate what the event is waiting for.
-      // This will be either a signal or a message.
-      const flowNodeIsNotATriggerableEvent = suspendedFlowNode.eventType !== DataModels.Events.EventType.messageEvent
-                                          && suspendedFlowNode.eventType !== DataModels.Events.EventType.signalEvent;
-
-      if (flowNodeIsNotATriggerableEvent) {
-        continue;
-      }
 
       const processModelFacade = await this.getProcessModelForFlowNodeInstance(identity, suspendedFlowNode);
 
