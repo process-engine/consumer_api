@@ -103,7 +103,9 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
 
     const suspendedFlowNodes = await this.flowNodeInstanceService.querySuspendedByProcessModel(processModelId);
 
-    const manualTaskList = await this.convertFlowNodeInstancesToManualTasks(identity, suspendedFlowNodes);
+    const manualTasks = suspendedFlowNodes.filter(this.checkIfIsFlowNodeIsManualTask);
+
+    const manualTaskList = await this.convertFlowNodeInstancesToManualTasks(identity, manualTasks);
 
     // TODO: Remove that useless `ManualTaskList` datatype and just return an Array of ManualTasks.
     // Goes for the other UseCases as well.
@@ -121,7 +123,9 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
 
     const suspendedFlowNodes = await this.flowNodeInstanceService.querySuspendedByProcessInstance(processInstanceId);
 
-    const manualTaskList = await this.convertFlowNodeInstancesToManualTasks(identity, suspendedFlowNodes);
+    const manualTasks = suspendedFlowNodes.filter(this.checkIfIsFlowNodeIsManualTask);
+
+    const manualTaskList = await this.convertFlowNodeInstancesToManualTasks(identity, manualTasks);
 
     manualTaskList.manualTasks = applyPagination(manualTaskList.manualTasks, offset, limit);
 
@@ -137,7 +141,9 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
 
     const suspendedFlowNodes = await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
-    const manualTaskList = await this.convertFlowNodeInstancesToManualTasks(identity, suspendedFlowNodes);
+    const manualTasks = suspendedFlowNodes.filter(this.checkIfIsFlowNodeIsManualTask);
+
+    const manualTaskList = await this.convertFlowNodeInstancesToManualTasks(identity, manualTasks);
 
     manualTaskList.manualTasks = applyPagination(manualTaskList.manualTasks, offset, limit);
 
@@ -152,10 +158,12 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
     limit: number = 0,
   ): Promise<DataModels.ManualTasks.ManualTaskList> {
 
-    const flowNodeInstances = await this.flowNodeInstanceService.queryActiveByCorrelationAndProcessModel(correlationId, processModelId);
+    const suspendedFlowNodes = await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
-    const suspendedFlowNodeInstances = flowNodeInstances.filter((flowNodeInstance: FlowNodeInstance): boolean => {
-      return flowNodeInstance.state === FlowNodeInstanceState.suspended;
+    const suspendedFlowNodeInstances = suspendedFlowNodes.filter((flowNodeInstance: FlowNodeInstance): boolean => {
+      const isManualTask = this.checkIfIsFlowNodeIsManualTask(flowNodeInstance);
+      const belongsToProcessModel = flowNodeInstance.processModelId === processModelId;
+      return isManualTask && belongsToProcessModel;
     });
 
     const manualTaskList = await this.convertFlowNodeInstancesToManualTasks(identity, suspendedFlowNodeInstances);
@@ -174,7 +182,9 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
     const suspendedFlowNodeInstances = await this.flowNodeInstanceService.queryByState(FlowNodeInstanceState.suspended);
 
     const flowNodeInstancesOwnedByUser = suspendedFlowNodeInstances.filter((flowNodeInstance: FlowNodeInstance): boolean => {
-      return this.checkIfIdentityUserIDsMatch(identity, flowNodeInstance.owner);
+      const isManualTask = this.checkIfIsFlowNodeIsManualTask(flowNodeInstance);
+      const userIdsMatch = this.checkIfIdentityUserIDsMatch(identity, flowNodeInstance.owner);
+      return isManualTask && userIdsMatch;
     });
 
     const manualTaskList = await this.convertFlowNodeInstancesToManualTasks(identity, flowNodeInstancesOwnedByUser);
@@ -230,12 +240,6 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
     const suspendedManualTasks: Array<DataModels.ManualTasks.ManualTask> = [];
 
     for (const suspendedFlowNode of suspendedFlowNodes) {
-
-      const taskIsNotAManualTask = suspendedFlowNode.flowNodeType !== BpmnType.manualTask;
-      if (taskIsNotAManualTask) {
-        continue;
-      }
-
       const processModelFacade = await this.getProcessModelForFlowNodeInstance(identity, suspendedFlowNode);
 
       const manualTask = await this.convertSuspendedFlowNodeToManualTask(suspendedFlowNode, processModelFacade);
@@ -320,6 +324,10 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
     });
 
     return matchingInstance;
+  }
+
+  private checkIfIsFlowNodeIsManualTask(flowNodeInstance: FlowNodeInstance): boolean {
+    return flowNodeInstance.flowNodeType === BpmnType.manualTask;
   }
 
   private checkIfIdentityUserIDsMatch(identityA: IIdentity, identityB: IIdentity): boolean {
