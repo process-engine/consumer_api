@@ -237,15 +237,10 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
     suspendedFlowNodes: Array<FlowNodeInstance>,
   ): Promise<DataModels.ManualTasks.ManualTaskList> {
 
-    const suspendedManualTasks: Array<DataModels.ManualTasks.ManualTask> = [];
-
-    for (const suspendedFlowNode of suspendedFlowNodes) {
-      const processModelFacade = await this.getProcessModelForFlowNodeInstance(identity, suspendedFlowNode);
-
-      const manualTask = await this.convertSuspendedFlowNodeToManualTask(suspendedFlowNode, processModelFacade);
-
-      suspendedManualTasks.push(manualTask);
-    }
+    const suspendedManualTasks =
+      await Promise.map(suspendedFlowNodes, async (suspendedFlowNode): Promise<DataModels.ManualTasks.ManualTask> => {
+        return this.convertSuspendedFlowNodeToManualTask(identity, suspendedFlowNode);
+      });
 
     const manualTaskList: DataModels.ManualTasks.ManualTaskList = {
       manualTasks: suspendedManualTasks,
@@ -253,6 +248,39 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
     };
 
     return manualTaskList;
+  }
+
+  private checkIfIsFlowNodeIsManualTask(flowNodeInstance: FlowNodeInstance): boolean {
+    return flowNodeInstance.flowNodeType === BpmnType.manualTask;
+  }
+
+  private checkIfIdentityUserIDsMatch(identityA: IIdentity, identityB: IIdentity): boolean {
+    return identityA.userId === identityB.userId;
+  }
+
+  private async convertSuspendedFlowNodeToManualTask(
+    identity: IIdentity,
+    manualTaskInstance: FlowNodeInstance,
+  ): Promise<DataModels.ManualTasks.ManualTask> {
+
+    const onSuspendToken = manualTaskInstance.getTokenByType(ProcessTokenType.onSuspend);
+
+    const processModelFacade = await this.getProcessModelForFlowNodeInstance(identity, manualTaskInstance);
+    const manualTaskModel = processModelFacade.getFlowNodeById(manualTaskInstance.flowNodeId);
+
+    const consumerApiManualTask: DataModels.ManualTasks.ManualTask = {
+      flowNodeType: BpmnType.manualTask,
+      id: manualTaskInstance.flowNodeId,
+      flowNodeInstanceId: manualTaskInstance.id,
+      name: manualTaskModel.name,
+      correlationId: manualTaskInstance.correlationId,
+      processModelId: manualTaskInstance.processModelId,
+      processInstanceId: manualTaskInstance.processInstanceId,
+      tokenPayload: onSuspendToken.payload,
+    };
+
+    return consumerApiManualTask;
+
   }
 
   private async getProcessModelForFlowNodeInstance(
@@ -286,30 +314,6 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
     return processInstance.hash;
   }
 
-  private async convertSuspendedFlowNodeToManualTask(
-    manualTaskInstance: FlowNodeInstance,
-    processModelFacade: IProcessModelFacade,
-  ): Promise<DataModels.ManualTasks.ManualTask> {
-
-    const manualTaskModel = processModelFacade.getFlowNodeById(manualTaskInstance.flowNodeId);
-
-    const onSuspendToken = manualTaskInstance.getTokenByType(ProcessTokenType.onSuspend);
-
-    const consumerApiManualTask: DataModels.ManualTasks.ManualTask = {
-      flowNodeType: BpmnType.manualTask,
-      id: manualTaskInstance.flowNodeId,
-      flowNodeInstanceId: manualTaskInstance.id,
-      name: manualTaskModel.name,
-      correlationId: manualTaskInstance.correlationId,
-      processModelId: manualTaskInstance.processModelId,
-      processInstanceId: manualTaskInstance.processInstanceId,
-      tokenPayload: onSuspendToken.payload,
-    };
-
-    return consumerApiManualTask;
-
-  }
-
   private async getFlowNodeInstanceForCorrelationInProcessInstance(
     correlationId: string,
     processInstanceId: string,
@@ -324,14 +328,6 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
     });
 
     return matchingInstance;
-  }
-
-  private checkIfIsFlowNodeIsManualTask(flowNodeInstance: FlowNodeInstance): boolean {
-    return flowNodeInstance.flowNodeType === BpmnType.manualTask;
-  }
-
-  private checkIfIdentityUserIDsMatch(identityA: IIdentity, identityB: IIdentity): boolean {
-    return identityA.userId === identityB.userId;
   }
 
   private publishFinishManualTaskEvent(

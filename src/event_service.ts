@@ -142,18 +142,10 @@ export class EventService implements APIs.IEventConsumerApi {
     suspendedFlowNodes: Array<FlowNodeInstance>,
   ): Promise<DataModels.Events.EventList> {
 
-    const suspendedEvents: Array<DataModels.Events.Event> = [];
-
-    for (const suspendedFlowNode of suspendedFlowNodes) {
-
-      const processModelFacade = await this.getProcessModelForFlowNodeInstance(identity, suspendedFlowNode);
-
-      const flowNodeModel = processModelFacade.getFlowNodeById(suspendedFlowNode.flowNodeId);
-
-      const event = await this.convertToConsumerApiEvent(flowNodeModel as Model.Events.Event, suspendedFlowNode);
-
-      suspendedEvents.push(event);
-    }
+    const suspendedEvents =
+      await Promise.map(suspendedFlowNodes, async (flowNode): Promise<DataModels.Events.Event> => {
+        return this.convertToConsumerApiEvent(identity, flowNode);
+      });
 
     const eventList: DataModels.Events.EventList = {
       events: suspendedEvents,
@@ -165,6 +157,25 @@ export class EventService implements APIs.IEventConsumerApi {
 
   private isFlowNodeAnEvent(flowNodeInstance: FlowNodeInstance): boolean {
     return flowNodeInstance.eventType !== undefined;
+  }
+
+  private async convertToConsumerApiEvent(identity: IIdentity, suspendedFlowNode: FlowNodeInstance): Promise<DataModels.Events.Event> {
+
+    const processModelFacade = await this.getProcessModelForFlowNodeInstance(identity, suspendedFlowNode);
+    const flowNodeModel = processModelFacade.getFlowNodeById(suspendedFlowNode.flowNodeId);
+
+    const consumerApiEvent: DataModels.Events.Event = {
+      id: suspendedFlowNode.flowNodeId,
+      flowNodeInstanceId: suspendedFlowNode.id,
+      correlationId: suspendedFlowNode.correlationId,
+      processModelId: suspendedFlowNode.processModelId,
+      processInstanceId: suspendedFlowNode.processInstanceId,
+      eventType: <DataModels.Events.EventType> suspendedFlowNode.eventType,
+      eventName: this.getEventDefinitionFromFlowNodeModel(flowNodeModel, suspendedFlowNode.eventType),
+      bpmnType: suspendedFlowNode.flowNodeType,
+    };
+
+    return consumerApiEvent;
   }
 
   private async getProcessModelForFlowNodeInstance(
@@ -196,22 +207,6 @@ export class EventService implements APIs.IEventConsumerApi {
     const processInstance = await this.correlationService.getByProcessInstanceId(identity, processInstanceId);
 
     return processInstance.hash;
-  }
-
-  private convertToConsumerApiEvent(flowNodeModel: Model.Events.Event, suspendedFlowNode: FlowNodeInstance): DataModels.Events.Event {
-
-    const consumerApiEvent: DataModels.Events.Event = {
-      id: suspendedFlowNode.flowNodeId,
-      flowNodeInstanceId: suspendedFlowNode.id,
-      correlationId: suspendedFlowNode.correlationId,
-      processModelId: suspendedFlowNode.processModelId,
-      processInstanceId: suspendedFlowNode.processInstanceId,
-      eventType: <DataModels.Events.EventType> suspendedFlowNode.eventType,
-      eventName: this.getEventDefinitionFromFlowNodeModel(flowNodeModel, suspendedFlowNode.eventType),
-      bpmnType: suspendedFlowNode.flowNodeType,
-    };
-
-    return consumerApiEvent;
   }
 
   private getEventDefinitionFromFlowNodeModel(flowNodeModel: Model.Events.Event, eventType: string): string {

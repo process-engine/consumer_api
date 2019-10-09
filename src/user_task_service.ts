@@ -243,14 +243,6 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
     });
   }
 
-  private checkIfIsFlowNodeIsUserTask(flowNodeInstance: FlowNodeInstance): boolean {
-    return flowNodeInstance.flowNodeType === BpmnType.userTask;
-  }
-
-  private checkIfIdentityUserIDsMatch(identityA: IIdentity, identityB: IIdentity): boolean {
-    return identityA.userId === identityB.userId;
-  }
-
   public async convertFlowNodeInstancesToUserTasks(
     identity: IIdentity,
     suspendedFlowNodes: Array<FlowNodeInstance>,
@@ -267,6 +259,14 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
     };
 
     return userTaskList;
+  }
+
+  private checkIfIsFlowNodeIsUserTask(flowNodeInstance: FlowNodeInstance): boolean {
+    return flowNodeInstance.flowNodeType === BpmnType.userTask;
+  }
+
+  private checkIfIdentityUserIDsMatch(identityA: IIdentity, identityB: IIdentity): boolean {
+    return identityA.userId === identityB.userId;
   }
 
   private async convertToConsumerApiUserTask(identity: IIdentity, userTaskInstance: FlowNodeInstance): Promise<DataModels.UserTasks.UserTask> {

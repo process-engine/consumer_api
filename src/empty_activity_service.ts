@@ -237,15 +237,10 @@ export class EmptyActivityService implements APIs.IEmptyActivityConsumerApi {
     suspendedFlowNodes: Array<FlowNodeInstance>,
   ): Promise<DataModels.EmptyActivities.EmptyActivityList> {
 
-    const suspendedEmptyActivities: Array<DataModels.EmptyActivities.EmptyActivity> = [];
-
-    for (const suspendedFlowNode of suspendedFlowNodes) {
-      const processModelFacade = await this.getProcessModelForFlowNodeInstance(identity, suspendedFlowNode);
-
-      const emptyActivity = await this.convertSuspendedFlowNodeToEmptyActivity(suspendedFlowNode, processModelFacade);
-
-      suspendedEmptyActivities.push(emptyActivity);
-    }
+    const suspendedEmptyActivities =
+      await Promise.map(suspendedFlowNodes, async (suspendedFlowNode): Promise<DataModels.EmptyActivities.EmptyActivity> => {
+        return this.convertSuspendedFlowNodeToEmptyActivity(identity, suspendedFlowNode);
+      });
 
     const emptyActivityList: DataModels.EmptyActivities.EmptyActivityList = {
       emptyActivities: suspendedEmptyActivities,
@@ -253,6 +248,38 @@ export class EmptyActivityService implements APIs.IEmptyActivityConsumerApi {
     };
 
     return emptyActivityList;
+  }
+
+  private checkIfIsFlowNodeIsEmptyActivity(flowNodeInstance: FlowNodeInstance): boolean {
+    return flowNodeInstance.flowNodeType === BpmnType.emptyActivity;
+  }
+
+  private checkIfIdentityUserIDsMatch(identityA: IIdentity, identityB: IIdentity): boolean {
+    return identityA.userId === identityB.userId;
+  }
+
+  private async convertSuspendedFlowNodeToEmptyActivity(
+    identity: IIdentity,
+    emptyActivityInstance: FlowNodeInstance,
+  ): Promise<DataModels.EmptyActivities.EmptyActivity> {
+
+    const onSuspendToken = emptyActivityInstance.getTokenByType(ProcessTokenType.onSuspend);
+
+    const processModelFacade = await this.getProcessModelForFlowNodeInstance(identity, emptyActivityInstance);
+    const emptyActivityModel = processModelFacade.getFlowNodeById(emptyActivityInstance.flowNodeId);
+
+    const consumerApiEmptyActivity: DataModels.EmptyActivities.EmptyActivity = {
+      flowNodeType: BpmnType.emptyActivity,
+      id: emptyActivityInstance.flowNodeId,
+      flowNodeInstanceId: emptyActivityInstance.id,
+      name: emptyActivityModel.name,
+      correlationId: emptyActivityInstance.correlationId,
+      processModelId: emptyActivityInstance.processModelId,
+      processInstanceId: emptyActivityInstance.processInstanceId,
+      tokenPayload: onSuspendToken.payload,
+    };
+
+    return consumerApiEmptyActivity;
   }
 
   private async getProcessModelForFlowNodeInstance(
@@ -286,30 +313,6 @@ export class EmptyActivityService implements APIs.IEmptyActivityConsumerApi {
     return processInstance.hash;
   }
 
-  private async convertSuspendedFlowNodeToEmptyActivity(
-    emptyActivityInstance: FlowNodeInstance,
-    processModelFacade: IProcessModelFacade,
-  ): Promise<DataModels.EmptyActivities.EmptyActivity> {
-
-    const emptyActivityModel = processModelFacade.getFlowNodeById(emptyActivityInstance.flowNodeId);
-
-    const onSuspendToken = emptyActivityInstance.getTokenByType(ProcessTokenType.onSuspend);
-
-    const consumerApiEmptyActivity: DataModels.EmptyActivities.EmptyActivity = {
-      flowNodeType: BpmnType.emptyActivity,
-      id: emptyActivityInstance.flowNodeId,
-      flowNodeInstanceId: emptyActivityInstance.id,
-      name: emptyActivityModel.name,
-      correlationId: emptyActivityInstance.correlationId,
-      processModelId: emptyActivityInstance.processModelId,
-      processInstanceId: emptyActivityInstance.processInstanceId,
-      tokenPayload: onSuspendToken.payload,
-    };
-
-    return consumerApiEmptyActivity;
-
-  }
-
   private async getFlowNodeInstanceForCorrelationInProcessInstance(
     correlationId: string,
     processInstanceId: string,
@@ -324,14 +327,6 @@ export class EmptyActivityService implements APIs.IEmptyActivityConsumerApi {
     });
 
     return matchingInstance;
-  }
-
-  private checkIfIsFlowNodeIsEmptyActivity(flowNodeInstance: FlowNodeInstance): boolean {
-    return flowNodeInstance.flowNodeType === BpmnType.emptyActivity;
-  }
-
-  private checkIfIdentityUserIDsMatch(identityA: IIdentity, identityB: IIdentity): boolean {
-    return identityA.userId === identityB.userId;
   }
 
   private publishFinishEmptyActivityEvent(
