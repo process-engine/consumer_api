@@ -162,7 +162,7 @@ export class EmptyActivityService implements APIs.IEmptyActivityConsumerApi {
 
     const suspendedProcessModelFlowNodes = suspendedFlowNodes.filter((flowNodeInstance: FlowNodeInstance): boolean => {
       const isEmptyActivity = this.checkIfIsFlowNodeIsEmptyActivity(flowNodeInstance);
-      const belongsToProcessModel = flowNodeInstance.tokens[0].processModelId === processModelId;
+      const belongsToProcessModel = flowNodeInstance.processModelId === processModelId;
       return isEmptyActivity && belongsToProcessModel;
     });
 
@@ -327,7 +327,7 @@ export class EmptyActivityService implements APIs.IEmptyActivityConsumerApi {
   }
 
   private checkIfIsFlowNodeIsEmptyActivity(flowNodeInstance: FlowNodeInstance): boolean {
-    return flowNodeInstance.flowNodeType !== BpmnType.emptyActivity;
+    return flowNodeInstance.flowNodeType === BpmnType.emptyActivity;
   }
 
   private checkIfIdentityUserIDsMatch(identityA: IIdentity, identityB: IIdentity): boolean {
