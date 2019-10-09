@@ -3,6 +3,7 @@ import {
   FlowNodeInstance,
   FlowNodeInstanceState,
   IFlowNodeInstanceService,
+  BpmnType,
 } from '@process-engine/persistence_api.contracts';
 import {IIdentity} from '@essential-projects/iam_contracts';
 
@@ -141,9 +142,13 @@ export class FlowNodeInstanceService implements APIs.IFlowNodeInstanceConsumerAp
 
   private async convertFlowNodeInstancesToTaskList(identity: IIdentity, suspendedFlowNodes: Array<FlowNodeInstance>): Promise<Array<Task>> {
 
-    const emptyActivityList = await this.emptyActivityService.convertFlowNodeInstancesToEmptyActivities(identity, suspendedFlowNodes);
-    const manualTaskList = await this.manualTaskService.convertFlowNodeInstancesToManualTasks(identity, suspendedFlowNodes);
-    const userTaskList = await this.userTaskService.convertFlowNodeInstancesToUserTasks(identity, suspendedFlowNodes);
+    const suspendedEmptyActivities = suspendedFlowNodes.filter((flowNode): boolean => flowNode.flowNodeType === BpmnType.emptyActivity);
+    const suspendedManualTasks = suspendedFlowNodes.filter((flowNode): boolean => flowNode.flowNodeType === BpmnType.manualTask);
+    const suspendedUserTasks = suspendedFlowNodes.filter((flowNode): boolean => flowNode.flowNodeType === BpmnType.userTask);
+
+    const emptyActivityList = await this.emptyActivityService.convertFlowNodeInstancesToEmptyActivities(identity, suspendedEmptyActivities);
+    const manualTaskList = await this.manualTaskService.convertFlowNodeInstancesToManualTasks(identity, suspendedManualTasks);
+    const userTaskList = await this.userTaskService.convertFlowNodeInstancesToUserTasks(identity, suspendedUserTasks);
 
     const tasks = [...emptyActivityList.emptyActivities, ...manualTaskList.manualTasks, ...userTaskList.userTasks];
 
