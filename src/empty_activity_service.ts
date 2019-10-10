@@ -90,9 +90,9 @@ export class EmptyActivityService implements APIs.IEmptyActivityConsumerApi {
 
     const accessibleEmptyActivities = await this.filterInacessibleFlowNodeInstances(identity, emptyActivities);
 
-    const emptyActivityList = await this.convertFlowNodeInstancesToEmptyActivities(identity, accessibleEmptyActivities);
+    const emptyActivitiesToReturn = applyPagination(accessibleEmptyActivities, offset, limit);
 
-    emptyActivityList.emptyActivities = applyPagination(emptyActivityList.emptyActivities, offset, limit);
+    const emptyActivityList = this.convertFlowNodeInstancesToEmptyActivities(identity, emptyActivitiesToReturn);
 
     return emptyActivityList;
   }
@@ -110,9 +110,9 @@ export class EmptyActivityService implements APIs.IEmptyActivityConsumerApi {
 
     const accessibleEmptyActivities = await this.filterInacessibleFlowNodeInstances(identity, emptyActivities);
 
-    const emptyActivityList = await this.convertFlowNodeInstancesToEmptyActivities(identity, accessibleEmptyActivities);
+    const emptyActivitiesToReturn = applyPagination(accessibleEmptyActivities, offset, limit);
 
-    emptyActivityList.emptyActivities = applyPagination(emptyActivityList.emptyActivities, offset, limit);
+    const emptyActivityList = this.convertFlowNodeInstancesToEmptyActivities(identity, emptyActivitiesToReturn);
 
     return emptyActivityList;
   }
@@ -130,9 +130,9 @@ export class EmptyActivityService implements APIs.IEmptyActivityConsumerApi {
 
     const accessibleEmptyActivities = await this.filterInacessibleFlowNodeInstances(identity, emptyActivities);
 
-    const emptyActivityList = await this.convertFlowNodeInstancesToEmptyActivities(identity, accessibleEmptyActivities);
+    const emptyActivitiesToReturn = applyPagination(accessibleEmptyActivities, offset, limit);
 
-    emptyActivityList.emptyActivities = applyPagination(emptyActivityList.emptyActivities, offset, limit);
+    const emptyActivityList = this.convertFlowNodeInstancesToEmptyActivities(identity, emptyActivitiesToReturn);
 
     return emptyActivityList;
   }
@@ -155,9 +155,9 @@ export class EmptyActivityService implements APIs.IEmptyActivityConsumerApi {
 
     const accessibleEmptyActivities = await this.filterInacessibleFlowNodeInstances(identity, emptyActivities);
 
-    const emptyActivityList = await this.convertFlowNodeInstancesToEmptyActivities(identity, accessibleEmptyActivities);
+    const emptyActivitiesToReturn = applyPagination(accessibleEmptyActivities, offset, limit);
 
-    emptyActivityList.emptyActivities = applyPagination(emptyActivityList.emptyActivities, offset, limit);
+    const emptyActivityList = this.convertFlowNodeInstancesToEmptyActivities(identity, emptyActivitiesToReturn);
 
     return emptyActivityList;
   }
@@ -176,9 +176,9 @@ export class EmptyActivityService implements APIs.IEmptyActivityConsumerApi {
       return isEmptyActivity && userIdsMatch;
     });
 
-    const emptyActivityList = await this.convertFlowNodeInstancesToEmptyActivities(identity, flowNodeInstancesOwnedByUser);
+    const emptyActivitiesToReturn = applyPagination(flowNodeInstancesOwnedByUser, offset, limit);
 
-    emptyActivityList.emptyActivities = applyPagination(emptyActivityList.emptyActivities, offset, limit);
+    const emptyActivityList = this.convertFlowNodeInstancesToEmptyActivities(identity, emptyActivitiesToReturn);
 
     return emptyActivityList;
   }
@@ -223,10 +223,10 @@ export class EmptyActivityService implements APIs.IEmptyActivityConsumerApi {
     });
   }
 
-  public async convertFlowNodeInstancesToEmptyActivities(
+  public convertFlowNodeInstancesToEmptyActivities(
     identity: IIdentity,
     suspendedFlowNodes: Array<FlowNodeInstance>,
-  ): Promise<DataModels.EmptyActivities.EmptyActivityList> {
+  ): DataModels.EmptyActivities.EmptyActivityList {
 
     const suspendedEmptyActivities = suspendedFlowNodes.map(this.convertSuspendedFlowNodeToEmptyActivity);
 
