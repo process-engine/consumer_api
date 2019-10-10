@@ -1,44 +1,62 @@
-import * as EssentialProjectErrors from '@essential-projects/errors_ts';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import {BadRequestError, NotFoundError} from '@essential-projects/errors_ts';
 import {IEventAggregator, Subscription} from '@essential-projects/event_aggregator_contracts';
 import {IIAMService, IIdentity} from '@essential-projects/iam_contracts';
 import {APIs, DataModels, Messages} from '@process-engine/consumer_api_contracts';
 import {
+  BpmnType,
   FlowNodeInstance,
   FlowNodeInstanceState,
+  ICorrelationService,
   IFlowNodeInstanceService,
+  IProcessModelUseCases,
+  Model,
+  ProcessToken,
+  ProcessTokenType,
 } from '@process-engine/persistence_api.contracts';
-import {FinishUserTaskMessage as InternalFinishUserTaskMessage} from '@process-engine/process_engine_contracts';
+import {
+  IFlowNodeInstanceResult,
+  IProcessModelFacade,
+  IProcessModelFacadeFactory,
+  IProcessTokenFacadeFactory,
+  FinishUserTaskMessage as InternalFinishUserTaskMessage,
+} from '@process-engine/process_engine_contracts';
 
 import {NotificationAdapter} from './adapters/index';
-import {UserTaskConverter} from './converters/index';
 import {applyPagination} from './paginator';
+import * as ProcessModelCache from './process_model_cache';
 
 export class UserTaskService implements APIs.IUserTaskConsumerApi {
 
+  private readonly correlationService: ICorrelationService;
   private readonly eventAggregator: IEventAggregator;
   private readonly flowNodeInstanceService: IFlowNodeInstanceService;
   private readonly iamService: IIAMService;
-
   private readonly notificationAdapter: NotificationAdapter;
-
-  private readonly userTaskConverter: UserTaskConverter;
+  private readonly processModelFacadeFactory: IProcessModelFacadeFactory;
+  private readonly processModelUseCase: IProcessModelUseCases;
+  private readonly processTokenFacadeFactory: IProcessTokenFacadeFactory;
 
   private readonly canSubscribeToEventsClaim = 'can_subscribe_to_events';
 
   constructor(
+    correlationService: ICorrelationService,
     eventAggregator: IEventAggregator,
     flowNodeInstanceService: IFlowNodeInstanceService,
     iamService: IIAMService,
     notificationAdapter: NotificationAdapter,
-    userTaskConverter: UserTaskConverter,
+    processModelFacadeFactory: IProcessModelFacadeFactory,
+    processModelUse: IProcessModelUseCases,
+    processTokenFacadeFactory: IProcessTokenFacadeFactory,
   ) {
+    this.correlationService = correlationService;
     this.eventAggregator = eventAggregator;
     this.flowNodeInstanceService = flowNodeInstanceService;
     this.iamService = iamService;
-
     this.notificationAdapter = notificationAdapter;
-
-    this.userTaskConverter = userTaskConverter;
+    this.processModelFacadeFactory = processModelFacadeFactory;
+    this.processModelUseCase = processModelUse;
+    this.processTokenFacadeFactory = processTokenFacadeFactory;
   }
 
   public async onUserTaskWaiting(
@@ -96,7 +114,9 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
 
     const suspendedFlowNodes = await this.flowNodeInstanceService.querySuspendedByProcessModel(processModelId);
 
-    const userTaskList = await this.userTaskConverter.convertUserTasks(identity, suspendedFlowNodes);
+    const userTasks = suspendedFlowNodes.filter(this.checkIfIsFlowNodeIsUserTask);
+
+    const userTaskList = await this.convertFlowNodeInstancesToUserTasks(identity, userTasks);
 
     userTaskList.userTasks = applyPagination(userTaskList.userTasks, offset, limit);
 
@@ -112,7 +132,9 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
 
     const suspendedFlowNodes = await this.flowNodeInstanceService.querySuspendedByProcessInstance(processInstanceId);
 
-    const userTaskList = await this.userTaskConverter.convertUserTasks(identity, suspendedFlowNodes);
+    const userTasks = suspendedFlowNodes.filter(this.checkIfIsFlowNodeIsUserTask);
+
+    const userTaskList = await this.convertFlowNodeInstancesToUserTasks(identity, userTasks);
 
     userTaskList.userTasks = applyPagination(userTaskList.userTasks, offset, limit);
 
@@ -128,7 +150,9 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
 
     const suspendedFlowNodes = await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
-    const userTaskList = await this.userTaskConverter.convertUserTasks(identity, suspendedFlowNodes);
+    const userTasks = suspendedFlowNodes.filter(this.checkIfIsFlowNodeIsUserTask);
+
+    const userTaskList = await this.convertFlowNodeInstancesToUserTasks(identity, userTasks);
 
     userTaskList.userTasks = applyPagination(userTaskList.userTasks, offset, limit);
 
@@ -143,20 +167,15 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
     limit: number = 0,
   ): Promise<DataModels.UserTasks.UserTaskList> {
 
-    const flowNodeInstances = await this.flowNodeInstanceService.queryActiveByCorrelationAndProcessModel(correlationId, processModelId);
+    const suspendedFlowNodes = await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
-    const suspendedFlowNodeInstances = flowNodeInstances.filter((flowNodeInstance: FlowNodeInstance): boolean => {
-      return flowNodeInstance.state === FlowNodeInstanceState.suspended;
+    const suspendedFlowNodeInstances = suspendedFlowNodes.filter((flowNodeInstance: FlowNodeInstance): boolean => {
+      const isUserTask = this.checkIfIsFlowNodeIsUserTask(flowNodeInstance);
+      const belongsToProcessModel = flowNodeInstance.processModelId === processModelId;
+      return isUserTask && belongsToProcessModel;
     });
 
-    const noSuspendedFlowNodesFound = !suspendedFlowNodeInstances || suspendedFlowNodeInstances.length === 0;
-    if (noSuspendedFlowNodesFound) {
-      return <DataModels.UserTasks.UserTaskList> {
-        userTasks: [],
-      };
-    }
-
-    const userTaskList = await this.userTaskConverter.convertUserTasks(identity, suspendedFlowNodeInstances);
+    const userTaskList = await this.convertFlowNodeInstancesToUserTasks(identity, suspendedFlowNodeInstances);
 
     userTaskList.userTasks = applyPagination(userTaskList.userTasks, offset, limit);
 
@@ -172,10 +191,12 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
     const suspendedFlowNodeInstances = await this.flowNodeInstanceService.queryByState(FlowNodeInstanceState.suspended);
 
     const flowNodeInstancesOwnedByUser = suspendedFlowNodeInstances.filter((flowNodeInstance: FlowNodeInstance): boolean => {
-      return this.checkIfIdentityUserIDsMatch(identity, flowNodeInstance.owner);
+      const isUserTask = this.checkIfIsFlowNodeIsUserTask(flowNodeInstance);
+      const userIdsMatch = this.checkIfIdentityUserIDsMatch(identity, flowNodeInstance.owner);
+      return isUserTask && userIdsMatch;
     });
 
-    const userTaskList = await this.userTaskConverter.convertUserTasks(identity, flowNodeInstancesOwnedByUser);
+    const userTaskList = await this.convertFlowNodeInstancesToUserTasks(identity, flowNodeInstancesOwnedByUser);
 
     userTaskList.userTasks = applyPagination(userTaskList.userTasks, offset, limit);
 
@@ -199,10 +220,10 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
     if (noMatchingInstanceFound) {
       const errorMessage =
         `ProcessInstance '${processInstanceId}' in Correlation '${correlationId}' does not have a UserTask with id '${userTaskInstanceId}'`;
-      throw new EssentialProjectErrors.NotFoundError(errorMessage);
+      throw new NotFoundError(errorMessage);
     }
 
-    const convertedUserTaskList = await this.userTaskConverter.convertUserTasks(identity, [matchingFlowNodeInstance]);
+    const convertedUserTaskList = await this.convertFlowNodeInstancesToUserTasks(identity, [matchingFlowNodeInstance]);
 
     const matchingUserTask = convertedUserTaskList.userTasks[0];
 
@@ -219,6 +240,173 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
 
       this.publishFinishUserTaskEvent(identity, matchingUserTask, resultForProcessEngine);
     });
+  }
+
+  public async convertFlowNodeInstancesToUserTasks(
+    identity: IIdentity,
+    suspendedFlowNodes: Array<FlowNodeInstance>,
+  ): Promise<DataModels.UserTasks.UserTaskList> {
+
+    const suspendedUserTasks =
+      await Promise.map(suspendedFlowNodes, async (flowNode): Promise<DataModels.UserTasks.UserTask> => {
+        return this.convertToConsumerApiUserTask(identity, flowNode);
+      });
+
+    const userTaskList: DataModels.UserTasks.UserTaskList = {
+      userTasks: suspendedUserTasks,
+      totalCount: suspendedUserTasks.length,
+    };
+
+    return userTaskList;
+  }
+
+  private checkIfIsFlowNodeIsUserTask(flowNodeInstance: FlowNodeInstance): boolean {
+    return flowNodeInstance.flowNodeType === BpmnType.userTask;
+  }
+
+  private checkIfIdentityUserIDsMatch(identityA: IIdentity, identityB: IIdentity): boolean {
+    return identityA.userId === identityB.userId;
+  }
+
+  private async convertToConsumerApiUserTask(identity: IIdentity, userTaskInstance: FlowNodeInstance): Promise<DataModels.UserTasks.UserTask> {
+
+    const currentUserTaskToken = userTaskInstance.getTokenByType(ProcessTokenType.onSuspend);
+
+    const processModelFacade = await this.getProcessModelForFlowNodeInstance(identity, userTaskInstance);
+    const userTaskModel = processModelFacade.getFlowNodeById(userTaskInstance.flowNodeId) as Model.Activities.UserTask;
+
+    const formattedUserTaskToken = await this.getUserTaskTokenInOldFormat(currentUserTaskToken);
+
+    const userTaskFormFields =
+      userTaskModel.formFields.map((formField: Model.Activities.Types.UserTaskFormField): DataModels.UserTasks.UserTaskFormField => {
+        return this.convertToConsumerApiFormField(formField, formattedUserTaskToken);
+      });
+
+    const userTaskConfig: DataModels.UserTasks.UserTaskConfig = {
+      formFields: userTaskFormFields,
+      preferredControl: this.evaluateExpressionWithOldToken(userTaskModel.preferredControl, formattedUserTaskToken),
+      description: userTaskModel.description,
+      finishedMessage: userTaskModel.finishedMessage,
+    };
+
+    const consumerApiUserTask: DataModels.UserTasks.UserTask = {
+      flowNodeType: BpmnType.userTask,
+      id: userTaskInstance.flowNodeId,
+      flowNodeInstanceId: userTaskInstance.id,
+      name: userTaskModel.name,
+      correlationId: userTaskInstance.correlationId,
+      processModelId: userTaskInstance.processModelId,
+      processInstanceId: userTaskInstance.processInstanceId,
+      data: userTaskConfig,
+      tokenPayload: currentUserTaskToken.payload,
+    };
+
+    return consumerApiUserTask;
+  }
+
+  private async getProcessModelForFlowNodeInstance(
+    identity: IIdentity,
+    flowNodeInstance: FlowNodeInstance,
+  ): Promise<IProcessModelFacade> {
+
+    let processModel: Model.Process;
+
+    // We must store the ProcessModel for each user, to account for lane-restrictions.
+    // Some users may not be able to see some lanes that are visible to others.
+    const cacheKeyToUse = `${flowNodeInstance.processInstanceId}-${identity.userId}`;
+
+    const cacheHasMatchingEntry = ProcessModelCache.hasEntry(cacheKeyToUse);
+    if (cacheHasMatchingEntry) {
+      processModel = ProcessModelCache.get(cacheKeyToUse);
+    } else {
+      const processModelHash = await this.getProcessModelHashForProcessInstance(identity, flowNodeInstance.processInstanceId);
+      processModel = await this.processModelUseCase.getByHash(identity, flowNodeInstance.processModelId, processModelHash);
+      ProcessModelCache.add(cacheKeyToUse, processModel);
+    }
+
+    const processModelFacade = this.processModelFacadeFactory.create(processModel);
+
+    return processModelFacade;
+  }
+
+  private async getProcessModelHashForProcessInstance(identity: IIdentity, processInstanceId: string): Promise<string> {
+    const processInstance = await this.correlationService.getByProcessInstanceId(identity, processInstanceId);
+
+    return processInstance.hash;
+  }
+
+  private convertToConsumerApiFormField(
+    formField: Model.Activities.Types.UserTaskFormField,
+    oldTokenFormat: any,
+  ): DataModels.UserTasks.UserTaskFormField {
+
+    const userTaskFormField = new DataModels.UserTasks.UserTaskFormField();
+    userTaskFormField.id = formField.id;
+    userTaskFormField.label = this.evaluateExpressionWithOldToken(formField.label, oldTokenFormat);
+    userTaskFormField.type = DataModels.UserTasks.UserTaskFormFieldType[formField.type];
+    userTaskFormField.enumValues = formField.enumValues;
+    userTaskFormField.defaultValue = this.evaluateExpressionWithOldToken(formField.defaultValue, oldTokenFormat);
+    userTaskFormField.preferredControl = this.evaluateExpressionWithOldToken(formField.preferredControl, oldTokenFormat);
+
+    return userTaskFormField;
+  }
+
+  private evaluateExpressionWithOldToken(expression: string, oldTokenFormat: any): string | null {
+
+    let result: any = expression;
+
+    if (!expression) {
+      return result;
+    }
+
+    const expressionStartsOn = '${';
+    const expressionEndsOn = '}';
+
+    const isExpression = expression.charAt(0) === '$';
+    if (isExpression === false) {
+      return result;
+    }
+
+    const finalExpressionLength = expression.length - expressionStartsOn.length - expressionEndsOn.length;
+    const expressionBody = expression.substr(expressionStartsOn.length, finalExpressionLength);
+
+    const functionString = `return ${expressionBody}`;
+    const scriptFunction = new Function('token', functionString);
+
+    result = scriptFunction.call(undefined, oldTokenFormat);
+
+    return result;
+  }
+
+  private async getUserTaskTokenInOldFormat(currentProcessToken: ProcessToken): Promise<any> {
+
+    const {
+      processInstanceId, processModelId, correlationId, identity,
+    } = currentProcessToken;
+
+    const processInstanceTokens = await this.flowNodeInstanceService.queryProcessTokensByProcessInstanceId(processInstanceId);
+
+    const filteredInstanceTokens = processInstanceTokens.filter((token: ProcessToken): boolean => {
+      return token.type === ProcessTokenType.onExit;
+    });
+
+    const processTokenFacade = this.processTokenFacadeFactory.create(processInstanceId, processModelId, correlationId, identity);
+
+    const processTokenResultPromises = filteredInstanceTokens.map(async (processToken: ProcessToken): Promise<IFlowNodeInstanceResult> => {
+      const processTokenFlowNodeInstance = await this.flowNodeInstanceService.queryByInstanceId(processToken.flowNodeInstanceId);
+
+      return {
+        flowNodeInstanceId: processTokenFlowNodeInstance.id,
+        flowNodeId: processTokenFlowNodeInstance.flowNodeId,
+        result: processToken.payload,
+      };
+    });
+
+    const processTokenResults = await Promise.all(processTokenResultPromises);
+
+    processTokenFacade.importResults(processTokenResults);
+
+    return processTokenFacade.getOldTokenFormat();
   }
 
   private async getFlowNodeInstanceForCorrelationInProcessInstance(
@@ -251,14 +439,10 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
       || Array.isArray(finishedTask.formFields);
 
     if (formFieldResultIsNotAnObject) {
-      throw new EssentialProjectErrors.BadRequestError('The UserTask\'s FormFields are not an object.');
+      throw new BadRequestError('The UserTask\'s FormFields are not an object.');
     }
 
     return finishedTask.formFields;
-  }
-
-  private checkIfIdentityUserIDsMatch(identityA: IIdentity, identityB: IIdentity): boolean {
-    return identityA.userId === identityB.userId;
   }
 
   private publishFinishUserTaskEvent(

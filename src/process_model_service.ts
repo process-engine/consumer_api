@@ -28,10 +28,9 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
   private readonly executeProcessService: IExecuteProcessService;
   private readonly flowNodeInstanceService: IFlowNodeInstanceService;
   private readonly iamService: IIAMService;
+  private readonly notificationAdapter: NotificationAdapter;
   private readonly processModelFacadeFactory: IProcessModelFacadeFactory;
   private readonly processModelUseCase: IProcessModelUseCases;
-
-  private readonly notificationAdapter: NotificationAdapter;
 
   private readonly canSubscribeToEventsClaim = 'can_subscribe_to_events';
 
@@ -39,17 +38,17 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
     executeProcessService: IExecuteProcessService,
     flowNodeInstanceService: IFlowNodeInstanceService,
     iamService: IIAMService,
+    notificationAdapter: NotificationAdapter,
     processModelFacadeFactory: IProcessModelFacadeFactory,
     processModelUseCase: IProcessModelUseCases,
-    notificationAdapter: NotificationAdapter,
   ) {
     this.executeProcessService = executeProcessService;
     this.flowNodeInstanceService = flowNodeInstanceService;
     this.iamService = iamService;
+    this.notificationAdapter = notificationAdapter;
     this.processModelFacadeFactory = processModelFacadeFactory;
     this.processModelUseCase = processModelUseCase;
 
-    this.notificationAdapter = notificationAdapter;
   }
 
   public async getProcessModels(

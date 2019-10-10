@@ -1,28 +1,16 @@
 const {
-  EmptyActivityConverter,
-  EventConverter,
-  ManualTaskConverter,
   NotificationAdapter,
-  UserTaskConverter,
-} = require('./dist/commonjs/index');
-
-const {
   EmptyActivityService,
   EventService,
   ExternalTaskService,
+  FlowNodeInstanceService,
   ManualTaskService,
   NotificationService,
   ProcessModelService,
   UserTaskService,
-  FlowNodeInstanceService,
 } = require('./dist/commonjs/index');
 
 function registerInContainer(container) {
-  registerConvertersAndAdapters(container);
-  registerServices(container);
-}
-
-function registerConvertersAndAdapters(container) {
 
   container
     .register('ConsumerApiNotificationAdapter', NotificationAdapter)
@@ -30,47 +18,27 @@ function registerConvertersAndAdapters(container) {
     .singleton();
 
   container
-    .register('ConsumerApiEmptyActivityConverter', EmptyActivityConverter)
-    .dependencies('CorrelationService', 'ProcessModelFacadeFactory', 'ProcessModelUseCases')
-    .singleton();
-
-  container
-    .register('ConsumerApiEventConverter', EventConverter)
-    .dependencies('CorrelationService', 'ProcessModelFacadeFactory', 'ProcessModelUseCases')
-    .singleton();
-
-  container
-    .register('ConsumerApiUserTaskConverter', UserTaskConverter)
-    .dependencies('CorrelationService', 'FlowNodeInstanceService', 'ProcessModelFacadeFactory', 'ProcessModelUseCases', 'ProcessTokenFacadeFactory')
-    .singleton();
-
-  container
-    .register('ConsumerApiManualTaskConverter', ManualTaskConverter)
-    .dependencies('CorrelationService', 'ProcessModelFacadeFactory', 'ProcessModelUseCases')
-    .singleton();
-}
-
-function registerServices(container) {
-
-  container
     .register('ConsumerApiEmptyActivityService', EmptyActivityService)
     .dependencies(
+      'CorrelationService',
       'EventAggregator',
       'FlowNodeInstanceService',
       'IamService',
       'ConsumerApiNotificationAdapter',
-      'ConsumerApiEmptyActivityConverter',
+      'ProcessModelFacadeFactory',
+      'ProcessModelUseCases',
     )
     .singleton();
 
   container
     .register('ConsumerApiEventService', EventService)
     .dependencies(
+      'CorrelationService',
       'EventAggregator',
       'FlowNodeInstanceService',
       'IamService',
+      'ProcessModelFacadeFactory',
       'ProcessModelUseCases',
-      'ConsumerApiEventConverter',
     )
     .singleton();
 
@@ -79,13 +47,25 @@ function registerServices(container) {
     .singleton();
 
   container
+    .register('ConsumerApiFlowNodeInstanceService', FlowNodeInstanceService)
+    .dependencies(
+      'FlowNodeInstanceService',
+      'ConsumerApiEmptyActivityService',
+      'ConsumerApiManualTaskService',
+      'ConsumerApiUserTaskService',
+    )
+    .singleton();
+
+  container
     .register('ConsumerApiManualTaskService', ManualTaskService)
     .dependencies(
+      'CorrelationService',
       'EventAggregator',
       'FlowNodeInstanceService',
       'IamService',
       'ConsumerApiNotificationAdapter',
-      'ConsumerApiManualTaskConverter',
+      'ProcessModelFacadeFactory',
+      'ProcessModelUseCases',
     )
     .singleton();
 
@@ -100,33 +80,25 @@ function registerServices(container) {
       'ExecuteProcessService',
       'FlowNodeInstanceService',
       'IamService',
+      'ConsumerApiNotificationAdapter',
       'ProcessModelFacadeFactory',
       'ProcessModelUseCases',
-      'ConsumerApiNotificationAdapter',
     )
     .singleton();
 
   container
     .register('ConsumerApiUserTaskService', UserTaskService)
     .dependencies(
+      'CorrelationService',
       'EventAggregator',
       'FlowNodeInstanceService',
       'IamService',
       'ConsumerApiNotificationAdapter',
-      'ConsumerApiUserTaskConverter',
+      'ProcessModelFacadeFactory',
+      'ProcessModelUseCases',
+      'ProcessTokenFacadeFactory',
     )
     .singleton();
-
-  container
-    .register('ConsumerApiFlowNodeInstanceService', FlowNodeInstanceService)
-    .dependencies(
-      'FlowNodeInstanceService',
-      'ConsumerApiEmptyActivityConverter',
-      'ConsumerApiManualTaskConverter',
-      'ConsumerApiUserTaskConverter',
-    )
-    .singleton();
-
 }
 
 module.exports.registerInContainer = registerInContainer;
