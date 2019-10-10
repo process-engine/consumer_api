@@ -1,6 +1,5 @@
 import {APIs, DataModels} from '@process-engine/consumer_api_contracts';
 import {
-  BpmnType,
   FlowNodeInstance,
   FlowNodeInstanceState,
   IFlowNodeInstanceService,
@@ -140,15 +139,14 @@ export class FlowNodeInstanceService implements APIs.IFlowNodeInstanceConsumerAp
     return taskList;
   }
 
-  private async convertFlowNodeInstancesToTaskList(identity: IIdentity, suspendedFlowNodes: Array<FlowNodeInstance>): Promise<Array<Task>> {
+  private async convertFlowNodeInstancesToTaskList(
+    identity: IIdentity,
+    suspendedFlowNodes: Array<FlowNodeInstance>,
+  ): Promise<Array<Task>> {
 
-    const suspendedEmptyActivities = suspendedFlowNodes.filter((flowNode): boolean => flowNode.flowNodeType === BpmnType.emptyActivity);
-    const suspendedManualTasks = suspendedFlowNodes.filter((flowNode): boolean => flowNode.flowNodeType === BpmnType.manualTask);
-    const suspendedUserTasks = suspendedFlowNodes.filter((flowNode): boolean => flowNode.flowNodeType === BpmnType.userTask);
-
-    const emptyActivityList = await this.emptyActivityService.convertFlowNodeInstancesToEmptyActivities(identity, suspendedEmptyActivities);
-    const manualTaskList = await this.manualTaskService.convertFlowNodeInstancesToManualTasks(identity, suspendedManualTasks);
-    const userTaskList = await this.userTaskService.convertFlowNodeInstancesToUserTasks(identity, suspendedUserTasks);
+    const emptyActivityList = await this.emptyActivityService.filterAndConvertEmptyActivityList(identity, suspendedFlowNodes);
+    const manualTaskList = await this.manualTaskService.filterAndConvertManualTaskList(identity, suspendedFlowNodes);
+    const userTaskList = await this.userTaskService.filterAndConvertUserTaskList(identity, suspendedFlowNodes);
 
     const tasks = [...emptyActivityList.emptyActivities, ...manualTaskList.manualTasks, ...userTaskList.userTasks];
 

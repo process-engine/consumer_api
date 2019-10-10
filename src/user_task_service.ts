@@ -26,6 +26,9 @@ import {NotificationAdapter} from './adapters/index';
 import {applyPagination} from './paginator';
 import * as ProcessModelCache from './process_model_cache';
 
+const superAdminClaim = 'can_manage_process_instances';
+const canSubscribeToEventsClaim = 'can_subscribe_to_events';
+
 export class UserTaskService implements APIs.IUserTaskConsumerApi {
 
   private readonly correlationService: ICorrelationService;
@@ -36,8 +39,6 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
   private readonly processModelFacadeFactory: IProcessModelFacadeFactory;
   private readonly processModelUseCase: IProcessModelUseCases;
   private readonly processTokenFacadeFactory: IProcessTokenFacadeFactory;
-
-  private readonly canSubscribeToEventsClaim = 'can_subscribe_to_events';
 
   constructor(
     correlationService: ICorrelationService,
@@ -64,7 +65,7 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
     callback: Messages.CallbackTypes.OnUserTaskWaitingCallback,
     subscribeOnce = false,
   ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onUserTaskWaiting(identity, callback, subscribeOnce);
   }
@@ -74,7 +75,7 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
     callback: Messages.CallbackTypes.OnUserTaskFinishedCallback,
     subscribeOnce = false,
   ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onUserTaskFinished(identity, callback, subscribeOnce);
   }
@@ -84,7 +85,7 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
     callback: Messages.CallbackTypes.OnUserTaskWaitingCallback,
     subscribeOnce = false,
   ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onUserTaskForIdentityWaiting(identity, callback, subscribeOnce);
   }
@@ -94,13 +95,13 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
     callback: Messages.CallbackTypes.OnUserTaskFinishedCallback,
     subscribeOnce = false,
   ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onUserTaskForIdentityFinished(identity, callback, subscribeOnce);
   }
 
   public async removeSubscription(identity: IIdentity, subscription: Subscription): Promise<void> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     this.notificationAdapter.removeSubscription(subscription);
   }
@@ -114,11 +115,7 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
 
     const suspendedFlowNodes = await this.flowNodeInstanceService.querySuspendedByProcessModel(processModelId);
 
-    const userTasks = suspendedFlowNodes.filter(this.checkIfIsFlowNodeIsUserTask);
-
-    const userTaskList = await this.convertFlowNodeInstancesToUserTasks(identity, userTasks);
-
-    userTaskList.userTasks = applyPagination(userTaskList.userTasks, offset, limit);
+    const userTaskList = await this.filterAndConvertUserTaskList(identity, suspendedFlowNodes, offset, limit);
 
     return userTaskList;
   }
@@ -132,11 +129,7 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
 
     const suspendedFlowNodes = await this.flowNodeInstanceService.querySuspendedByProcessInstance(processInstanceId);
 
-    const userTasks = suspendedFlowNodes.filter(this.checkIfIsFlowNodeIsUserTask);
-
-    const userTaskList = await this.convertFlowNodeInstancesToUserTasks(identity, userTasks);
-
-    userTaskList.userTasks = applyPagination(userTaskList.userTasks, offset, limit);
+    const userTaskList = await this.filterAndConvertUserTaskList(identity, suspendedFlowNodes, offset, limit);
 
     return userTaskList;
   }
@@ -150,11 +143,7 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
 
     const suspendedFlowNodes = await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
-    const userTasks = suspendedFlowNodes.filter(this.checkIfIsFlowNodeIsUserTask);
-
-    const userTaskList = await this.convertFlowNodeInstancesToUserTasks(identity, userTasks);
-
-    userTaskList.userTasks = applyPagination(userTaskList.userTasks, offset, limit);
+    const userTaskList = await this.filterAndConvertUserTaskList(identity, suspendedFlowNodes, offset, limit);
 
     return userTaskList;
   }
@@ -167,17 +156,13 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
     limit: number = 0,
   ): Promise<DataModels.UserTasks.UserTaskList> {
 
-    const suspendedFlowNodes = await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
+    const flowNodeInstances = await this.flowNodeInstanceService.queryByCorrelationAndProcessModel(correlationId, processModelId);
 
-    const suspendedFlowNodeInstances = suspendedFlowNodes.filter((flowNodeInstance: FlowNodeInstance): boolean => {
-      const isUserTask = this.checkIfIsFlowNodeIsUserTask(flowNodeInstance);
-      const belongsToProcessModel = flowNodeInstance.processModelId === processModelId;
-      return isUserTask && belongsToProcessModel;
+    const suspendedFlowNodes = flowNodeInstances.filter((flowNodeInstance: FlowNodeInstance): boolean => {
+      return flowNodeInstance.state === FlowNodeInstanceState.suspended;
     });
 
-    const userTaskList = await this.convertFlowNodeInstancesToUserTasks(identity, suspendedFlowNodeInstances);
-
-    userTaskList.userTasks = applyPagination(userTaskList.userTasks, offset, limit);
+    const userTaskList = await this.filterAndConvertUserTaskList(identity, suspendedFlowNodes, offset, limit);
 
     return userTaskList;
   }
@@ -196,9 +181,9 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
       return isUserTask && userIdsMatch;
     });
 
-    const userTaskList = await this.convertFlowNodeInstancesToUserTasks(identity, flowNodeInstancesOwnedByUser);
+    const userTasksToReturn = applyPagination(flowNodeInstancesOwnedByUser, offset, limit);
 
-    userTaskList.userTasks = applyPagination(userTaskList.userTasks, offset, limit);
+    const userTaskList = this.convertFlowNodeInstancesToUserTasks(identity, userTasksToReturn);
 
     return userTaskList;
   }
@@ -216,16 +201,15 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
     const matchingFlowNodeInstance =
       await this.getFlowNodeInstanceForCorrelationInProcessInstance(correlationId, processInstanceId, userTaskInstanceId);
 
-    const noMatchingInstanceFound = matchingFlowNodeInstance === undefined;
-    if (noMatchingInstanceFound) {
+    if (matchingFlowNodeInstance === undefined) {
       const errorMessage =
         `ProcessInstance '${processInstanceId}' in Correlation '${correlationId}' does not have a UserTask with id '${userTaskInstanceId}'`;
       throw new NotFoundError(errorMessage);
     }
 
-    const convertedUserTaskList = await this.convertFlowNodeInstancesToUserTasks(identity, [matchingFlowNodeInstance]);
-
-    const matchingUserTask = convertedUserTaskList.userTasks[0];
+    if (matchingFlowNodeInstance.flowNodeLane !== undefined) {
+      await this.ensureHasClaim(identity, matchingFlowNodeInstance.flowNodeLane);
+    }
 
     return new Promise<void>((resolve: Function): void => {
 
@@ -238,11 +222,29 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
         resolve();
       });
 
-      this.publishFinishUserTaskEvent(identity, matchingUserTask, resultForProcessEngine);
+      this.publishFinishUserTaskEvent(identity, matchingFlowNodeInstance, resultForProcessEngine);
     });
   }
 
-  public async convertFlowNodeInstancesToUserTasks(
+  public async filterAndConvertUserTaskList(
+    identity: IIdentity,
+    suspendedFlowNodes: Array<FlowNodeInstance>,
+    offset?: number,
+    limit?: number,
+  ): Promise<DataModels.UserTasks.UserTaskList> {
+
+    const userTasks = suspendedFlowNodes.filter(this.checkIfIsFlowNodeIsUserTask);
+
+    const accessibleUserTasks = await this.filterInacessibleFlowNodeInstances(identity, userTasks);
+
+    const userTasksToReturn = applyPagination(accessibleUserTasks, offset, limit);
+
+    const userTaskList = this.convertFlowNodeInstancesToUserTasks(identity, userTasksToReturn);
+
+    return userTaskList;
+  }
+
+  private async convertFlowNodeInstancesToUserTasks(
     identity: IIdentity,
     suspendedFlowNodes: Array<FlowNodeInstance>,
   ): Promise<DataModels.UserTasks.UserTaskList> {
@@ -266,6 +268,57 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
 
   private checkIfIdentityUserIDsMatch(identityA: IIdentity, identityB: IIdentity): boolean {
     return identityA.userId === identityB.userId;
+  }
+
+  private async filterInacessibleFlowNodeInstances(
+    identity: IIdentity,
+    flowNodeInstances: Array<FlowNodeInstance>,
+  ): Promise<Array<FlowNodeInstance>> {
+    const isSuperAdmin = await this.checkIfUserIsSuperAdmin(identity);
+
+    if (isSuperAdmin) {
+      return flowNodeInstances;
+    }
+
+    const accessibleFlowNodeInstances = Promise.filter(flowNodeInstances, async (item: FlowNodeInstance): Promise<boolean> => {
+      return this.checkIfUserCanAccessFlowNodeInstance(identity, item);
+    });
+
+    return accessibleFlowNodeInstances;
+  }
+
+  private async checkIfUserCanAccessFlowNodeInstance(identity: IIdentity, flowNodeInstance: FlowNodeInstance): Promise<boolean> {
+    try {
+      if (!flowNodeInstance.flowNodeLane) {
+        return true;
+      }
+
+      await this.iamService.ensureHasClaim(identity, flowNodeInstance.flowNodeLane);
+
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  private async ensureHasClaim(identity: IIdentity, claimName: string): Promise<void> {
+    const isSuperAdmin = await this.checkIfUserIsSuperAdmin(identity);
+
+    if (isSuperAdmin) {
+      return;
+    }
+
+    await this.iamService.ensureHasClaim(identity, claimName);
+  }
+
+  private async checkIfUserIsSuperAdmin(identity: IIdentity): Promise<boolean> {
+    try {
+      await this.iamService.ensureHasClaim(identity, superAdminClaim);
+
+      return true;
+    } catch (error) {
+      return false;
+    }
   }
 
   private async convertToConsumerApiUserTask(identity: IIdentity, userTaskInstance: FlowNodeInstance): Promise<DataModels.UserTasks.UserTask> {
@@ -447,9 +500,11 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
 
   private publishFinishUserTaskEvent(
     identity: IIdentity,
-    userTaskInstance: DataModels.UserTasks.UserTask,
+    userTaskInstance: FlowNodeInstance,
     userTaskResult: DataModels.UserTasks.UserTaskResult,
   ): void {
+
+    const currentToken = userTaskInstance.getTokenByType(ProcessTokenType.onSuspend);
 
     const finishUserTaskMessage = new InternalFinishUserTaskMessage(
       userTaskResult,
@@ -457,15 +512,15 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
       userTaskInstance.processModelId,
       userTaskInstance.processInstanceId,
       userTaskInstance.id,
-      userTaskInstance.flowNodeInstanceId,
+      userTaskInstance.id,
       identity,
-      userTaskInstance.tokenPayload,
+      currentToken.payload,
     );
 
     const finishUserTaskEvent = Messages.EventAggregatorSettings.messagePaths.finishUserTask
       .replace(Messages.EventAggregatorSettings.messageParams.correlationId, userTaskInstance.correlationId)
       .replace(Messages.EventAggregatorSettings.messageParams.processInstanceId, userTaskInstance.processInstanceId)
-      .replace(Messages.EventAggregatorSettings.messageParams.flowNodeInstanceId, userTaskInstance.flowNodeInstanceId);
+      .replace(Messages.EventAggregatorSettings.messageParams.flowNodeInstanceId, userTaskInstance.id);
 
     this.eventAggregator.publish(finishUserTaskEvent, finishUserTaskMessage);
   }
