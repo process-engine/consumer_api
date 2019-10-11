@@ -6,50 +6,34 @@ import {
   BpmnType,
   FlowNodeInstance,
   FlowNodeInstanceState,
-  ICorrelationService,
   IFlowNodeInstanceService,
-  IProcessModelUseCases,
-  Model,
   ProcessTokenType,
 } from '@process-engine/persistence_api.contracts';
-import {
-  IProcessModelFacade,
-  IProcessModelFacadeFactory,
-  FinishManualTaskMessage as InternalFinishManualTaskMessage,
-} from '@process-engine/process_engine_contracts';
+import {FinishManualTaskMessage as InternalFinishManualTaskMessage} from '@process-engine/process_engine_contracts';
 
 import {NotificationAdapter} from './adapters/index';
 import {applyPagination} from './paginator';
-import * as ProcessModelCache from './process_model_cache';
+
+const superAdminClaim = 'can_manage_process_instances';
+const canSubscribeToEventsClaim = 'can_subscribe_to_events';
 
 export class ManualTaskService implements APIs.IManualTaskConsumerApi {
 
-  private readonly correlationService: ICorrelationService;
   private readonly eventAggregator: IEventAggregator;
   private readonly flowNodeInstanceService: IFlowNodeInstanceService;
   private readonly iamService: IIAMService;
   private readonly notificationAdapter: NotificationAdapter;
-  private readonly processModelUseCase: IProcessModelUseCases;
-  private readonly processModelFacadeFactory: IProcessModelFacadeFactory;
-
-  private readonly canSubscribeToEventsClaim = 'can_subscribe_to_events';
 
   constructor(
-    correlationService: ICorrelationService,
     eventAggregator: IEventAggregator,
     flowNodeInstanceService: IFlowNodeInstanceService,
     iamService: IIAMService,
     notificationAdapter: NotificationAdapter,
-    processModelFacadeFactory: IProcessModelFacadeFactory,
-    processModelUseCase: IProcessModelUseCases,
   ) {
-    this.correlationService = correlationService;
     this.eventAggregator = eventAggregator;
     this.flowNodeInstanceService = flowNodeInstanceService;
     this.iamService = iamService;
     this.notificationAdapter = notificationAdapter;
-    this.processModelFacadeFactory = processModelFacadeFactory;
-    this.processModelUseCase = processModelUseCase;
 
   }
 
@@ -58,7 +42,7 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
     callback: Messages.CallbackTypes.OnManualTaskWaitingCallback,
     subscribeOnce = false,
   ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.iamService.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onManualTaskWaiting(identity, callback, subscribeOnce);
   }
@@ -68,7 +52,7 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
     callback: Messages.CallbackTypes.OnManualTaskFinishedCallback,
     subscribeOnce = false,
   ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.iamService.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onManualTaskFinished(identity, callback, subscribeOnce);
   }
@@ -78,7 +62,7 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
     callback: Messages.CallbackTypes.OnManualTaskWaitingCallback,
     subscribeOnce = false,
   ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.iamService.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onManualTaskForIdentityWaiting(identity, callback, subscribeOnce);
   }
@@ -88,7 +72,7 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
     callback: Messages.CallbackTypes.OnManualTaskFinishedCallback,
     subscribeOnce = false,
   ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.iamService.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onManualTaskForIdentityFinished(identity, callback, subscribeOnce);
   }
@@ -102,11 +86,7 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
 
     const suspendedFlowNodes = await this.flowNodeInstanceService.querySuspendedByProcessModel(processModelId);
 
-    const manualTasks = suspendedFlowNodes.filter(this.checkIfIsFlowNodeIsManualTask);
-
-    const manualTaskList = await this.convertFlowNodeInstancesToManualTasks(identity, manualTasks);
-
-    manualTaskList.manualTasks = applyPagination(manualTaskList.manualTasks, offset, limit);
+    const manualTaskList = await this.filterAndConvertManualTaskList(identity, suspendedFlowNodes, offset, limit);
 
     return manualTaskList;
   }
@@ -120,11 +100,7 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
 
     const suspendedFlowNodes = await this.flowNodeInstanceService.querySuspendedByProcessInstance(processInstanceId);
 
-    const manualTasks = suspendedFlowNodes.filter(this.checkIfIsFlowNodeIsManualTask);
-
-    const manualTaskList = await this.convertFlowNodeInstancesToManualTasks(identity, manualTasks);
-
-    manualTaskList.manualTasks = applyPagination(manualTaskList.manualTasks, offset, limit);
+    const manualTaskList = await this.filterAndConvertManualTaskList(identity, suspendedFlowNodes, offset, limit);
 
     return manualTaskList;
   }
@@ -138,11 +114,7 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
 
     const suspendedFlowNodes = await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
-    const manualTasks = suspendedFlowNodes.filter(this.checkIfIsFlowNodeIsManualTask);
-
-    const manualTaskList = await this.convertFlowNodeInstancesToManualTasks(identity, manualTasks);
-
-    manualTaskList.manualTasks = applyPagination(manualTaskList.manualTasks, offset, limit);
+    const manualTaskList = await this.filterAndConvertManualTaskList(identity, suspendedFlowNodes, offset, limit);
 
     return manualTaskList;
   }
@@ -155,17 +127,13 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
     limit: number = 0,
   ): Promise<DataModels.ManualTasks.ManualTaskList> {
 
-    const suspendedFlowNodes = await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
+    const flowNodeInstances = await this.flowNodeInstanceService.queryByCorrelationAndProcessModel(correlationId, processModelId);
 
-    const suspendedFlowNodeInstances = suspendedFlowNodes.filter((flowNodeInstance: FlowNodeInstance): boolean => {
-      const isManualTask = this.checkIfIsFlowNodeIsManualTask(flowNodeInstance);
-      const belongsToProcessModel = flowNodeInstance.processModelId === processModelId;
-      return isManualTask && belongsToProcessModel;
+    const suspendedFlowNodes = flowNodeInstances.filter((flowNodeInstance: FlowNodeInstance): boolean => {
+      return flowNodeInstance.state === FlowNodeInstanceState.suspended;
     });
 
-    const manualTaskList = await this.convertFlowNodeInstancesToManualTasks(identity, suspendedFlowNodeInstances);
-
-    manualTaskList.manualTasks = applyPagination(manualTaskList.manualTasks, offset, limit);
+    const manualTaskList = await this.filterAndConvertManualTaskList(identity, suspendedFlowNodes, offset, limit);
 
     return manualTaskList;
   }
@@ -184,9 +152,9 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
       return isManualTask && userIdsMatch;
     });
 
-    const manualTaskList = await this.convertFlowNodeInstancesToManualTasks(identity, flowNodeInstancesOwnedByUser);
+    const manualTasksToReturn = applyPagination(flowNodeInstancesOwnedByUser, offset, limit);
 
-    manualTaskList.manualTasks = applyPagination(manualTaskList.manualTasks, offset, limit);
+    const manualTaskList = this.convertFlowNodeInstancesToManualTasks(manualTasksToReturn);
 
     return manualTaskList;
   }
@@ -201,16 +169,15 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
     const matchingFlowNodeInstance =
       await this.getFlowNodeInstanceForCorrelationInProcessInstance(correlationId, processInstanceId, manualTaskInstanceId);
 
-    const noMatchingInstanceFound = matchingFlowNodeInstance === undefined;
-    if (noMatchingInstanceFound) {
+    if (matchingFlowNodeInstance === undefined) {
       const errorMessage =
         `ProcessInstance '${processInstanceId}' in Correlation '${correlationId}' does not have a ManualTask with id '${manualTaskInstanceId}'`;
       throw new EssentialProjectErrors.NotFoundError(errorMessage);
     }
 
-    const convertedUserTaskList = await this.convertFlowNodeInstancesToManualTasks(identity, [matchingFlowNodeInstance]);
-
-    const matchingManualTask = convertedUserTaskList.manualTasks[0];
+    if (matchingFlowNodeInstance.flowNodeLane !== undefined) {
+      await this.ensureHasClaim(identity, matchingFlowNodeInstance.flowNodeLane);
+    }
 
     return new Promise<void>((resolve: Function): void => {
       const routePrameter: {[name: string]: string} = Messages.EventAggregatorSettings.messageParams;
@@ -225,19 +192,31 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
         resolve();
       });
 
-      this.publishFinishManualTaskEvent(identity, matchingManualTask);
+      this.publishFinishManualTaskEvent(identity, matchingFlowNodeInstance);
     });
   }
 
-  public async convertFlowNodeInstancesToManualTasks(
+  public async filterAndConvertManualTaskList(
     identity: IIdentity,
     suspendedFlowNodes: Array<FlowNodeInstance>,
+    offset?: number,
+    limit?: number,
   ): Promise<DataModels.ManualTasks.ManualTaskList> {
 
-    const suspendedManualTasks =
-      await Promise.map(suspendedFlowNodes, async (suspendedFlowNode): Promise<DataModels.ManualTasks.ManualTask> => {
-        return this.convertSuspendedFlowNodeToManualTask(identity, suspendedFlowNode);
-      });
+    const manualTasks = suspendedFlowNodes.filter(this.checkIfIsFlowNodeIsManualTask);
+
+    const accessibleManualTasks = await this.filterInacessibleFlowNodeInstances(identity, manualTasks);
+
+    const manualTasksToReturn = applyPagination(accessibleManualTasks, offset, limit);
+
+    const manualTaskList = this.convertFlowNodeInstancesToManualTasks(manualTasksToReturn);
+
+    return manualTaskList;
+  }
+
+  private convertFlowNodeInstancesToManualTasks(suspendedFlowNodes: Array<FlowNodeInstance>): DataModels.ManualTasks.ManualTaskList {
+
+    const suspendedManualTasks = suspendedFlowNodes.map(this.convertSuspendedFlowNodeToManualTask);
 
     const manualTaskList: DataModels.ManualTasks.ManualTaskList = {
       manualTasks: suspendedManualTasks,
@@ -255,21 +234,66 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
     return identityA.userId === identityB.userId;
   }
 
-  private async convertSuspendedFlowNodeToManualTask(
+  private async filterInacessibleFlowNodeInstances(
     identity: IIdentity,
-    manualTaskInstance: FlowNodeInstance,
-  ): Promise<DataModels.ManualTasks.ManualTask> {
+    flowNodeInstances: Array<FlowNodeInstance>,
+  ): Promise<Array<FlowNodeInstance>> {
+    const isSuperAdmin = await this.checkIfUserIsSuperAdmin(identity);
+
+    if (isSuperAdmin) {
+      return flowNodeInstances;
+    }
+
+    const accessibleFlowNodeInstances = Promise.filter(flowNodeInstances, async (item: FlowNodeInstance): Promise<boolean> => {
+      return this.checkIfUserCanAccessFlowNodeInstance(identity, item);
+    });
+
+    return accessibleFlowNodeInstances;
+  }
+
+  private async checkIfUserCanAccessFlowNodeInstance(identity: IIdentity, flowNodeInstance: FlowNodeInstance): Promise<boolean> {
+    try {
+      if (!flowNodeInstance.flowNodeLane) {
+        return true;
+      }
+
+      await this.iamService.ensureHasClaim(identity, flowNodeInstance.flowNodeLane);
+
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  private async ensureHasClaim(identity: IIdentity, claimName: string): Promise<void> {
+    const isSuperAdmin = await this.checkIfUserIsSuperAdmin(identity);
+
+    if (isSuperAdmin) {
+      return;
+    }
+
+    await this.iamService.ensureHasClaim(identity, claimName);
+  }
+
+  private async checkIfUserIsSuperAdmin(identity: IIdentity): Promise<boolean> {
+    try {
+      await this.iamService.ensureHasClaim(identity, superAdminClaim);
+
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  private convertSuspendedFlowNodeToManualTask(manualTaskInstance: FlowNodeInstance): DataModels.ManualTasks.ManualTask {
 
     const onSuspendToken = manualTaskInstance.getTokenByType(ProcessTokenType.onSuspend);
-
-    const processModelFacade = await this.getProcessModelForFlowNodeInstance(identity, manualTaskInstance);
-    const manualTaskModel = processModelFacade.getFlowNodeById(manualTaskInstance.flowNodeId);
 
     const consumerApiManualTask: DataModels.ManualTasks.ManualTask = {
       flowNodeType: BpmnType.manualTask,
       id: manualTaskInstance.flowNodeId,
       flowNodeInstanceId: manualTaskInstance.id,
-      name: manualTaskModel.name,
+      name: manualTaskInstance.flowNodeName,
       correlationId: manualTaskInstance.correlationId,
       processModelId: manualTaskInstance.processModelId,
       processInstanceId: manualTaskInstance.processInstanceId,
@@ -277,38 +301,6 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
     };
 
     return consumerApiManualTask;
-
-  }
-
-  private async getProcessModelForFlowNodeInstance(
-    identity: IIdentity,
-    flowNodeInstance: FlowNodeInstance,
-  ): Promise<IProcessModelFacade> {
-
-    let processModel: Model.Process;
-
-    // We must store the ProcessModel for each user, to account for lane-restrictions.
-    // Some users may not be able to see some lanes that are visible to others.
-    const cacheKeyToUse = `${flowNodeInstance.processInstanceId}-${identity.userId}`;
-
-    const cacheHasMatchingEntry = ProcessModelCache.hasEntry(cacheKeyToUse);
-    if (cacheHasMatchingEntry) {
-      processModel = ProcessModelCache.get(cacheKeyToUse);
-    } else {
-      const processModelHash = await this.getProcessModelHashForProcessInstance(identity, flowNodeInstance.processInstanceId);
-      processModel = await this.processModelUseCase.getByHash(identity, flowNodeInstance.processModelId, processModelHash);
-      ProcessModelCache.add(cacheKeyToUse, processModel);
-    }
-
-    const processModelFacade = this.processModelFacadeFactory.create(processModel);
-
-    return processModelFacade;
-  }
-
-  private async getProcessModelHashForProcessInstance(identity: IIdentity, processInstanceId: string): Promise<string> {
-    const processInstance = await this.correlationService.getByProcessInstanceId(identity, processInstanceId);
-
-    return processInstance.hash;
   }
 
   private async getFlowNodeInstanceForCorrelationInProcessInstance(
@@ -327,10 +319,7 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
     return matchingInstance;
   }
 
-  private publishFinishManualTaskEvent(
-    identity: IIdentity,
-    manualTaskInstance: DataModels.ManualTasks.ManualTask,
-  ): void {
+  private publishFinishManualTaskEvent(identity: IIdentity, manualTaskInstance: FlowNodeInstance): void {
 
     // ManualTasks do not produce results.
     const emptyPayload = {};
@@ -339,7 +328,7 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
       manualTaskInstance.processModelId,
       manualTaskInstance.processInstanceId,
       manualTaskInstance.id,
-      manualTaskInstance.flowNodeInstanceId,
+      manualTaskInstance.id,
       identity,
       emptyPayload,
     );
@@ -347,7 +336,7 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
     const finishManualTaskEvent = Messages.EventAggregatorSettings.messagePaths.finishManualTask
       .replace(Messages.EventAggregatorSettings.messageParams.correlationId, manualTaskInstance.correlationId)
       .replace(Messages.EventAggregatorSettings.messageParams.processInstanceId, manualTaskInstance.processInstanceId)
-      .replace(Messages.EventAggregatorSettings.messageParams.flowNodeInstanceId, manualTaskInstance.flowNodeInstanceId);
+      .replace(Messages.EventAggregatorSettings.messageParams.flowNodeInstanceId, manualTaskInstance.id);
 
     this.eventAggregator.publish(finishManualTaskEvent, finishManualTaskMessage);
   }

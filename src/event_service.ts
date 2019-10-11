@@ -5,6 +5,7 @@ import {IIAMService, IIdentity} from '@essential-projects/iam_contracts';
 import {APIs, DataModels, Messages} from '@process-engine/consumer_api_contracts';
 import {
   FlowNodeInstance,
+  FlowNodeInstanceState,
   ICorrelationService,
   IFlowNodeInstanceService,
   IProcessModelUseCases,
@@ -15,6 +16,10 @@ import {IProcessModelFacade, IProcessModelFacadeFactory} from '@process-engine/p
 import {applyPagination} from './paginator';
 import * as ProcessModelCache from './process_model_cache';
 
+const superAdminClaim = 'can_manage_process_instances';
+const canTriggerMessagesClaim = 'can_trigger_messages';
+const canTriggerSignalsClaim = 'can_trigger_signals';
+
 export class EventService implements APIs.IEventConsumerApi {
 
   private readonly correlationService: ICorrelationService;
@@ -23,9 +28,6 @@ export class EventService implements APIs.IEventConsumerApi {
   private readonly iamService: IIAMService;
   private readonly processModelUseCase: IProcessModelUseCases;
   private readonly processModelFacadeFactory: IProcessModelFacadeFactory;
-
-  private readonly canTriggerMessagesClaim = 'can_trigger_messages';
-  private readonly canTriggerSignalsClaim = 'can_trigger_signals';
 
   constructor(
     correlationService: ICorrelationService,
@@ -52,11 +54,7 @@ export class EventService implements APIs.IEventConsumerApi {
 
     const suspendedFlowNodeInstances = await this.flowNodeInstanceService.querySuspendedByProcessModel(processModelId);
 
-    const suspendedEvents = suspendedFlowNodeInstances.filter(this.isFlowNodeAnEvent);
-
-    const eventList = await this.convertFlowNodeInstancesToEvents(identity, suspendedEvents);
-
-    eventList.events = applyPagination(eventList.events, offset, limit);
+    const eventList = await this.filterAndConvertEventList(identity, suspendedFlowNodeInstances, offset, limit);
 
     return eventList;
   }
@@ -70,22 +68,7 @@ export class EventService implements APIs.IEventConsumerApi {
 
     const suspendedFlowNodeInstances = await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
 
-    const suspendedEvents = suspendedFlowNodeInstances.filter(this.isFlowNodeAnEvent);
-
-    const accessibleEvents = await Promise.filter(suspendedEvents, async (flowNode: FlowNodeInstance): Promise<boolean> => {
-      try {
-        await this.processModelUseCase.getProcessModelById(identity, flowNode.processModelId);
-
-        return true;
-      } catch (error) {
-
-        return false;
-      }
-    });
-
-    const eventList = await this.convertFlowNodeInstancesToEvents(identity, accessibleEvents);
-
-    eventList.events = applyPagination(eventList.events, offset, limit);
+    const eventList = await this.filterAndConvertEventList(identity, suspendedFlowNodeInstances, offset, limit);
 
     return eventList;
   }
@@ -98,26 +81,20 @@ export class EventService implements APIs.IEventConsumerApi {
     limit: number = 0,
   ): Promise<DataModels.Events.EventList> {
 
-    const suspendedFlowNodeInstances = await this.flowNodeInstanceService.querySuspendedByCorrelation(correlationId);
+    const flowNodeInstances = await this.flowNodeInstanceService.queryByCorrelationAndProcessModel(correlationId, processModelId);
 
-    const suspendedEvents = suspendedFlowNodeInstances.filter((flowNode: FlowNodeInstance): boolean => {
-
-      const flowNodeIsEvent = this.isFlowNodeAnEvent(flowNode);
-      const flowNodeBelongsToProcessModel = flowNode.processModelId === processModelId;
-
-      return flowNodeIsEvent && flowNodeBelongsToProcessModel;
+    const suspendedFlowNodeInstances = flowNodeInstances.filter((flowNodeInstance: FlowNodeInstance): boolean => {
+      return flowNodeInstance.state === FlowNodeInstanceState.suspended;
     });
 
-    const eventList = await this.convertFlowNodeInstancesToEvents(identity, suspendedEvents);
-
-    eventList.events = applyPagination(eventList.events, offset, limit);
+    const eventList = await this.filterAndConvertEventList(identity, suspendedFlowNodeInstances, offset, limit);
 
     return eventList;
   }
 
   public async triggerMessageEvent(identity: IIdentity, messageName: string, payload?: DataModels.Events.EventTriggerPayload): Promise<void> {
 
-    await this.iamService.ensureHasClaim(identity, this.canTriggerMessagesClaim);
+    await this.iamService.ensureHasClaim(identity, canTriggerMessagesClaim);
 
     const messageEventName = Messages.EventAggregatorSettings.messagePaths.messageEventReached
       .replace(Messages.EventAggregatorSettings.messageParams.messageReference, messageName);
@@ -127,12 +104,75 @@ export class EventService implements APIs.IEventConsumerApi {
 
   public async triggerSignalEvent(identity: IIdentity, signalName: string, payload?: DataModels.Events.EventTriggerPayload): Promise<void> {
 
-    await this.iamService.ensureHasClaim(identity, this.canTriggerSignalsClaim);
+    await this.iamService.ensureHasClaim(identity, canTriggerSignalsClaim);
 
     const signalEventName = Messages.EventAggregatorSettings.messagePaths.signalEventReached
       .replace(Messages.EventAggregatorSettings.messageParams.signalReference, signalName);
 
     this.eventAggregator.publish(signalEventName, payload);
+  }
+
+  public async filterAndConvertEventList(
+    identity: IIdentity,
+    suspendedFlowNodes: Array<FlowNodeInstance>,
+    offset?: number,
+    limit?: number,
+  ): Promise<DataModels.Events.EventList> {
+
+    const events = suspendedFlowNodes.filter(this.checkIfFlowNodeIsAnEvent);
+
+    const accessibleEvents = await this.filterInacessibleFlowNodeInstances(identity, events);
+
+    const eventsToReturn = applyPagination(accessibleEvents, offset, limit);
+
+    const eventList = await this.convertFlowNodeInstancesToEvents(identity, eventsToReturn);
+
+    return eventList;
+  }
+
+  private checkIfFlowNodeIsAnEvent(flowNodeInstance: FlowNodeInstance): boolean {
+    return flowNodeInstance.eventType !== undefined;
+  }
+
+  private async filterInacessibleFlowNodeInstances(
+    identity: IIdentity,
+    flowNodeInstances: Array<FlowNodeInstance>,
+  ): Promise<Array<FlowNodeInstance>> {
+    const isSuperAdmin = await this.checkIfUserIsSuperAdmin(identity);
+
+    if (isSuperAdmin) {
+      return flowNodeInstances;
+    }
+
+    const accessibleFlowNodeInstances = Promise.filter(flowNodeInstances, async (item: FlowNodeInstance): Promise<boolean> => {
+      return this.checkIfUserCanAccessFlowNodeInstance(identity, item);
+    });
+
+    return accessibleFlowNodeInstances;
+  }
+
+  private async checkIfUserCanAccessFlowNodeInstance(identity: IIdentity, flowNodeInstance: FlowNodeInstance): Promise<boolean> {
+    try {
+      if (!flowNodeInstance.flowNodeLane) {
+        return true;
+      }
+
+      await this.iamService.ensureHasClaim(identity, flowNodeInstance.flowNodeLane);
+
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  private async checkIfUserIsSuperAdmin(identity: IIdentity): Promise<boolean> {
+    try {
+      await this.iamService.ensureHasClaim(identity, superAdminClaim);
+
+      return true;
+    } catch (error) {
+      return false;
+    }
   }
 
   private async convertFlowNodeInstancesToEvents(
@@ -151,10 +191,6 @@ export class EventService implements APIs.IEventConsumerApi {
     };
 
     return eventList;
-  }
-
-  private isFlowNodeAnEvent(flowNodeInstance: FlowNodeInstance): boolean {
-    return flowNodeInstance.eventType !== undefined;
   }
 
   private async convertToConsumerApiEvent(identity: IIdentity, suspendedFlowNode: FlowNodeInstance): Promise<DataModels.Events.Event> {
