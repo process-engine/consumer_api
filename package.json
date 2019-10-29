@@ -29,8 +29,8 @@
   "homepage": "https://github.com/process-engine/consumer_api#readme",
   "dependencies": {
     "@essential-projects/errors_ts": "^1.5.0",
-    "@process-engine/consumer_api_contracts": "^9.0.0",
-    "@process-engine/persistence_api.contracts": "1.1.0-alpha.4",
+    "@process-engine/consumer_api_contracts": "9.1.0-alpha.2",
+    "@process-engine/persistence_api.contracts": "1.1.0-alpha.11",
     "@process-engine/process_engine_contracts": "^46.0.0",
     "bluebird": "~3.5.2",
     "bluebird-global": "~1.0.1",
@@ -39,12 +39,11 @@
   },
   "devDependencies": {
     "@essential-projects/eslint-config": "^1.0.0",
-    "@process-engine/ci_tools": "^2.0.0",
+    "@process-engine/ci_tools": "^2.2.0",
     "@types/bluebird-global": "^3.5.9",
-    "@types/node": "^10.12.2",
-    "eslint": "^5.16.0",
-    "tsconfig": "^7.0.0",
-    "typescript": "^3.1.6"
+    "@types/node": "^12.11.7",
+    "eslint": "^6.6.0",
+    "typescript": "^3.6.4"
   },
   "scripts": {
     "clean": "rm -rf dist",
