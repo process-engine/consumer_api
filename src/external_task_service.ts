@@ -63,14 +63,20 @@ export class ExternalTaskService implements APIs.IExternalTaskConsumerApi {
     return this.externalTaskService.lockForWorker(identity, workerId, externalTaskId, newLockExpirationTime);
   }
 
-  public async handleBpmnError(identity: IIdentity, workerId: string, externalTaskId: string, errorCode: string): Promise<void> {
+  public async handleBpmnError(
+    identity: IIdentity,
+    workerId: string,
+    externalTaskId: string,
+    errorCode: string,
+    errorMessage?: string,
+  ): Promise<void> {
 
     // Note: The type of the initial payload is irrelevant for finishing with an error.
     const externalTask = await this.externalTaskService.getById(identity, externalTaskId);
 
     this.ensureExternalTaskCanBeAccessedByWorker(externalTask, externalTaskId, workerId);
 
-    const error = new EssentialProjectErrors.InternalServerError(`ExternalTask failed due to BPMN error with code ${errorCode}`);
+    const error = new DataModels.ExternalTask.BpmnError('BpmnError', errorCode, errorMessage);
 
     await this.externalTaskService.finishWithError(identity, externalTaskId, error);
 
@@ -85,14 +91,14 @@ export class ExternalTaskService implements APIs.IExternalTaskConsumerApi {
     externalTaskId: string,
     errorMessage: string,
     errorDetails: string,
+    errorCode?: string,
   ): Promise<void> {
 
     const externalTask = await this.externalTaskService.getById(identity, externalTaskId);
 
     this.ensureExternalTaskCanBeAccessedByWorker(externalTask, externalTaskId, workerId);
 
-    const error = new EssentialProjectErrors.InternalServerError(errorMessage);
-    error.additionalInformation = errorDetails;
+    const error = new DataModels.ExternalTask.ServiceError('ServiceError', errorCode, errorMessage, errorDetails);
 
     await this.externalTaskService.finishWithError(identity, externalTaskId, error);
 
