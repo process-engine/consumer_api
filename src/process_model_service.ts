@@ -363,8 +363,8 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
       if (processInstanceListHasNoMatchingEntry) {
         const processInstance = new DataModels.ProcessModels.ProcessInstance(
           flowNodeInstance.processInstanceId,
-          flowNodeInstance.processModelId,
           flowNodeInstance.correlationId,
+          flowNodeInstance.processModelId,
           flowNodeInstance.owner,
           flowNodeInstance.parentProcessInstanceId,
         );
