@@ -384,7 +384,7 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
     if (cacheHasMatchingEntry) {
       processModel = ProcessModelCache.get(cacheKeyToUse);
     } else {
-      const processModelHash = await this.getProcessModelHashForProcessInstance(identity, flowNodeInstance.processInstanceId);
+      const processModelHash = await this.getProcessModelHashForProcessInstance(flowNodeInstance.processInstanceId);
       processModel = await this.processModelUseCase.getByHash(identity, flowNodeInstance.processModelId, processModelHash);
       ProcessModelCache.add(cacheKeyToUse, processModel);
     }
@@ -394,7 +394,7 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
     return processModelFacade;
   }
 
-  private async getProcessModelHashForProcessInstance(identity: IIdentity, processInstanceId: string): Promise<string> {
+  private async getProcessModelHashForProcessInstance(processInstanceId: string): Promise<string> {
     const processInstance = await this.correlationService.getByProcessInstanceId(this.internalIdentity, processInstanceId);
 
     return processInstance.hash;
