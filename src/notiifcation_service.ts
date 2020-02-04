@@ -4,12 +4,13 @@ import {APIs, Messages} from '@process-engine/consumer_api_contracts';
 
 import {NotificationAdapter} from './adapters/index';
 
+const superAdminClaim = 'can_manage_process_instances';
+const canSubscribeToEventsClaim = 'can_subscribe_to_events';
+
 export class NotificationService implements APIs.INotificationConsumerApi {
 
   private readonly iamService: IIAMService;
   private readonly notificationAdapter: NotificationAdapter;
-
-  private readonly canSubscribeToEventsClaim = 'can_subscribe_to_events';
 
   constructor(
     iamService: IIAMService,
@@ -24,7 +25,7 @@ export class NotificationService implements APIs.INotificationConsumerApi {
     callback: Messages.CallbackTypes.OnActivityReachedCallback,
     subscribeOnce: boolean = false,
   ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onActivityReached(identity, callback, subscribeOnce);
   }
@@ -34,7 +35,7 @@ export class NotificationService implements APIs.INotificationConsumerApi {
     callback: Messages.CallbackTypes.OnActivityFinishedCallback,
     subscribeOnce: boolean = false,
   ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onActivityFinished(identity, callback, subscribeOnce);
   }
@@ -44,7 +45,7 @@ export class NotificationService implements APIs.INotificationConsumerApi {
     callback: Messages.CallbackTypes.OnEmptyActivityWaitingCallback,
     subscribeOnce?: boolean,
   ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onEmptyActivityWaiting(identity, callback, subscribeOnce);
   }
@@ -54,7 +55,7 @@ export class NotificationService implements APIs.INotificationConsumerApi {
     callback: Messages.CallbackTypes.OnEmptyActivityFinishedCallback,
     subscribeOnce?: boolean,
   ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onEmptyActivityFinished(identity, callback, subscribeOnce);
   }
@@ -64,7 +65,7 @@ export class NotificationService implements APIs.INotificationConsumerApi {
     callback: Messages.CallbackTypes.OnEmptyActivityWaitingCallback,
     subscribeOnce?: boolean,
   ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onEmptyActivityForIdentityWaiting(identity, callback, subscribeOnce);
   }
@@ -74,7 +75,7 @@ export class NotificationService implements APIs.INotificationConsumerApi {
     callback: Messages.CallbackTypes.OnEmptyActivityFinishedCallback,
     subscribeOnce?: boolean,
   ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onEmptyActivityForIdentityFinished(identity, callback, subscribeOnce);
   }
@@ -84,7 +85,7 @@ export class NotificationService implements APIs.INotificationConsumerApi {
     callback: Messages.CallbackTypes.OnUserTaskWaitingCallback,
     subscribeOnce = false,
   ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onUserTaskWaiting(identity, callback, subscribeOnce);
   }
@@ -94,7 +95,7 @@ export class NotificationService implements APIs.INotificationConsumerApi {
     callback: Messages.CallbackTypes.OnUserTaskFinishedCallback,
     subscribeOnce = false,
   ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onUserTaskFinished(identity, callback, subscribeOnce);
   }
@@ -104,7 +105,7 @@ export class NotificationService implements APIs.INotificationConsumerApi {
     callback: Messages.CallbackTypes.OnUserTaskWaitingCallback,
     subscribeOnce = false,
   ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onUserTaskForIdentityWaiting(identity, callback, subscribeOnce);
   }
@@ -114,7 +115,7 @@ export class NotificationService implements APIs.INotificationConsumerApi {
     callback: Messages.CallbackTypes.OnUserTaskFinishedCallback,
     subscribeOnce = false,
   ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onUserTaskForIdentityFinished(identity, callback, subscribeOnce);
   }
@@ -124,7 +125,7 @@ export class NotificationService implements APIs.INotificationConsumerApi {
     callback: Messages.CallbackTypes.OnBoundaryEventTriggeredCallback,
     subscribeOnce: boolean = false,
   ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onBoundaryEventTriggered(identity, callback, subscribeOnce);
   }
@@ -134,7 +135,7 @@ export class NotificationService implements APIs.INotificationConsumerApi {
     callback: Messages.CallbackTypes.OnIntermediateCatchEventReachedCallback,
     subscribeOnce: boolean = false,
   ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onIntermediateCatchEventReached(identity, callback, subscribeOnce);
   }
@@ -144,7 +145,7 @@ export class NotificationService implements APIs.INotificationConsumerApi {
     callback: Messages.CallbackTypes.OnIntermediateCatchEventFinishedCallback,
     subscribeOnce: boolean = false,
   ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onIntermediateCatchEventFinished(identity, callback, subscribeOnce);
   }
@@ -154,7 +155,7 @@ export class NotificationService implements APIs.INotificationConsumerApi {
     callback: Messages.CallbackTypes.OnIntermediateThrowEventTriggeredCallback,
     subscribeOnce: boolean = false,
   ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onIntermediateThrowEventTriggered(identity, callback, subscribeOnce);
   }
@@ -164,7 +165,7 @@ export class NotificationService implements APIs.INotificationConsumerApi {
     callback: Messages.CallbackTypes.OnManualTaskWaitingCallback,
     subscribeOnce = false,
   ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onManualTaskWaiting(identity, callback, subscribeOnce);
   }
@@ -174,7 +175,7 @@ export class NotificationService implements APIs.INotificationConsumerApi {
     callback: Messages.CallbackTypes.OnManualTaskFinishedCallback,
     subscribeOnce = false,
   ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onManualTaskFinished(identity, callback, subscribeOnce);
   }
@@ -184,7 +185,7 @@ export class NotificationService implements APIs.INotificationConsumerApi {
     callback: Messages.CallbackTypes.OnManualTaskWaitingCallback,
     subscribeOnce = false,
   ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onManualTaskForIdentityWaiting(identity, callback, subscribeOnce);
   }
@@ -194,7 +195,7 @@ export class NotificationService implements APIs.INotificationConsumerApi {
     callback: Messages.CallbackTypes.OnManualTaskFinishedCallback,
     subscribeOnce = false,
   ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onManualTaskForIdentityFinished(identity, callback, subscribeOnce);
   }
@@ -204,7 +205,7 @@ export class NotificationService implements APIs.INotificationConsumerApi {
     callback: Messages.CallbackTypes.OnProcessStartedCallback,
     subscribeOnce = false,
   ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onProcessStarted(identity, callback, subscribeOnce);
   }
@@ -215,7 +216,7 @@ export class NotificationService implements APIs.INotificationConsumerApi {
     processModelId: string,
     subscribeOnce = false,
   ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onProcessWithProcessModelIdStarted(identity, callback, processModelId, subscribeOnce);
   }
@@ -225,7 +226,7 @@ export class NotificationService implements APIs.INotificationConsumerApi {
     callback: Messages.CallbackTypes.OnProcessEndedCallback,
     subscribeOnce = false,
   ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onProcessEnded(identity, callback, subscribeOnce);
   }
@@ -235,7 +236,7 @@ export class NotificationService implements APIs.INotificationConsumerApi {
     callback: Messages.CallbackTypes.OnProcessTerminatedCallback,
     subscribeOnce = false,
   ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onProcessTerminated(identity, callback, subscribeOnce);
   }
@@ -245,15 +246,35 @@ export class NotificationService implements APIs.INotificationConsumerApi {
     callback: Messages.CallbackTypes.OnProcessErrorCallback,
     subscribeOnce = false,
   ): Promise<Subscription> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     return this.notificationAdapter.onProcessError(identity, callback, subscribeOnce);
   }
 
   public async removeSubscription(identity: IIdentity, subscription: Subscription): Promise<void> {
-    await this.iamService.ensureHasClaim(identity, this.canSubscribeToEventsClaim);
+    await this.ensureHasClaim(identity, canSubscribeToEventsClaim);
 
     this.notificationAdapter.removeSubscription(subscription);
+  }
+
+  private async ensureHasClaim(identity: IIdentity, claimName: string): Promise<void> {
+
+    const isSuperAdmin = await this.checkIfUserIsSuperAdmin(identity);
+    if (isSuperAdmin) {
+      return;
+    }
+
+    await this.iamService.ensureHasClaim(identity, claimName);
+  }
+
+  private async checkIfUserIsSuperAdmin(identity: IIdentity): Promise<boolean> {
+    try {
+      await this.iamService.ensureHasClaim(identity, superAdminClaim);
+
+      return true;
+    } catch (error) {
+      return false;
+    }
   }
 
 }
