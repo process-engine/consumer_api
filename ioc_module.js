@@ -20,7 +20,6 @@ function registerInContainer(container) {
   container
     .register('ConsumerApiEmptyActivityService', EmptyActivityService)
     .dependencies(
-      'CorrelationService',
       'EventAggregator',
       'FlowNodeInstanceService',
       'IamService',
@@ -34,6 +33,7 @@ function registerInContainer(container) {
       'CorrelationService',
       'EventAggregator',
       'FlowNodeInstanceService',
+      'IdentityService',
       'IamService',
       'ProcessModelFacadeFactory',
       'ProcessModelUseCases',
@@ -57,7 +57,6 @@ function registerInContainer(container) {
   container
     .register('ConsumerApiManualTaskService', ManualTaskService)
     .dependencies(
-      'CorrelationService',
       'EventAggregator',
       'FlowNodeInstanceService',
       'IamService',
@@ -88,6 +87,7 @@ function registerInContainer(container) {
       'CorrelationService',
       'EventAggregator',
       'FlowNodeInstanceService',
+      'IdentityService',
       'IamService',
       'ConsumerApiNotificationAdapter',
       'ProcessModelFacadeFactory',
