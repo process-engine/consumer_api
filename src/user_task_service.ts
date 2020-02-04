@@ -281,10 +281,23 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
     }
 
     const accessibleFlowNodeInstances = Promise.filter(flowNodeInstances, async (item: FlowNodeInstance): Promise<boolean> => {
-      return this.checkIfUserCanAccessFlowNodeInstance(identity, item);
+      const userCanAccessProcessInstance = await this.checkIfUserCanAccessProcessInstance(identity, item);
+      const userCanAccessFlowNodeInstance = await this.checkIfUserCanAccessFlowNodeInstance(identity, item);
+
+      return userCanAccessFlowNodeInstance && userCanAccessProcessInstance;
     });
 
     return accessibleFlowNodeInstances;
+  }
+
+  private async checkIfUserCanAccessProcessInstance(identity: IIdentity, flowNodeInstance: FlowNodeInstance): Promise<boolean> {
+    try {
+      await this.correlationService.getByProcessInstanceId(identity, flowNodeInstance.processInstanceId);
+
+      return true;
+    } catch (error) {
+      return false;
+    }
   }
 
   private async checkIfUserCanAccessFlowNodeInstance(identity: IIdentity, flowNodeInstance: FlowNodeInstance): Promise<boolean> {

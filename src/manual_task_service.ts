@@ -6,6 +6,7 @@ import {
   BpmnType,
   FlowNodeInstance,
   FlowNodeInstanceState,
+  ICorrelationService,
   IFlowNodeInstanceService,
   ProcessTokenType,
 } from '@process-engine/persistence_api.contracts';
@@ -19,17 +20,20 @@ const canSubscribeToEventsClaim = 'can_subscribe_to_events';
 
 export class ManualTaskService implements APIs.IManualTaskConsumerApi {
 
+  private readonly correlationService: ICorrelationService;
   private readonly eventAggregator: IEventAggregator;
   private readonly flowNodeInstanceService: IFlowNodeInstanceService;
   private readonly iamService: IIAMService;
   private readonly notificationAdapter: NotificationAdapter;
 
   constructor(
+    correlationService: ICorrelationService,
     eventAggregator: IEventAggregator,
     flowNodeInstanceService: IFlowNodeInstanceService,
     iamService: IIAMService,
     notificationAdapter: NotificationAdapter,
   ) {
+    this.correlationService = correlationService;
     this.eventAggregator = eventAggregator;
     this.flowNodeInstanceService = flowNodeInstanceService;
     this.iamService = iamService;
@@ -245,10 +249,23 @@ export class ManualTaskService implements APIs.IManualTaskConsumerApi {
     }
 
     const accessibleFlowNodeInstances = Promise.filter(flowNodeInstances, async (item: FlowNodeInstance): Promise<boolean> => {
-      return this.checkIfUserCanAccessFlowNodeInstance(identity, item);
+      const userCanAccessProcessInstance = await this.checkIfUserCanAccessProcessInstance(identity, item);
+      const userCanAccessFlowNodeInstance = await this.checkIfUserCanAccessFlowNodeInstance(identity, item);
+
+      return userCanAccessFlowNodeInstance && userCanAccessProcessInstance;
     });
 
     return accessibleFlowNodeInstances;
+  }
+
+  private async checkIfUserCanAccessProcessInstance(identity: IIdentity, flowNodeInstance: FlowNodeInstance): Promise<boolean> {
+    try {
+      await this.correlationService.getByProcessInstanceId(identity, flowNodeInstance.processInstanceId);
+
+      return true;
+    } catch (error) {
+      return false;
+    }
   }
 
   private async checkIfUserCanAccessFlowNodeInstance(identity: IIdentity, flowNodeInstance: FlowNodeInstance): Promise<boolean> {
