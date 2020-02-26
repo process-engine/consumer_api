@@ -1,4 +1,5 @@
 const {
+  ApplicationInfoService,
   NotificationAdapter,
   EmptyActivityService,
   EventService,
@@ -11,6 +12,10 @@ const {
 } = require('./dist/commonjs/index');
 
 function registerInContainer(container) {
+
+  container
+    .register('ConsumerApiApplicationInfoService', ApplicationInfoService)
+    .singleton();
 
   container
     .register('ConsumerApiNotificationAdapter', NotificationAdapter)
