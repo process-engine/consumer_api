@@ -29,7 +29,7 @@
   "homepage": "https://github.com/process-engine/consumer_api#readme",
   "dependencies": {
     "@essential-projects/errors_ts": "^1.5.0",
-    "@process-engine/consumer_api_contracts": "^9.2.0",
+    "@process-engine/consumer_api_contracts": "feature~add_info_route",
     "@process-engine/persistence_api.contracts": "^1.1.0",
     "@process-engine/process_engine_contracts": "^47.0.0",
     "bluebird": "~3.5.2",
