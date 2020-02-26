@@ -1,5 +1,6 @@
 export * from './adapters/index';
 
+export * from './application_info_service';
 export * from './empty_activity_service';
 export * from './event_service';
 export * from './external_task_service';
