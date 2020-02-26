@@ -35,7 +35,8 @@ export class ApplicationInfoService implements APIs.IApplicationInfoConsumerApi 
     // Note that if the Runtime is embedded into another application, the runtime's package.json will not be the main package.json,
     // It will instead be located in `someapplication/node_modules/@process-engine/process_engine-runtime`.
     // Therefore, we cannot use app-root-path here.
-    const pathToRuntime = __dirname.split('process_engine_runtime')[0];
+    const applicationFolderIndex = __dirname.lastIndexOf('process_engine_runtime');
+    const pathToRuntime = __dirname.substring(0, applicationFolderIndex);
     const pathToPackageJson = path.resolve(pathToRuntime, 'process_engine_runtime', 'package.json');
 
     return pathToPackageJson;
