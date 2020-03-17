@@ -1,4 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import * as Bluebird from 'bluebird';
+
 import {BadRequestError, NotFoundError} from '@essential-projects/errors_ts';
 import {IEventAggregator, Subscription} from '@essential-projects/event_aggregator_contracts';
 import {IIAMService, IIdentity, IIdentityService} from '@essential-projects/iam_contracts';
@@ -262,7 +264,7 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
   ): Promise<DataModels.UserTasks.UserTaskList> {
 
     const suspendedUserTasks =
-      await Promise.map(suspendedFlowNodes, async (flowNode): Promise<DataModels.UserTasks.UserTask> => {
+      await Bluebird.map(suspendedFlowNodes, async (flowNode): Promise<DataModels.UserTasks.UserTask> => {
         return this.convertToConsumerApiUserTask(identity, flowNode);
       });
 
@@ -292,7 +294,7 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
       return flowNodeInstances;
     }
 
-    const accessibleFlowNodeInstances = Promise.filter(flowNodeInstances, async (item: FlowNodeInstance): Promise<boolean> => {
+    const accessibleFlowNodeInstances = Bluebird.filter(flowNodeInstances, async (item: FlowNodeInstance): Promise<boolean> => {
       return this.checkIfUserCanAccessFlowNodeInstance(identity, item);
     });
 
@@ -451,9 +453,9 @@ export class UserTaskService implements APIs.IUserTaskConsumerApi {
 
     const processInstanceTokens = await this.flowNodeInstanceService.queryProcessTokensByProcessInstanceId(processInstanceId);
 
-    const filteredInstanceTokens = processInstanceTokens.filter((token: ProcessToken): boolean => {
-      return token.type === ProcessTokenType.onExit;
-    });
+    const filteredInstanceTokens = processInstanceTokens
+      .filter((token) => token.type === ProcessTokenType.onExit)
+      .reverse();
 
     const processTokenFacade = this.processTokenFacadeFactory.create(processInstanceId, processModelId, correlationId, identity);
 
