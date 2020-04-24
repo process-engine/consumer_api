@@ -117,23 +117,12 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
     processModelId: string,
   ): Promise<DataModels.Correlations.CorrelationResultList> {
 
-    const processModel =
-      await this.processModelUseCase.getProcessModelById(identity, processModelId);
-
-    // First retreive all EndEvents the user can access.
-    const processModelFacade = this.processModelFacadeFactory.create(processModel);
-    const userAccessibleEndEvents = processModelFacade.getEndEvents();
-
-    // Get all FlowNodeInstances that were run in the Correlation.
     const flowNodeInstances = await this.flowNodeInstanceService.queryByCorrelation(correlationId);
 
-    const noResultsFound = !flowNodeInstances || flowNodeInstances.length === 0;
-    if (noResultsFound) {
-      throw new EssentialProjectErrors.NotFoundError(`No process results for correlation with id '${correlationId}' found.`);
-    }
+    const flowNodeInstancesForProcessModel = flowNodeInstances.filter((entry) => entry.processModelId === processModelId);
 
     // Get all EndEvents that were run in the Correlation.
-    const endEventInstances = flowNodeInstances.filter((flowNodeInstance: FlowNodeInstance): boolean => {
+    const endEventInstances = flowNodeInstancesForProcessModel.filter((flowNodeInstance) => {
 
       const isEndEvent = flowNodeInstance.flowNodeType === BpmnType.endEvent;
       const isFromProcessModel = flowNodeInstance.processModelId === processModelId;
@@ -150,10 +139,21 @@ export class ProcessModelService implements APIs.IProcessModelConsumerApi {
         && isNotFromSubprocess;
     });
 
+    if (endEventInstances.length === 0) {
+      return {
+        correlationResults: [],
+        totalCount: 0,
+      };
+    }
+
+    const processModel = await this.processModelUseCase.getProcessModelById(identity, processModelId);
+
+    const processModelFacade = this.processModelFacadeFactory.create(processModel);
+    const userAccessibleEndEvents = processModelFacade.getEndEvents();
+
     // Now filter out the EndEvents that the user has no access to.
-    const availableEndEvents = endEventInstances.filter((endEventInstance: FlowNodeInstance): boolean => {
-      return userAccessibleEndEvents
-        .some((accessibleEndEvent: Model.Events.EndEvent): boolean => accessibleEndEvent.id === endEventInstance.flowNodeId);
+    const availableEndEvents = endEventInstances.filter((endEventInstance) => {
+      return userAccessibleEndEvents.some((accessibleEndEvent) => accessibleEndEvent.id === endEventInstance.flowNodeId);
     });
 
     // Now extract all results from the available EndEvents.
